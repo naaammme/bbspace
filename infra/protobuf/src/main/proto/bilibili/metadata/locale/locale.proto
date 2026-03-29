@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package bilibili.metadata.locale;
+
+// 语言区域标识
+message LocaleIds {
+    string language = 1; // 语言代码 (e.g. "zh", "en")
+    string script   = 2; // 文字系统 (e.g. "Hans", "Hant")
+    string region   = 3; // 地区代码 (e.g. "CN", "TW")
+}
+// 本地化信息
+message Locale {
+    LocaleIds c_locale         = 1; // 客户端语言环境
+    LocaleIds s_locale         = 2; // 服务端语言环境
+    string    sim_code         = 3 [deprecated = true]; // SIM卡国家代码(已废弃)
+    string    timezone         = 4; // 时区 (e.g. "Asia/Shanghai")
+    string    utc_offset       = 5; // UTC偏移量 (e.g. "+8")
+    bool      is_daylight_time = 6; // 是否夏令时
+    bool      always_translate = 7; // 是否始终翻译
+}

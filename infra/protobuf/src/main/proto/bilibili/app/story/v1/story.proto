@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package bilibili.app.story.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.story.v1";
+option optimize_for = LITE_RUNTIME;
+
+message AIAudioItem {
+  repeated DashItem audioInfo = 1;
+  string title = 2;
+  string buttonTitle = 3;
+  string subtitleLang = 4;
+}
+
+message AIAudioReply {
+  bool supportAiAudio = 1;
+  repeated AIAudioItem aiAudioItems = 2;
+  string aiOpenToast = 3;
+  string aiCloseToast = 4;
+  Language language = 5;
+}
+
+message AIAudioReq {
+  int64 aid = 1;
+  int64 cid = 2;
+  int64 upMid = 3;
+}
+
+message ArchiveStatusReply {
+  bool isArchiveNormal = 1;
+}
+
+message ArchiveStatusReq {
+  int64 aid = 1;
+}
+
+message BgmPlayReply {
+  string url = 1;
+}
+
+message BgmPlayReq {
+  int64 musicId = 1;
+}
+
+message DashItem {
+  uint32 id = 1;
+  string baseUrl = 2;
+  repeated string backupUrl = 3;
+  uint32 bandwidth = 4;
+  uint32 codecid = 5;
+  string md5 = 6;
+  uint64 size = 7;
+  string frameRate = 8;
+  string widevinePssh = 9;
+  string bilidrmUri = 10;
+}
+
+message Language {
+  repeated LanguageItem items = 1;
+}
+
+message LanguageItem {
+  string lang = 1;
+  string title = 2;
+  string buttonTitle = 3;
+  string subtitleLang = 4;
+  bool videoDetext = 5;
+}
+
+message RerankAdInfo {
+  string requestId = 1;
+}
+
+message RerankCardInfo {
+  int32 displayId = 1;
+  int32 displayPos = 2;
+  string cardGoto = 3;
+  string param = 4;
+  map<string, string> playerArgs = 5;
+
+  oneof info {
+    RerankAdInfo adInfo = 6;
+  }
+}
+
+message RerankReply {
+  repeated RerankCardInfo card = 1;
+}
+
+message RerankReq {
+  int64 preAdStartTs = 1;
+  int64 preAdEndTs = 2;
+  RerankCardInfo preAdCard = 3;
+  int64 lastCardTs = 4;
+  RerankCardInfo lastCard = 5;
+  repeated RerankCardInfo unexposedCard = 6;
+  int32 lastAdGap = 7;
+}
+
+service Story {
+  rpc AIAudio(AIAudioReq) returns (AIAudioReply);
+  rpc ArchiveStatus(ArchiveStatusReq) returns (ArchiveStatusReply);
+  rpc BgmPlay(BgmPlayReq) returns (BgmPlayReply);
+  rpc Rerank(RerankReq) returns (RerankReply);
+}

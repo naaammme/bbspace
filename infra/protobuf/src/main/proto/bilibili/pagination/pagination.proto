@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package bilibili.pagination;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.pagination";
+option optimize_for = LITE_RUNTIME;
+
+message FeedPagination {
+  int32 pageSize = 1;
+  string offset = 2;
+  bool isRefresh = 3;
+}
+
+message FeedPaginationReply {
+  string nextOffset = 1;
+  string prevOffset = 2;
+  string lastReadOffset = 3;
+}
+
+message Pagination {
+  int32 pageSize = 1;
+  string next = 2;
+}
+
+message PaginationReply {
+  string next = 1;
+  string prev = 2;
+}

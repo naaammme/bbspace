@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package bilibili.dagw.component.avatar.v1.plugin;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.dagw.component.avatar.v1.plugin";
+option optimize_for = LITE_RUNTIME;
+
+import "bilibili/dagw/component/avatar/common/common.proto";
+
+message BorderConfig {
+  .bilibili.dagw.component.avatar.common.ColorConfig color = 1;
+  double borderWidth = 2;
+  double ratio = 3;
+}
+
+message CommentDoubleClickConfig {
+  Interaction interaction = 1;
+  double animationScale = 2;
+}
+
+message FollowActionConfig {
+  bool hasFollow = 1;
+  .bilibili.dagw.component.avatar.common.ResourceSource iconRes = 2;
+  double borderWidth = 3;
+  .bilibili.dagw.component.avatar.common.ColorConfig borderColor = 4;
+  int64 mid = 5;
+  double iconWidthRatio = 6;
+  double iconSizeOffset = 7;
+}
+
+message FollowIconConfig {
+  bool hasFollow = 1;
+  .bilibili.dagw.component.avatar.common.ResourceSource iconRes = 2;
+  double borderWidth = 3;
+  .bilibili.dagw.component.avatar.common.ColorConfig borderColor = 4;
+  int64 mid = 5;
+}
+
+message GyroConfig {
+  NFTImageV2 gyroscope = 1;
+}
+
+message GyroscopeContentV2 {
+  string fileUrl = 1;
+  float scale = 2;
+  repeated PhysicalOrientationV2 physicalOrientation = 3;
+}
+
+message GyroscopeEntityV2 {
+  string displayType = 1;
+  repeated GyroscopeContentV2 contents = 2;
+}
+
+message Interaction {
+  string nftId = 1;
+  bool enabled = 2;
+  string itype = 3;
+  string metadataUrl = 4;
+}
+
+message LiveAnimeConfig {
+  bool isLive = 1;
+  LiveTextConfig config = 2;
+  repeated LiveAnimeItem items = 3;
+  repeated BorderConfig borderConfig = 4;
+}
+
+message LiveAnimeItem {
+  .bilibili.dagw.component.avatar.common.ColorConfig color = 1;
+  double startRatio = 2;
+  double endRatio = 3;
+  double startStroke = 4;
+  double startOpacity = 5;
+  int64 phase = 6;
+}
+
+message LiveTextConfig {
+  double width = 1;
+  double height = 2;
+  double offsetY = 3;
+  double borderWidth = 4;
+  double textSize = 5;
+  .bilibili.dagw.component.avatar.common.ColorConfig borderColor = 7;
+  .bilibili.dagw.component.avatar.common.ColorConfig background = 8;
+}
+
+message NFTImageV2 {
+  repeated GyroscopeEntityV2 gyroscope = 1;
+}
+
+message PhysicalOrientationAnimation {
+  string type = 1;
+  repeated float value = 2;
+  string bezier = 3;
+}
+
+message PhysicalOrientationV2 {
+  string type = 1;
+  repeated float angle = 2;
+  repeated PhysicalOrientationAnimation animations = 3;
+}
+
+message WebLiveAnimeConfig {
+  double circleGapWidth = 1;
+  double pinkCircleWidth = 2;
+  double liveLabelWidth = 3;
+  double liveLabelHeight = 4;
+  double liveLabelOffsetY = 5;
+  double liveLabelBorderWidth = 6;
+}

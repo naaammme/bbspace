@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package bilibili.app.playerunite.ugcanymodel;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.playerunite.ugcanymodel";
+option java_outer_classname = "UgcanymodelProto";
+option optimize_for = LITE_RUNTIME;
+
+// 片段类型。
+enum ClipType {
+  CLIP_TYPE_UNSPECIFIED = 0;
+  CLIP_TYPE_HE = 1;
+}
+
+// 限播码。
+enum PlayLimitCode {
+  PLC_UNKNOWN = 0;
+  PLC_UGCNOTPAYED = 1;
+  PLC_ChargingPlusNotPass = 2;
+  PLC_ChargingPlusUpgrade = 3;
+  PLC_ChargingPlusReject = 4;
+  PLC_COMMON_CODE = 5;
+}
+
+// 限播按钮样式。
+message ButtonStyle {
+  string text = 1;
+  string textColor = 2;
+  string bgColor = 3;
+  string jumpLink = 4;
+}
+
+// 试看片段信息。
+message ClipInfo {
+  ClipType clipType = 1;
+  int64 materialNo = 2;
+  int64 start = 3;
+  int64 end = 4;
+}
+
+// 片段包装。
+message Clip {
+  ClipInfo clipInfo = 1;
+}
+
+// 限播信息。
+message PlayLimit {
+  PlayLimitCode code = 1;
+  string message = 2;
+  string subMessage = 3;
+  ButtonStyle button = 4;
+}
+
+// UGC 补充模型，通常作为 Any 业务体承载。
+message UGCAnyModel {
+  PlayLimit playLimit = 1;
+  reserved 2;
+  Clip clip = 3;
+}

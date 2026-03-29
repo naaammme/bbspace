@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package bilibili.app.show.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.show.popular.v1";
+option optimize_for = LITE_RUNTIME;
+
+import "bilibili/app/archive/middleware/v1/middleware.proto";
+import "bilibili/app/card/v1/card.proto";
+
+message Bubble {
+  string bubbleContent = 1;
+  int32 version = 2;
+  int64 stime = 3;
+}
+
+message Config {
+  string itemTitle = 1;
+  string bottomText = 2;
+  string bottomTextCover = 3;
+  string bottomTextUrl = 4;
+  repeated EntranceShow topItems = 5;
+  string headImage = 6;
+  repeated EntranceShow pageItems = 7;
+  int64 hit = 8;
+  string toast = 9;
+}
+
+message EntranceShow {
+  string icon = 1;
+  string title = 2;
+  string moduleId = 3;
+  string uri = 4;
+  Bubble bubble = 5;
+  int64 entranceId = 6;
+  string topPhoto = 7;
+  int32 entranceType = 8;
+}
+
+message PopularAd {
+  string extra = 1;
+}
+
+message PopularReply {
+  repeated .bilibili.app.card.v1.Card items = 1;
+  Config config = 2;
+  string ver = 3;
+}
+
+message PopularResultReq {
+  int64 idx = 1;
+  int32 loginEvent = 2;
+  int32 qn = 3;
+  int32 fnver = 4;
+  int32 fnval = 5;
+  int32 forceHost = 6;
+  int32 fourk = 7;
+  string spmid = 8;
+  string lastParam = 9;
+  string ver = 10;
+  int64 entranceId = 11;
+  string locationIds = 12;
+  int32 sourceId = 13;
+  int32 flush = 14;
+  .bilibili.app.archive.middleware.v1.PlayerArgs playerArgs = 15;
+  PopularAd popularAd = 16;
+}
+
+service Popular {
+  rpc Index(PopularResultReq) returns (PopularReply);
+}

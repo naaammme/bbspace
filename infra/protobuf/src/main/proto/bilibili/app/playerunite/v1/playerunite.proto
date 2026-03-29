@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package bilibili.app.playerunite.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.playerunite.v1";
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/any.proto";
+import "bilibili/playershared/playershared.proto";
+// 源于 粉版 v8.62.0
+// 字段名与字段号以当前反编译产物为准。
+
+// 统一播放页请求。
+message PlayViewUniteReq {
+    bilibili.playershared.VideoVod vod = 1;
+    int64 aid = 2;
+    string ep_id = 3;
+    string spmid = 4;
+    string from_spmid = 5;
+    string session = 6;
+    bilibili.playershared.VideoVod vod_param = 7;
+    string from_scene = 8;
+    map<string, string> extra_content = 9;
+    int32 play_ctrl = 10;
+    bilibili.playershared.Fragment fragment = 11;
+    int64 material_no = 12;
+    string risk_info = 13;
+    string mode = 14;
+}
+
+
+// 统一播放页响应。
+message PlayViewUniteReply {
+  // 视频与音频资源信息。
+  .bilibili.playershared.VodInfo vodInfo = 1;
+  // 稿件维度的能力与配置。
+  .bilibili.playershared.PlayArcConf playArcConf = 2;
+  // 设备维度的能力与配置。
+  .bilibili.playershared.PlayDeviceConf playDeviceConf = 3;
+  // 播放事件与提示。
+  .bilibili.playershared.Event event = 4;
+  // 额外扩展数据，具体类型暂未继续细分。
+  google.protobuf.Any supplement = 5;
+  // 当前播放稿件的基础信息。
+  .bilibili.playershared.PlayArc playArc = 6;
+  // 试看清晰度相关信息。
+  .bilibili.playershared.QnTrialInfo qnTrialInfo = 7;
+  // 播放历史信息。
+  .bilibili.playershared.History history = 8;
+  // 页面提示与弹窗聚合信息。
+  .bilibili.playershared.ViewInfo viewInfo = 9;
+  // 分片视频资源。
+  .bilibili.playershared.FragmentVideo fragmentVideo = 10;
+  // 清晰度控制与增强配置。
+  .bilibili.playershared.VideoCtrl videoCtrl = 11;
+  // 多语言或多音轨能力信息。
+  .bilibili.playershared.Language language = 12;
+}
+
+// 半屏频道或设置请求。
+message PlayHalfChannelsReq {
+  int64 aid = 1;
+  int64 cid = 2;
+  map<string, string> extraContent = 3;
+  string fromScene = 4;
+  ResourceType resourceType = 5;
+}
+
+// 半屏频道或设置分组响应。
+message PlayHalfChannelsReply {
+  repeated .bilibili.playershared.SettingGroup groups = 1;
+}
+
+// 播放补充信息请求。
+message PlayAdditionReq {}
+
+// 播放补充信息响应。
+message PlayAdditionReply {
+  UgcViewInfoMaterial ugcViewInfoMaterial = 1;
+}
+
+// 播放补充接口返回的 UGC 按钮与描述素材。
+message UgcViewInfoMaterial {
+  string title = 1;
+  string btnText = 2;
+  string btnUrl = 3;
+  // 这里先保留为 int32，暂未恢复出专门枚举。
+  int32 btnJumpType = 4;
+  string descText = 5;
+  string descUrl = 6;
+  map<string, string> track = 7;
+}
+
+// 半屏请求中的资源类型。
+enum ResourceType {
+  RESOURCE_TYPE_DEFAULT = 0;
+  RESOURCE_TYPE_OPUS = 1;
+}
+
+// 当前包下的播放器 RPC 服务。
+service Player {
+  rpc PlayViewUnite(PlayViewUniteReq) returns (PlayViewUniteReply);
+  rpc PlayHalfChannels(PlayHalfChannelsReq) returns (PlayHalfChannelsReply);
+  rpc PlayAddition(PlayAdditionReq) returns (PlayAdditionReply);
+}

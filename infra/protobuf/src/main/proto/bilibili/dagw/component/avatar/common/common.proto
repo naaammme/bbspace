@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package bilibili.dagw.component.avatar.common;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.dagw.component.avatar.common";
+option optimize_for = LITE_RUNTIME;
+
+message BasicRenderSpec {
+  double opacity = 1;
+}
+
+message ColorConfig {
+  bool isDarkModeAware = 1;
+  ColorSpec day = 2;
+  ColorSpec night = 3;
+}
+
+message ColorSpec {
+  string argb = 1;
+}
+
+message LayerGeneralSpec {
+  PositionSpec posSpec = 1;
+  SizeSpec sizeSpec = 2;
+  BasicRenderSpec renderSpec = 3;
+}
+
+message MaskProperty {
+  LayerGeneralSpec generalSpec = 1;
+  ResourceSource maskSrc = 2;
+}
+
+message NativeDrawRes {
+  enum FillMode {
+    FILL_MODE_INVALID = 0;
+    FILL_MODE_INTERNAL = 1;
+    FILL_MODE_EDGE = 2;
+  }
+
+  enum NativeDraw {
+    DRAW_INVALID = 0;
+    DRAW_CIRCLE = 1;
+    DRAW_RECTANGLE = 2;
+  }
+
+  NativeDraw drawType = 1;
+  FillMode fillMode = 2;
+  ColorConfig colorConfig = 3;
+  double edgeWeight = 4;
+}
+
+message PositionSpec {
+  enum CoordinatePos {
+    INVALID_COORDINATE = 0;
+    DEFAULT_COORDINATE = 1;
+    CENTRAL_COORDINATE = 2;
+  }
+
+  CoordinatePos coordinatePos = 1;
+  double axisX = 2;
+  double axisY = 3;
+}
+
+message RemoteRes {
+  string url = 1;
+  string bfsStyle = 2;
+}
+
+message ResourceSource {
+  enum LocalRes {
+    LOCAL_RES_INVALID = 0;
+    LOCAL_RES_ICON_VIP = 1;
+    LOCAL_RES_ICON_SMALL_VIP = 2;
+    LOCAL_RES_ICON_PERSONAL_VERIFY = 3;
+    LOCAL_RES_ICON_ENTERPRISE_VERIFY = 4;
+    LOCAL_RES_ICON_NFT_MAINLAND = 5;
+    LOCAL_RES_DEFAULT_AVATAR = 6;
+    LOCAL_RES_FOLLOW_ICON = 7;
+    LOCAL_RES_FOLLOW_ACTION = 8;
+  }
+
+  enum SourceType {
+    SRC_TYPE_INVALID = 0;
+    SRC_TYPE_URL = 1;
+    SRC_TYPE_LOCAL = 2;
+    SRC_TYPE_DRAW = 3;
+  }
+
+  SourceType srcType = 1;
+  LocalRes placeholder = 2;
+
+  oneof res {
+    RemoteRes remote = 3;
+    int32 local = 4;
+    NativeDrawRes draw = 5;
+  }
+}
+
+message SizeSpec {
+  double width = 1;
+  double height = 2;
+}

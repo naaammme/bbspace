@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package bilibili.app.playerunite.pgcanymodel;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.playerunite.pgcanymodel";
+option java_outer_classname = "PgcanymodelProto";
+option optimize_for = LITE_RUNTIME;
+
+import "bilibili/pgc/gateway/player/v2/player.proto";
+
+// 这份模型依赖 bilibili.pgc.gateway.player.v2 包中的消息。
+
+// PGC 播放补充模型，通常作为 Any 业务体承载。
+message PGCAnyModel {
+  reserved 1, 2;
+
+  .bilibili.pgc.gateway.player.v2.PlayViewBusinessInfo business = 3;
+  .bilibili.pgc.gateway.player.v2.Event event = 4;
+  .bilibili.pgc.gateway.player.v2.ViewInfo viewInfo = 5;
+  .bilibili.pgc.gateway.player.v2.PlayAbilityExtConf playExtConf = 6;
+  .bilibili.pgc.gateway.player.v2.PlayExtInfo playExtInfo = 7;
+}

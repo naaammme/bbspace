@@ -1,0 +1,298 @@
+syntax = "proto3";
+
+package bilibili.app.home.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.home.v1";
+option optimize_for = LITE_RUNTIME;
+
+import "bilibili/app/archive/middleware/v1/middleware.proto";
+
+enum BgStyle {
+  BG_STYLE_UNKNOWN = 0;
+  BG_STYLE_FILL = 1;
+  BG_STYLE_STROKE = 2;
+  BG_STYLE_FILL_AND_STROKE = 3;
+  BG_STYLE_NO_FILL_AND_NO_STROKE = 4;
+}
+
+enum ModuleType {
+  MODULE_TYPE_UNKNOWN = 0;
+  MODULE_TYPE_TOVIEW = 1;
+  MODULE_TYPE_RECENT_FAV = 2;
+  MODULE_TYPE_HALF_WATCHED_VIDEO = 3;
+}
+
+enum RecentRecReasonEnum {
+  RECENT_REC_REASON_UNKNOWN = 0;
+  RECENT_REC_REASON_TOVIEW = 1;
+  RECENT_REC_REASON_HISTORY = 2;
+  RECENT_REC_REASON_FAV_FOLDER = 21;
+  RECENT_REC_REASON_FAV_DETAIL = 22;
+  RECENT_REC_REASON_DEEP_WATCHING_HALF = 31;
+  RECENT_REC_REASON_LOOK_BACK_HALF = 32;
+  RECENT_REC_REASON_LOOK_BACK_MORE_HALF = 33;
+  RECENT_REC_REASON_LOOK_BACK_MORE = 34;
+}
+
+enum RecType {
+  REC_TYPE_UNKNOWN = 0;
+  REC_TYPE_UGC = 1;
+  REC_TYPE_OGV = 2;
+  REC_TYPE_SEASON = 3;
+  REC_TYPE_FAV_FOLDER = 4;
+}
+
+enum Tab {
+  TAB_UNKNOWN = 0;
+  TAB_LISTEN = 1;
+  TAB_STORY = 2;
+  TAB_RECENT = 3;
+}
+
+enum TabSelection {
+  TS_UNKNOWN = 0;
+  TS_ONLY_LISTEN = 1;
+  TS_ONLY_STORY = 2;
+  TS_ONLY_RECENT = 3;
+  TS_ALL = 4;
+}
+
+enum TabUpdateSource {
+  SOURCE_RECENT = 0;
+  SOURCE_GAME = 1;
+}
+
+enum TopLeftGoto {
+  GOTO_UNKNOWN = 0;
+  GOTO_MINE = 1;
+  GOTO_RECENT = 2;
+}
+
+message ArcContentPool {
+  repeated ArcInfo showArcs = 1;
+  repeated ArcInfo backupArcs = 2;
+}
+
+message ArcInfo {
+  RecentRecommendMetaInfo recMeta = 1;
+  int64 durationSec = 2;
+  int64 progressSec = 3;
+}
+
+message Badge {
+  string text = 1;
+  string textColor = 2;
+  string textColorNight = 3;
+  string bgColor = 4;
+  string bgColorNight = 5;
+  BgStyle bgStyle = 6;
+}
+
+message DirectRatingGuide {
+  string title = 1;
+  PopupButton gotoButton = 2;
+  PopupButton feedbackButton = 3;
+  PopupButton cancelButton = 4;
+}
+
+message FavContentPool {
+  repeated FavInfo showFavs = 1;
+  repeated FavInfo backupFavs = 2;
+}
+
+message FavInfo {
+  RecentRecommendMetaInfo recMeta = 1;
+}
+
+message HalfWatchedVideo {
+  ModuleInfo moduleInfo = 1;
+  ArcContentPool arcContentPool = 2;
+}
+
+message HomePopupReq {
+  bool coldStart = 1;
+  RemindUsePCClientPopupParams rupcp = 2;
+  RatingGuidePopupParams rgpp = 3;
+}
+
+message HomePopupRes {
+  PopupBasicInfo remindUsePcClient = 1;
+  RatingGuidePopup ratingGuide = 2;
+}
+
+message IconItem {
+  string id = 1;
+  string icon = 2;
+  string url = 3;
+  string name = 4;
+  RedDot redDot = 5;
+  bool fixure = 6;
+}
+
+message MineSelection {
+  repeated IconItem items = 1;
+}
+
+message MineSelectionContentReq {
+}
+
+message MineSelectionContentRes {
+  MineSelection mineSelection = 1;
+}
+
+message MineSelectionOptionItemsReq {
+}
+
+message MineSelectionOptionItemsRes {
+  repeated SimpleMineSection sections = 1;
+}
+
+message MineSelectionOptionUpdateReq {
+  repeated int64 itemIds = 1;
+}
+
+message MineSelectionOptionUpdateRes {
+}
+
+message ModuleInfo {
+  More more = 1;
+  string title = 2;
+  int64 pos = 3;
+}
+
+message More {
+  string name = 1;
+  string icon = 2;
+  string url = 3;
+}
+
+message PopupBasicInfo {
+  string title = 1;
+  string subtitle = 2;
+  string icon = 3;
+  PopupButton confirmButton = 4;
+  PopupButton cancelButton = 5;
+}
+
+message PopupButton {
+  string text = 1;
+  string url = 2;
+}
+
+message RatingGuidePopup {
+  DirectRatingGuide directRatingGuide = 1;
+  RatingThenGuide ratingThenGuide = 2;
+}
+
+message RatingGuidePopupParams {
+  int32 showCount = 1;
+  int64 likeCount = 2;
+  int32 specialPage = 3;
+}
+
+message RatingPopup {
+  string title = 1;
+}
+
+message RatingThenGuide {
+  RatingPopup ratingPopup = 1;
+  PopupBasicInfo guidePopup = 2;
+}
+
+message RecentFav {
+  ModuleInfo moduleInfo = 1;
+  FavContentPool favContentPool = 3;
+}
+
+message RecentRecommendMetaInfo {
+  int64 id = 1;
+  string cover = 2;
+  string title = 3;
+  string addTime = 4;
+  string url = 5;
+  Badge badge = 6;
+  RecType recType = 7;
+  RecentRecReasonEnum recReasonEnum = 8;
+  string subTitle = 9;
+  int64 addTimeSec = 10;
+}
+
+message RecentReq {
+  .bilibili.app.archive.middleware.v1.PlayerArgs playerArgs = 1;
+}
+
+message RecentRes {
+  MineSelection mineSelection = 1;
+  RecentUsed recentUsed = 2;
+  HalfWatchedVideo halfWatchedVideos = 3;
+  ToView toView = 4;
+  RecentFav recentFav = 5;
+}
+
+message RecentUsed {
+  ModuleInfo moduleInfo = 1;
+  repeated IconItem items = 2;
+}
+
+message RedDot {
+  bool show = 1;
+  int64 num = 2;
+}
+
+message RemindUsePCClientPopupParams {
+  bool hasInstalledPcClient = 1;
+}
+
+message RemoveVideoReq {
+  ModuleType moduleType = 1;
+  int64 id = 2;
+  RecentRecReasonEnum recReasonEnum = 3;
+}
+
+message RemoveVideoRes {
+}
+
+message SimpleMineSection {
+  string id = 1;
+  string name = 2;
+  repeated IconItem items = 3;
+}
+
+message TabExtraInfo {
+  bool switchToMineConfigBubble = 1;
+}
+
+message TopLeftTabReq {
+}
+
+message TopLeftTabRes {
+  repeated int32 tabs = 1;
+  Tab defaultTab = 2;
+  TabExtraInfo extra = 3;
+}
+
+message TopLeftTabUpdateReq {
+  TopLeftGoto tabGoto = 1;
+  TabSelection tabSelection = 2;
+  TabUpdateSource source = 3;
+}
+
+message TopLeftTabUpdateRes {
+}
+
+message ToView {
+  ModuleInfo moduleInfo = 1;
+  ArcContentPool arcContentPool = 2;
+}
+
+service Home {
+  rpc HomePopup(HomePopupReq) returns (HomePopupRes);
+  rpc MineSelectionContent(MineSelectionContentReq) returns (MineSelectionContentRes);
+  rpc MineSelectionOptionItems(MineSelectionOptionItemsReq) returns (MineSelectionOptionItemsRes);
+  rpc MineSelectionOptionUpdate(MineSelectionOptionUpdateReq) returns (MineSelectionOptionUpdateRes);
+  rpc Recent(RecentReq) returns (RecentRes);
+  rpc RemoveVideo(RemoveVideoReq) returns (RemoveVideoRes);
+  rpc TopLeftTab(TopLeftTabReq) returns (TopLeftTabRes);
+  rpc TopLeftTabUpdate(TopLeftTabUpdateReq) returns (TopLeftTabUpdateRes);
+}

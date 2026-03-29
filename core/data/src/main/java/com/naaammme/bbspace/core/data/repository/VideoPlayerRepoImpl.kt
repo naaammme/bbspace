@@ -1,0 +1,247 @@
+package com.naaammme.bbspace.core.data.repository
+
+import com.bapis.bilibili.app.playerunite.v1.PlayViewUniteReply
+import com.bapis.bilibili.app.playerunite.v1.PlayViewUniteReq
+import com.bapis.bilibili.playershared.CodeType
+import com.bapis.bilibili.playershared.DashItem
+import com.bapis.bilibili.playershared.DolbyItem
+import com.bapis.bilibili.playershared.DashVideo
+import com.bapis.bilibili.playershared.PlayCtrl
+import com.bapis.bilibili.playershared.ResponseUrl
+import com.bapis.bilibili.playershared.Stream
+import com.bapis.bilibili.playershared.StreamInfo
+import com.bapis.bilibili.playershared.VideoVod
+import com.naaammme.bbspace.core.common.log.Logger
+import com.naaammme.bbspace.core.data.AppSettings
+import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
+import com.naaammme.bbspace.core.model.PlaybackAudio
+import com.naaammme.bbspace.core.model.PlaybackControlMode
+import com.naaammme.bbspace.core.model.PlaybackRequest
+import com.naaammme.bbspace.core.model.PlaybackSource
+import com.naaammme.bbspace.core.model.PlaybackStream
+import com.naaammme.bbspace.core.model.ProgressiveSegment
+import com.naaammme.bbspace.core.model.QualityOption
+import com.naaammme.bbspace.core.model.StreamLimitInfo
+import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
+import kotlinx.coroutines.flow.first
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class VideoPlayerRepoImpl @Inject constructor(
+    private val grpcClient: BiliGrpcClient,
+    private val appSettings: AppSettings
+) : VideoPlayerRepository {
+
+    override suspend fun fetchPlaybackSource(request: PlaybackRequest): PlaybackSource {
+        val req = buildRequest(request)
+        val reply = grpcClient.call(
+            endpoint = ENDPOINT,
+            requestBytes = req.toByteArray(),
+            parser = PlayViewUniteReply.parser()
+        )
+        return mapReply(request, reply)
+    }
+
+    private suspend fun buildRequest(request: PlaybackRequest): PlayViewUniteReq {
+        val enableHdrAnd8k = appSettings.enableHdrAnd8k.first()
+        val needTrial = appSettings.needTrial.first()
+        val preferredCodec = appSettings.preferredCodec.first()
+        val fnval = if (enableHdrAnd8k) 4048 else 272
+
+        val codecType = when (preferredCodec) {
+            2 -> CodeType.CODE265
+            3 -> CodeType.CODEAV1
+            else -> CodeType.CODE264
+        }
+
+        val vod = VideoVod.newBuilder()
+            .setAid(request.videoId.aid)
+            .setCid(request.videoId.cid)
+            .setQn(80)
+            .setFnval(fnval)
+            .setFnver(0)
+            .setDownload(0)
+            .setPreferCodecType(codecType)
+            .setIsNeedTrial(needTrial)
+            .build()
+
+        val extra = buildMap {
+            if (!request.trackId.isNullOrBlank()) put("track_id", request.trackId)
+            if (!request.reportFlowData.isNullOrBlank()) put("report_flow_data", request.reportFlowData)
+            putAll(request.extraContent)
+        }
+
+        return PlayViewUniteReq.newBuilder()
+            .setVod(vod)
+            .setFromSpmid(request.fromSpmid ?: "")
+            .setEpId(EP_ID)
+            .setFromScene(FROM_SCENE)
+            .setPlayCtrl(
+                when (request.controlMode) {
+                    PlaybackControlMode.Simple -> PlayCtrl.PLAY_CTRL_SIMPLE.number
+                    PlaybackControlMode.Default -> PlayCtrl.PLAY_CTRL_DEFAULT.number
+                }
+            )
+            .putAllExtraContent(extra)
+            .build()
+    }
+
+    private fun mapReply(request: PlaybackRequest, reply: PlayViewUniteReply): PlaybackSource {
+        val vodInfo = reply.vodInfo
+        val audios = buildList {
+            addAll(vodInfo.dashAudioList.map(::mapAudio))
+            if (vodInfo.hasDolby() && vodInfo.dolby.type != DolbyItem.Type.NONE) {
+                addAll(vodInfo.dolby.audioList.map(::mapAudio))
+            }
+            if (vodInfo.hasLossLessItem() && vodInfo.lossLessItem.isLosslessAudio) {
+                add(mapAudio(vodInfo.lossLessItem.audio))
+            }
+        }
+        val streams = vodInfo.streamListList.mapNotNull { mapStream(it, audios) }
+        val options = vodInfo.qnPanel.qnItemsList.mapNotNull { item ->
+            when {
+                item.hasStreamInfo() -> mapQuality(item.streamInfo)
+                item.hasQnGroup() -> item.qnGroup.streamInfosList.firstOrNull()?.let(::mapQuality)
+                else -> null
+            }
+        }.ifEmpty {
+            vodInfo.streamListList.map { mapQuality(it.streamInfo) }
+        }
+
+        // 打印完整响应体用于调试
+        Logger.d(TAG) { "Response - Videos: ${streams.size}, Audios: ${audios.size}" }
+        streams.forEach { stream ->
+            Logger.d(TAG) { "Stream - Q: ${stream.quality}, Format: ${stream.format}, Desc: ${stream.description}, W: ${stream.width}, H: ${stream.height}" }
+        }
+        audios.forEach { audio ->
+            Logger.d(TAG) { "Audio - ID: ${audio.id}, Bandwidth: ${audio.bandwidth}, MimeType: ${audio.mimeType}" }
+        }
+
+        return PlaybackSource(
+            videoId = request.videoId,
+            durationMs = if (reply.hasPlayArc() && reply.playArc.durationMs > 0) {
+                reply.playArc.durationMs
+            } else {
+                vodInfo.timelength
+            },
+            streams = streams,
+            audios = audios,
+            qualityOptions = options.distinctBy(QualityOption::quality),
+            resumePositionMs = if (reply.hasHistory() && reply.history.hasCurrentVideo()) {
+                reply.history.currentVideo.progress
+            } else {
+                request.seekToMs
+            },
+            isPreview = reply.hasPlayArc() && reply.playArc.isPreview,
+            supportProject = vodInfo.supportProject
+        )
+    }
+
+    private fun mapStream(stream: Stream, audios: List<PlaybackAudio>): PlaybackStream? {
+        val info = stream.streamInfo
+        return when {
+            stream.hasDashVideo() -> mapDashStream(info, stream.dashVideo, audios)
+            stream.hasSegmentVideo() -> mapProgressiveStream(
+                info,
+                stream.segmentVideo.segmentList.mapNotNull(::mapResponseUrl)
+            )
+            stream.hasMultiDashVideo() -> stream.multiDashVideo.dashVideosList.firstOrNull()?.let {
+                mapDashStream(info, it, audios)
+            }
+            else -> null
+        }
+    }
+
+    private fun mapDashStream(
+        info: StreamInfo,
+        dash: DashVideo,
+        audios: List<PlaybackAudio>
+    ): PlaybackStream? {
+        if (dash.baseUrl.isBlank()) return null
+        return PlaybackStream.Dash(
+            quality = info.quality,
+            format = info.format,
+            description = info.description.ifBlank { info.displayDesc },
+            width = dash.width,
+            height = dash.height,
+            mimeType = "video/mp4",
+            needVip = info.needVip,
+            needLogin = info.needLogin,
+            supportDrm = info.supportDrm,
+            videoUrl = dash.baseUrl,
+            videoBackupUrls = dash.backupUrlList,
+            audioId = dash.audioId.takeIf { it > 0 && audios.any { audio -> audio.id == it } },
+            bandwidth = dash.bandwidth,
+            codecId = dash.codecid,
+            frameRate = dash.frameRate.takeIf(String::isNotBlank)
+        )
+    }
+
+    private fun mapProgressiveStream(
+        info: StreamInfo,
+        segments: List<ProgressiveSegment>
+    ): PlaybackStream? {
+        if (segments.isEmpty()) return null
+        return PlaybackStream.Progressive(
+            quality = info.quality,
+            format = info.format,
+            description = info.description.ifBlank { info.displayDesc },
+            width = null,
+            height = null,
+            mimeType = "video/mp4",
+            needVip = info.needVip,
+            needLogin = info.needLogin,
+            supportDrm = info.supportDrm,
+            segments = segments
+        )
+    }
+
+    private fun mapAudio(item: DashItem): PlaybackAudio {
+        return PlaybackAudio(
+            id = item.id,
+            url = item.baseUrl,
+            backupUrls = item.backupUrlList,
+            bandwidth = item.bandwidth,
+            codecId = item.codecid,
+            mimeType = "audio/mp4"
+        )
+    }
+
+    private fun mapResponseUrl(item: ResponseUrl): ProgressiveSegment? {
+        val url = item.url.takeIf(String::isNotBlank) ?: return null
+        return ProgressiveSegment(
+            url = url,
+            durationMs = item.length.takeIf { it > 0 }
+        )
+    }
+
+    private fun mapQuality(info: StreamInfo): QualityOption {
+        return QualityOption(
+            quality = info.quality,
+            format = info.format,
+            description = info.description.ifBlank { info.displayDesc },
+            displayDescription = info.displayDesc,
+            needVip = info.needVip,
+            needLogin = info.needLogin,
+            vipFree = info.vipFree,
+            supportDrm = info.supportDrm,
+            limit = if (info.hasLimit()) {
+                StreamLimitInfo(
+                    title = info.limit.title,
+                    message = info.limit.msg,
+                    uri = info.limit.uri
+                )
+            } else {
+                null
+            }
+        )
+    }
+
+    private companion object {
+        const val TAG = "PlayViewUnite"
+        const val ENDPOINT = "bilibili.app.playerunite.v1.Player/PlayViewUnite"
+        const val EP_ID = "search.search-result.0.0"
+        const val FROM_SCENE = "normal"
+    }
+}

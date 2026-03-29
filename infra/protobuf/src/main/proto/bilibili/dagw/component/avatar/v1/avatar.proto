@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package bilibili.dagw.component.avatar.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.dagw.component.avatar.v1";
+option optimize_for = LITE_RUNTIME;
+
+import "bilibili/dagw/component/avatar/common/common.proto";
+import "bilibili/dagw/component/avatar/v1/plugin/plugin.proto";
+
+message AvatarItem {
+  .bilibili.dagw.component.avatar.common.SizeSpec containerSize = 1;
+  repeated LayerGroup layers = 2;
+  LayerGroup fallbackLayers = 3;
+  int64 mid = 4;
+}
+
+message BasicLayerResource {
+  enum ResType {
+    RES_TYPE_INVALID = 0;
+    RES_TYPE_PLUGIN = 1;
+    RES_TYPE_EMPTY = 2;
+    RES_TYPE_IMAGE = 3;
+    RES_TYPE_ANIMATION = 4;
+    RES_TYPE_NATIVE_DRAW = 5;
+  }
+
+  ResType resType = 1;
+
+  oneof payload {
+    ResImage resImage = 2;
+    ResAnimation resAnimation = 3;
+    ResNativeDraw resNativeDraw = 4;
+  }
+}
+
+message GeneralConfig {
+  map<string, string> webCssStyle = 1;
+}
+
+message Layer {
+  string layerId = 1;
+  bool visible = 2;
+  .bilibili.dagw.component.avatar.common.LayerGeneralSpec generalSpec = 3;
+  LayerConfig layerConfig = 4;
+  BasicLayerResource resource = 5;
+}
+
+message LayerConfig {
+  map<string, LayerTagConfig> tags = 1;
+  bool isCritical = 2;
+  bool allowOverPaint = 3;
+  .bilibili.dagw.component.avatar.common.MaskProperty layerMask = 4;
+}
+
+message LayerGroup {
+  string groupId = 1;
+  repeated Layer layers = 2;
+  .bilibili.dagw.component.avatar.common.MaskProperty groupMask = 3;
+  bool isCriticalGroup = 4;
+}
+
+message LayerTagConfig {
+  enum TagConfigType {
+    TAG_CFG_INVALID = 0;
+    TAG_CFG_GENERAL = 1;
+    TAG_CFG_GYRO = 2;
+    TAG_CFG_COMMENT_DOUBLE_CLICK = 3;
+    TAG_CFG_IN_LIVE = 4;
+    TAG_CFG_WEB_IN_LIVE = 5;
+    TAG_CFG_FOLLOW_ICON = 6;
+    TAG_CFG_FOLLOW_ACTION = 7;
+  }
+
+  TagConfigType configType = 1;
+
+  oneof config {
+    GeneralConfig generalConfig = 2;
+    .bilibili.dagw.component.avatar.v1.plugin.GyroConfig gyroConfig = 3;
+    .bilibili.dagw.component.avatar.v1.plugin.CommentDoubleClickConfig commentDoubleClickConfig = 4;
+    .bilibili.dagw.component.avatar.v1.plugin.LiveAnimeConfig liveAnimeConfig = 5;
+    .bilibili.dagw.component.avatar.v1.plugin.WebLiveAnimeConfig webLiveAnimeConfig = 6;
+    .bilibili.dagw.component.avatar.v1.plugin.FollowIconConfig followIconConfig = 7;
+    .bilibili.dagw.component.avatar.v1.plugin.FollowActionConfig followActionConfig = 8;
+  }
+}
+
+message ResAnimation {
+  .bilibili.dagw.component.avatar.common.ResourceSource webpSrc = 1;
+}
+
+message ResImage {
+  .bilibili.dagw.component.avatar.common.ResourceSource imageSrc = 1;
+}
+
+message ResNativeDraw {
+  .bilibili.dagw.component.avatar.common.ResourceSource drawSrc = 1;
+}

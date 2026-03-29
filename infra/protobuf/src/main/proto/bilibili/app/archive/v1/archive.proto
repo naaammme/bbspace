@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package bilibili.app.archive.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.archive.v1";
+option optimize_for = LITE_RUNTIME;
+
+message Arc {
+  int64 aid = 1;
+  int64 videos = 2;
+  int32 typeId = 3;
+  string typeName = 4;
+  int32 copyright = 5;
+  string pic = 6;
+  string title = 7;
+  int64 pubdate = 8;
+  int64 ctime = 9;
+  string desc = 10;
+  int32 state = 11;
+  int32 access = 12;
+  int32 attribute = 13;
+  string tag = 14;
+  repeated string tags = 15;
+  int64 duration = 16;
+  int64 missionId = 17;
+  int64 orderId = 18;
+  string redirectUrl = 19;
+  int64 forward = 20;
+  Rights rights = 21;
+  Author author = 22;
+  Stat stat = 23;
+  string reportResult = 24;
+  string dynamic = 25;
+  int64 firstCid = 26;
+  Dimension dimension = 27;
+  repeated StaffInfo staffInfo = 28;
+  int64 seasonId = 29;
+  int64 attributeV2 = 30;
+  SeasonTheme seasonTheme = 31;
+  string shortLinkV2 = 40;
+  int32 upFromV2 = 41;
+  string firstFrame = 42;
+}
+
+message Author {
+  int64 mid = 1;
+  string name = 2;
+  string face = 3;
+}
+
+message Dimension {
+  int64 width = 1;
+  int64 height = 2;
+  int64 rotate = 3;
+}
+
+message Page {
+  int64 cid = 1;
+  int32 page = 2;
+  string from = 3;
+  string part = 4;
+  int64 duration = 5;
+  string vid = 6;
+  string desc = 7;
+  string weblink = 8;
+  Dimension dimension = 9;
+  string firstFrame = 10;
+}
+
+message Rights {
+  int32 bp = 1;
+  int32 elec = 2;
+  int32 download = 3;
+  int32 movie = 4;
+  int32 pay = 5;
+  int32 hd5 = 6;
+  int32 noReprint = 7;
+  int32 autoplay = 8;
+  int32 ugcPay = 9;
+  int32 isCooperation = 10;
+  int32 ugcPayPreview = 11;
+  int32 noBackground = 12;
+  int32 arcPay = 13;
+  int32 payFreeWatch = 14;
+}
+
+message SeasonTheme {
+  string bgColor = 1;
+  string selectedBgColor = 2;
+  string textColor = 3;
+}
+
+message StaffInfo {
+  int64 mid = 1;
+  string title = 2;
+  int64 attribute = 3;
+}
+
+message Stat {
+  int64 aid = 1;
+  int32 view = 2;
+  int32 danmaku = 3;
+  int32 reply = 4;
+  int32 fav = 5;
+  int32 coin = 6;
+  int32 share = 7;
+  int32 nowRank = 8;
+  int32 hisRank = 9;
+  int32 like = 10;
+  int32 dislike = 11;
+}

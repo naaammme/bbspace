@@ -1,0 +1,930 @@
+    syntax = "proto3";
+
+    package bilibili.playershared;
+
+    option java_multiple_files = true;
+    option java_package = "com.bapis.bilibili.playershared";
+    option optimize_for = LITE_RUNTIME;
+
+    import "google/protobuf/any.proto";
+
+    enum PlayCtrl {
+      PLAY_CTRL_DEFAULT = 0;
+      PLAY_CTRL_SIMPLE = 1;
+    }
+
+    enum FragmentPosition {
+      INVALID = 0;
+      PRE = 1;
+      MIDDLE = 2;
+      POST = 3;
+    }
+
+    enum FragmentType {
+      UNKNOWN = 0;
+      AD_FRAGMENT = 1;
+      OGV_FRAGMENT = 2;
+      PUGV_FRAGMENT = 3;
+    }
+
+    enum GroupStyle {
+      GROUP_STYLE_DEFAULT = 0;
+      GROUP_STYLE_HORIZON = 1;
+    }
+
+    enum SettingItemStyle {
+      SETTING_STYLE_NONE = 0;
+      SETTING_STYLE_SWITCH = 1;
+      SETTING_STYLE_MORE = 2;
+      SETTING_STYLE_SELECT = 3;
+      SETTING_STYLE_VERTICAL = 4;
+    }
+
+    enum SettingJumpType {
+      SETTING_JUMP_TYPE_NONE = 0;
+      SETTING_JUMP_TYPE_OPEN_URL = 1;
+      SETTING_JUMP_TYPE_HALF_SCREEN = 2;
+      SETTING_JUMP_TYPE_OPEN_URL_BY_OUTER_BROWSER = 3;
+    }
+
+    enum SettingItemType {
+      SETTING_NONE = 0;
+      SETTING_PLAYBACK_RATE = 1;
+      SETTING_WATCH_LATER = 2;
+      SETTING_DOWNlOAD = 3;
+      SETTING_SMALL_WINDOW = 4;
+      SETTING_FREYAENTER = 5;
+      SETTING_PLAYBACK_MODE = 6;
+      SETTING_LOOP_PLAYBACK = 7;
+      SETTING_TIMING_SWITCH = 8;
+      SETTING_BACKGROUND_PLAY = 9;
+      SETTING_SUBTITLE = 10;
+      SETTING_SUBTITLE_EXCHANGE = 11;
+      SETTING_FLIP_CONF = 12;
+      SETTING_MORE_PLAY = 13;
+      SETTING_SHAKE = 14;
+      SETTING_SKIP_OPED = 15;
+      SETTING_NOTE = 16;
+      SETTING_REPORT = 17;
+      SETTING_FEEDBACK = 18;
+      SETTING_FREE_GIFT = 19;
+      SETTING_DUB = 20;
+      SETTING_LISTEN = 21;
+      SETTING_PROJECT = 22;
+      SETTING_PIC_SIZE = 23;
+      SETTING_PANORAMA = 24;
+      SETTING_VISION_ASSIST = 25;
+      SETTING_EDIT = 26;
+      SETTING_DISLIKE = 27;
+      SETTING_BIHUO = 28;
+      SETTING_GESTURE = 29;
+      SETTING_DM = 30;
+      SETTING_DEFINITION = 31;
+      SETTING_SUGGEST = 32;
+      SETTING_AUTOMATIC_SCROLL = 33;
+      SETTING_BACKTRACKING = 34;
+      SETTING_AI_AUDIO = 35;
+      SETTING_AI_AUDIO_EXCHANGE = 36;
+      SETTING_TRANSLATE = 37;
+    }
+
+    message FragmentInfo {
+      int32 index = 1;
+      FragmentPosition fragmentPosition = 2;
+      FragmentType fragmentType = 3;
+      int64 aid = 4;
+      int64 cid = 5;
+      int64 startTime = 6;
+      google.protobuf.Any report = 7;
+    }
+
+    message Fragment {
+      repeated FragmentInfo infos = 1;
+    }
+
+    message Shake {
+      string file = 1;
+    }
+
+    message QnTip {
+      string msg = 1;
+    }
+
+    message Event {
+      Shake shake = 1;
+      QnTip qnTip = 2;
+    }
+
+    message Badge {
+      string text = 1;
+      string textColor = 2;
+      string textColorNight = 3;
+      string bgColor = 4;
+      string bgColorNight = 5;
+      string borderColor = 6;
+      string borderColorNight = 7;
+      int32 bgStyle = 8;
+    }
+
+    message SettingControl {
+      bool disabled = 1;
+      string disabledReason = 2;
+      bool disableGray = 3;
+    }
+
+    message SettingBase {
+      string leftIcon = 1;
+      string leftTitle = 2;
+      SettingItemType type = 3;
+      SettingControl control = 4;
+      map<string, string> report = 5;
+    }
+
+    message SettingMore {
+      string url = 1;
+      string rightTitle = 2;
+      string rightIcon = 3;
+      SettingJumpType jumpType = 4;
+      bool needLogin = 5;
+      Badge badge = 6;
+    }
+
+    message SettingVertical {
+      string url = 1;
+      SettingJumpType jumpType = 2;
+      bool needLogin = 3;
+      Badge badge = 4;
+    }
+
+    message SettingSwitch {
+      Badge badge = 1;
+    }
+
+    message SettingItem {
+      SettingBase base = 1;
+      SettingItemStyle style = 2;
+
+      oneof value {
+        SettingMore more = 3;
+        SettingVertical vertical = 4;
+        SettingSwitch switch = 5;
+      }
+    }
+
+    message SettingGroup {
+      string title = 1;
+      repeated SettingItem items = 2;
+      GroupStyle groupStyle = 3;
+    }
+
+    enum CodeType {
+      NOCODE = 0;
+      CODE264 = 1;
+      CODE265 = 2;
+      CODEAV1 = 3;
+    }
+
+    enum QnPolicy {
+      QN_POLICY_DEFAULT = 0;
+      QN_POLICY_AUTO_QN_ENABLE = 1;
+    }
+
+    enum PlayErr {
+      NoErr = 0;
+      WithMultiDeviceLoginErr = 1;
+    }
+
+    enum QnGroupType {
+      UNKNOWN_GROUP = 0;
+      VIP_VISION = 1;
+    }
+
+    message VideoVod {
+      int64 aid = 1;
+      int64 cid = 2;
+      int64 qn = 3;
+      int32 fnver = 4;
+      int32 fnval = 5;
+      int32 download = 6;
+      int32 forceHost = 7;
+      bool fourk = 8;
+      CodeType preferCodecType = 9;
+      int64 voiceBalance = 10;
+      bool isNeedTrial = 11;
+      QnPolicy qnPolicy = 12;
+      int64 softFnval = 13;
+      int64 clientAttr = 14;
+      string curLanguage = 15;
+    }
+
+    message AutoQnRange {
+      int64 max = 1;
+      int64 min = 2;
+    }
+
+    message AutoQnCtl {
+      int64 loginHalf = 1;
+      int64 nologinHalf = 2;
+      int64 loginFull = 3;
+      int64 nologinFull = 4;
+      int64 mobileLoginFull = 5;
+      int64 mobileNologinFull = 6;
+      map<string, AutoQnRange> sceneQnRange = 7;
+    }
+
+    message QnExpThree {
+      bool qnExp3 = 1;
+      int64 sid = 2;
+      float lowScreenThreshold = 3;
+    }
+
+    message QnExp {
+      bool qnExp1 = 1;
+      bool qnExp2 = 2;
+      QnExpThree qnExp3 = 3;
+    }
+
+    message DeviceEnhance {
+      int64 targetQn = 1;
+    }
+
+    message VideoCtrl {
+      AutoQnCtl autoQnCtl = 1;
+      QnExp qnExp = 2;
+      string qnFeature = 3;
+      repeated DeviceEnhance deviceEnhance = 4;
+    }
+
+    message LanguageItem {
+      string lang = 1;
+      string title = 2;
+      string buttonTitle = 3;
+      string subtitleLang = 4;
+      bool videoDetext = 5;
+      bool videoMouthShapeChange = 6;
+    }
+
+    message Language {
+      bool support = 1;
+      repeated LanguageItem items = 2;
+      string openToast = 3;
+      string closeToast = 4;
+      Badge badge = 5;
+      string defaultTitle = 6;
+      string listTitle = 7;
+      string listDesc = 8;
+    }
+
+    message StreamLimit {
+      string title = 1;
+      string uri = 2;
+      string msg = 3;
+    }
+
+    message Scheme {
+      enum ActionType {
+        UNKNOWN = 0;
+        SHOW_TOAST = 1;
+      }
+
+      ActionType actionType = 1;
+      string toast = 2;
+    }
+
+    message ResponseUrl {
+      int32 order = 1;
+      int64 length = 2;
+      int64 size = 3;
+      string url = 4;
+      repeated string backupUrl = 5;
+      string md5 = 6;
+    }
+
+    message DashItem {
+      int32 id = 1;
+      string baseUrl = 2;
+      repeated string backupUrl = 3;
+      int32 bandwidth = 4;
+      int32 codecid = 5;
+      string md5 = 6;
+      int64 size = 7;
+      string frameRate = 8;
+      string widevinePssh = 9;
+      string bilidrmUri = 10;
+    }
+
+    message DashVideo {
+      string baseUrl = 1;
+      repeated string backupUrl = 2;
+      int32 bandwidth = 3;
+      int32 codecid = 4;
+      string md5 = 5;
+      int64 size = 6;
+      int32 audioId = 7;
+      bool noRexcode = 8;
+      string frameRate = 9;
+      int32 width = 10;
+      int32 height = 11;
+      string widevinePssh = 12;
+      string bilidrmUri = 13;
+    }
+
+    message SegmentVideo {
+      repeated ResponseUrl segment = 1;
+    }
+
+    message MultiDashVideo {
+      repeated DashVideo dashVideos = 1;
+    }
+
+    message StreamInfo {
+      int32 quality = 1;
+      string format = 2;
+      string description = 3;
+      PlayErr errCode = 4;
+      StreamLimit limit = 5;
+      bool needVip = 6;
+      bool needLogin = 7;
+      bool intact = 8;
+      bool noRexcode = 9;
+      int64 attribute = 10;
+      string newDescription = 11;
+      string displayDesc = 12;
+      string superscript = 13;
+      bool vipFree = 14;
+      string subtitle = 15;
+      Scheme scheme = 16;
+      bool supportDrm = 17;
+      string displayDescImg = 18;
+      string descriptionImg = 19;
+      string descriptionImgSelected = 20;
+      string descriptionFoldImg = 21;
+      map<string, string> reportParams = 22;
+    }
+
+    message QnGroup {
+      bool needVip = 1;
+      bool needLogin = 2;
+      bool vipFree = 3;
+      string titleImg = 4;
+      string titleImgSelected = 5;
+      repeated StreamInfo streamInfos = 6;
+      QnGroupType groupType = 7;
+    }
+
+    message QnItem {
+      oneof content {
+        StreamInfo streamInfo = 1;
+        QnGroup qnGroup = 2;
+      }
+    }
+
+    message QnPanel {
+      repeated QnItem qnItems = 1;
+    }
+
+    message Stream {
+      StreamInfo streamInfo = 1;
+
+      oneof content {
+        DashVideo dashVideo = 2;
+        SegmentVideo segmentVideo = 3;
+        MultiDashVideo multiDashVideo = 4;
+      }
+    }
+
+    message VolumeInfo {
+      double measuredI = 1;
+      double measuredLra = 2;
+      double measuredTp = 3;
+      double measuredThreshold = 4;
+      double targetOffset = 5;
+      double targetI = 6;
+      double targetTp = 7;
+      map<string, string> multiSceneArgs = 8;
+    }
+
+    message AIAudioItem {
+      repeated DashItem audioInfo = 1;
+      string title = 2;
+      string buttonTitle = 3;
+      string subtitleLang = 4;
+    }
+
+    message AIAudio {
+      bool supportAiAudio = 1;
+      repeated AIAudioItem aiAudioItems = 2;
+      string aiOpenToast = 3;
+      string aiCloseToast = 4;
+      Badge badge = 5;
+      string defaultTitle = 6;
+      string listTitle = 7;
+      string listDesc = 8;
+    }
+
+    message LossLessItem {
+      bool isLosslessAudio = 1;
+      DashItem audio = 2;
+      bool needVip = 3;
+    }
+
+    message DolbyItem {
+      enum Type {
+        NONE = 0;
+        COMMON = 1;
+        ATMOS = 2;
+      }
+
+      Type type = 1;
+      repeated DashItem audio = 2;
+    }
+
+    message VodInfo {
+      int32 quality = 1;
+      string format = 2;
+      int64 timelength = 3;
+      int32 videoCodecid = 4;
+      repeated Stream streamList = 5;
+      repeated DashItem dashAudio = 6;
+      DolbyItem dolby = 7;
+      VolumeInfo volume = 8;
+      LossLessItem lossLessItem = 9;
+      bool supportProject = 10;
+      AIAudio aiAudio = 11;
+      QnPanel qnPanel = 12;
+      string curLanguage = 13;
+    }
+
+    enum UnsupportScene {
+      UNKNOWN_SCENE = 0;
+      PREMIERE = 1;
+    }
+
+    enum UnsupportState {
+      NONE = 0;
+      HALF = 1;
+      FULL = 2;
+    }
+
+    enum ArcType {
+      ARC_TYPE_NORMAL = 0;
+      ARC_TYPE_INTERACT = 1;
+    }
+
+    enum BizType {
+      BIZ_TYPE_UNKNOWN = 0;
+      BIZ_TYPE_UGC = 1;
+      BIZ_TYPE_PGC = 2;
+      BIZ_TYPE_PUGV = 3;
+    }
+
+    enum DrmTechType {
+      UNKNOWN_DRM = 0;
+      FAIR_PLAY = 1;
+      WIDE_VINE = 2;
+      BILI_DRM = 3;
+    }
+
+    message ExtraContent {
+      string disabledReason = 1;
+      int64 disabledCode = 2;
+    }
+
+    message ArcConf {
+      bool isSupport = 1;
+      bool disabled = 2;
+      ExtraContent extraContent = 3;
+      repeated UnsupportScene unsupportScene = 4;
+      UnsupportState unsupportState = 5;
+    }
+
+    message PlayArcConf {
+      map<int32, ArcConf> arcConfs = 1;
+    }
+
+    message ConfValue {
+      oneof value {
+        bool switchVal = 1;
+        int64 selectedVal = 2;
+      }
+    }
+
+    message DeviceConf {
+      ConfValue confValue = 1;
+    }
+
+    message PlayDeviceConf {
+      map<int32, DeviceConf> deviceConfs = 1;
+    }
+
+    message Dimension {
+      int64 width = 1;
+      int64 height = 2;
+      int64 rotate = 3;
+      int64 variable = 4;
+    }
+
+    message Node {
+      int64 nodeId = 1;
+      string title = 2;
+      int64 cid = 3;
+    }
+
+    message Interaction {
+      Node historyNode = 1;
+      int64 graphVersion = 2;
+      string msg = 3;
+      int64 mark = 4;
+    }
+
+    message PlayArc {
+      BizType videoType = 1;
+      int64 aid = 2;
+      int64 cid = 3;
+      DrmTechType drmTechType = 4;
+      ArcType arcType = 5;
+      Interaction interaction = 6;
+      Dimension dimension = 7;
+      int64 duration = 8;
+      bool isPreview = 9;
+      int64 watchTimeLength = 10;
+      int64 durationMs = 11;
+    }
+
+    message FragmentVideoInfo {
+      FragmentInfo fragmentInfo = 1;
+      VodInfo vodInfo = 2;
+      PlayArcConf playArcConf = 3;
+      Dimension dimension = 4;
+      int64 timelength = 5;
+      BizType videoType = 6;
+      bool playableStatus = 7;
+    }
+
+    message FragmentVideo {
+      repeated FragmentVideoInfo videos = 1;
+    }
+
+    message Button {
+      string text = 1;
+      string link = 2;
+      map<string, string> reportParams = 3;
+    }
+
+    message Toast {
+      string text = 1;
+      Button button = 2;
+    }
+
+    message HistoryInfo {
+      int64 progress = 1;
+      int64 lastPlayCid = 2;
+      Toast toast = 3;
+      Toast toastWithoutTime = 4;
+      int64 lastPlayAid = 5;
+    }
+
+    message History {
+      HistoryInfo currentVideo = 1;
+      HistoryInfo relatedVideo = 2;
+    }
+
+    message QnTrialInfo {
+      bool trialAble = 1;
+      int32 remainingTimes = 2;
+      int32 start = 3;
+      int32 timeLength = 4;
+      Toast startToast = 5;
+      Toast endToast = 6;
+      Button qualityOpenTipBtn = 8;
+      int32 trialQualityType = 9;
+      Toast disableToast = 10;
+      string uuid = 11;
+    }
+
+    enum ExtDataType {
+      EXT_DATA_TYPE_UNKNOWN = 0;
+      PLAY_LIST = 1;
+      BANNER = 2;
+      HE_INLINE = 3;
+      EXT_DATA_TYPE_CHARGING = 4;
+      QR_CODE = 5;
+    }
+
+    enum GuideStyle {
+      STYLE_UNKNOWN = 0;
+      HORIZONTAL_IMAGE = 1;
+      VERTICAL_TEXT = 2;
+      SIMPLE_TEXT = 3;
+      CHARGING_TEXT = 4;
+      UNIVERSAL_INTERCEPT = 5;
+      MSG_ATTACH_QR_CODE = 6;
+    }
+
+    enum LimitActionType {
+      LAT_UNKNOWN = 0;
+      SHOW_LIMIT_DIALOG = 1;
+      SKIP_CURRENT_EP = 2;
+    }
+
+    enum ButtonAction {
+      BUTTON_UNKNOWN = 0;
+      PAY = 1;
+      VIP = 2;
+      PACK = 3;
+      LINK = 4;
+      COUPON = 5;
+      DEMAND = 6;
+      DEMAND_PACK = 7;
+      FOLLOW = 8;
+      APPOINTMENT = 9;
+      VIP_FREE = 10;
+      TASK = 11;
+      CHARGINGPLUS = 12;
+      BP = 13;
+      PRE_SELL = 14;
+      LOGIN = 15;
+      BUTTON_ACTION_CHEESE_PAY = 16;
+      DELIVER_REPORT = 17;
+      DEVICE_MANAGE = 18;
+      RELOAD = 19;
+    }
+
+    enum Effects {
+      EFFECTS_UNKNOWN = 0;
+      GAUSSIAN_BLUR = 1;
+      HALF_ALPHA = 2;
+    }
+
+    enum FoldStyle {
+      FOLD_STYLE_UNSPECIFIED = 0;
+      FOLD_STYLE_COUNT_DOWN = 1;
+      FOLD_STYLE_ONLY_BUTTON = 2;
+    }
+
+    enum ToastType {
+      TOAST_TYPE_UNKNOWN = 0;
+      VIP_CONTENT_REMIND = 1;
+      VIP_DEFINITION_REMIND = 2;
+      VIP_DEFINITION_GUIDE = 3;
+      OGV_VIDEO_START_TOAST = 4;
+      CHARGING_TOAST = 5;
+      VIP_SKIP_FRAGMENT_TOAST = 6;
+      VIP_AI_FIX_DEFINITION_REMIND = 7;
+      NEW_USER_DEFINITION_REMIND = 8;
+      VIP_RISK_TOAST = 9;
+      PREMIUM_EXTRA_DROPS_TOAST = 10;
+      PREMIUM_FINALE_ACCESS_TOAST = 11;
+      S_VIP_TOAST = 12;
+    }
+
+    enum ShowStyleType {
+      SHOW_STYLE_TYPE_UNKNOWN = 0;
+      SHOW_STYLE_TYPE_ORDINARY = 1;
+      SHOW_STYLE_TYPE_RESIDENT = 2;
+    }
+
+    enum PromptBarType {
+      PROMPT_BAR_TYPE_UNKNOWN = 0;
+      OPEN_PROMPT_BAR = 1;
+      TRY_PROMPT_BAR = 2;
+    }
+
+    enum PromptBarStyle {
+      PROMPT_BAR_STYLE_UNKNOWN = 0;
+      TEXT = 1;
+      CURING_BENEFITS = 2;
+      CARD_OPENING_GIFT = 3;
+      COUNTDOWN = 4;
+    }
+
+    message BackgroundInfo {
+      string drawableColor = 1;
+      string drawableBitmapUrl = 2;
+      Effects effects = 3;
+    }
+
+    message TextInfo {
+      string text = 1;
+      string textColor = 2;
+      string textColorNight = 3;
+      int32 fontSize = 4;
+    }
+
+    message ImageInfo {
+      string url = 1;
+    }
+
+    message Report {
+      string showEventId = 1;
+      string clickEventId = 2;
+      string extends = 3;
+    }
+
+    message BottomDisplay {
+      TextInfo title = 1;
+      string icon = 2;
+    }
+
+    message GradientColor {
+      string startColor = 1;
+      string endColor = 2;
+    }
+
+    message BadgeInfo {
+      string text = 1;
+      string bgColor = 2;
+      string bgColorNight = 3;
+      string textColor = 4;
+      GradientColor bgGradientColor = 5;
+      string img = 6;
+    }
+
+    message TaskParam {
+      string taskType = 1;
+      int64 activityId = 2;
+      int64 tipsId = 3;
+    }
+
+    message ButtonInfo {
+      string text = 1;
+      string textColor = 2;
+      string textColorNight = 3;
+      string bgColor = 4;
+      string bgColorNight = 5;
+      string link = 6;
+      ButtonAction actionType = 7;
+      BadgeInfo badgeInfo = 8;
+      Report report = 9;
+      string leftStrikethroughText = 10;
+      TextInfo simpleTextInfo = 11;
+      string simpleBgColor = 12;
+      string simpleBgColorNight = 13;
+      GradientColor bgGradientColor = 14;
+      map<string, string> orderReportParams = 15;
+      TaskParam taskParam = 16;
+      string frameColor = 17;
+      string icon = 18;
+      int32 fontSize = 19;
+      string tipsLink = 20;
+      string deliverCode = 21;
+    }
+
+    message BenefitInfo {
+      string title = 1;
+      string icon = 2;
+    }
+
+    message CountDownItem {
+      int64 foldCountdown = 1;
+      TextInfo title = 2;
+      TextInfo subtitle = 3;
+    }
+
+    message FoldData {
+      FoldStyle foldStyle = 1;
+
+      oneof data {
+        CountDownItem countDown = 2;
+      }
+    }
+
+    message Banner {
+      string jumpLink = 1;
+      string imageLink = 2;
+      string halfImageLink = 3;
+      Report report = 4;
+    }
+
+    message ChargingExt {
+      bool hideBgImg = 1;
+    }
+
+    message EpInlineVideo {
+      int64 materialNo = 1;
+      int64 aid = 2;
+      int64 cid = 3;
+    }
+
+    message EpInlineVideoInfo {
+      repeated EpInlineVideo epInlineVideo = 1;
+    }
+
+    message PlayList {
+      int64 seasonId = 1;
+      string title = 2;
+      string cover = 3;
+      string link = 4;
+      BadgeInfo badgeInfo = 5;
+    }
+
+    message PlayListInfo {
+      repeated PlayList playList = 2;
+    }
+
+    message QrCode {
+      string link = 1;
+      string linkDesc = 2;
+    }
+
+    message ExtData {
+      ExtDataType type = 1;
+
+      oneof data {
+        PlayListInfo playListInfo = 2;
+        Banner banner = 3;
+        EpInlineVideoInfo epInlineVideoInfo = 4;
+        ChargingExt chargingExt = 5;
+        QrCode qrCode = 6;
+      }
+    }
+
+    message ComprehensiveToast {
+      ToastType type = 1;
+      ButtonInfo button = 2;
+      ShowStyleType showStyleType = 3;
+      string icon = 4;
+      TextInfo toastText = 5;
+      Report report = 6;
+      map<string, string> orderReportParams = 7;
+    }
+
+    message PayWallOnshowAction {
+      string link = 1;
+      map<string, string> orderReportParams = 2;
+      ButtonAction actionType = 3;
+    }
+
+    message ExpSwitch {
+      int32 hitOptiTryWatch = 2;
+      map<string, string> expAb = 3;
+    }
+
+    message PromptBar {
+      TextInfo title = 1;
+      TextInfo subTitle = 2;
+      string subTitleIcon = 3;
+      string bgImage = 4;
+      GradientColor bgGradientColor = 5;
+      repeated ButtonInfo button = 6;
+      Report report = 7;
+      string fullScreenIpIcon = 8;
+      GradientColor fullScreenBgGradientColor = 9;
+      PromptBarType promptBarType = 10;
+      PromptBarStyle promptBarStyle = 11;
+      repeated BenefitInfo benefitInfos = 12;
+      int64 endTime = 13;
+      int32 showOnPaywall = 14;
+    }
+
+    message FullPromptBar {
+      string icon = 1;
+      TextInfo title = 2;
+      int64 timerCountdown = 3;
+      bool countdownEnable = 4;
+      TextInfo subtitle = 5;
+      repeated ButtonInfo button = 6;
+      FoldData foldData = 7;
+      Report report = 8;
+      string bgImage = 9;
+      int32 barHeight = 10;
+    }
+
+    message ResidentBar {
+      string icon = 1;
+      TextInfo questionText = 2;
+      ButtonInfo button = 3;
+      string link = 4;
+      Report report = 5;
+      string bgImage = 6;
+    }
+
+    message Dialog {
+      GuideStyle styleType = 1;
+      BackgroundInfo backgroundInfo = 2;
+      TextInfo title = 3;
+      TextInfo subtitle = 4;
+      ImageInfo image = 5;
+      repeated ButtonInfo button = 6;
+      ButtonInfo bottomDesc = 7;
+      Report report = 8;
+      int32 countDownSec = 9;
+      TextInfo rightBottomDesc = 10;
+      repeated BottomDisplay bottomDisplay = 11;
+      ExtData extData = 12;
+      LimitActionType limitActionType = 13;
+      int32 isHideMoreBtn = 14;
+      int32 hideButtonOnHalf = 15;
+      string deliverWinId = 16;
+      map<string, string> conditions = 17;
+    }
+
+    message ViewInfo {
+      map<string, Dialog> dialogMap = 1;
+      PromptBar promptBar = 2;
+      repeated ComprehensiveToast toasts = 3;
+      PayWallOnshowAction payWallOnshowAction = 4;
+      ExpSwitch expSwitch = 5;
+      FullPromptBar fullPromptBar = 6;
+      ResidentBar residentBar = 7;
+    }

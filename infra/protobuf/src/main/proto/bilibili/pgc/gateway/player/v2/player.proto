@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package bilibili.pgc.gateway.player.v2;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.pgc.gateway.player.v2";
+option optimize_for = LITE_RUNTIME;
+
+// 这是为承接 `pgcanymodel` 先补的一版最小闭环 proto。
+// 主消息的字段名与字段号按当前生成 Java 回推。
+// 部分复杂旁支消息先保留为空占位，后续可继续细化。
+
+enum InlineType {
+  TYPE_UNKNOWN = 0;
+  TYPE_WHOLE = 1;
+  TYPE_HE_CLIP = 2;
+  TYPE_PREVIEW = 3;
+}
+
+enum DrmTechType {
+  NON = 0;
+  FAIR_PLAY = 1;
+  WIDE_VINE = 2;
+  BILI_DRM = 3;
+}
+
+enum LimitActionType {
+  LAT_UNKNOWN = 0;
+  SHOW_LIMIT_DIALOG = 1;
+  SKIP_CURRENT_EP = 2;
+}
+
+message Shake {
+  string file = 1;
+}
+
+message Event {
+  Shake shake = 1;
+}
+
+message CastTips {
+  int32 code = 1;
+  string message = 2;
+}
+
+message FreyaConfig {
+  string desc = 1;
+  int32 type = 2;
+  int32 issuedCnt = 3;
+  bool isAlwaysShow = 4;
+  int32 screenNumber = 5;
+  int32 fullScreenNumber = 6;
+}
+
+message PlayAbilityExtConf {
+  bool allowCloseSubtitle = 1;
+  FreyaConfig freyaConfig = 2;
+  CastTips castTips = 3;
+}
+
+message PlayDubbingInfo {}
+
+message PlayExtInfo {
+  PlayDubbingInfo playDubbingInfo = 1;
+}
+
+message Dimension {
+  int32 width = 1;
+  int32 height = 2;
+  int32 rotate = 3;
+}
+
+// 以下是 `ViewInfo` 直接依赖的旁支，占位后续补全。
+message Animation {}
+message CouponInfo {}
+message Dialog {}
+message EndPage {}
+message ExtraData {}
+message HighDefinitionTrialInfo {}
+message PayTip {}
+message PopWin {}
+message PromptBar {}
+message Toast {}
+
+message ViewInfo {
+  Dialog dialog = 1;
+  Toast toast = 2;
+  CouponInfo couponInfo = 3;
+  repeated int64 demandNoPayEpids = 4;
+  EndPage endPage = 5;
+  map<string, bool> expConfig = 6;
+  PopWin popWin = 7;
+  PromptBar tryWatchPromptBar = 8;
+  PayTip payTip = 9;
+  HighDefinitionTrialInfo highDefinitionTrialInfo = 10;
+  map<string, Dialog> extDialog = 11;
+  Animation animation = 12;
+  map<string, Toast> extToast = 13;
+  ExtraData extraData = 14;
+}
+
+// 以下是 `PlayViewBusinessInfo` 直接依赖的旁支，占位后续补全。
+message BrandReport {}
+message ClipInfo {}
+message ContinuePlayInfo {}
+message EpisodeAdvertisementInfo {}
+message EpisodeInfo {}
+message QualityExtInfo {}
+message RecordInfo {}
+message UserStatus {}
+message EpPublicityVideo {}
+
+message PlayViewBusinessInfo {
+  bool isPreview = 1;
+  bool bp = 2;
+  string marlinToken = 3;
+  string playbackSpeedColor = 4;
+  ContinuePlayInfo continuePlayInfo = 5;
+  repeated ClipInfo clipInfo = 6;
+  InlineType inlineType = 7;
+  int32 epWholeDuration = 8;
+  Dimension dimension = 9;
+  map<int32, QualityExtInfo> qualityExtMap = 10;
+  map<string, int32> expMap = 11;
+  DrmTechType drmTechType = 12;
+  LimitActionType limitActionType = 13;
+  bool isDrm = 14;
+  RecordInfo recordInfo = 15;
+  int32 vipStatus = 16;
+  bool isLivePre = 17;
+  EpisodeInfo episodeInfo = 18;
+  EpisodeAdvertisementInfo episodeAdvertisementInfo = 19;
+  UserStatus userStatus = 20;
+  repeated EpPublicityVideo epPublicityVideoList = 21;
+  int64 watchTimeLength = 22;
+  BrandReport brandReport = 23;
+}

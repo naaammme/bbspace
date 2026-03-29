@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package bilibili.app.playerunite.pugvanymodel;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.playerunite.pugvanymodel";
+option java_outer_classname = "PugvanymodelProto";
+option optimize_for = LITE_RUNTIME;
+
+// 剧集状态。
+enum EpisodeStatus {
+  EPISODE_STATUS_UNSPECIFIED = 0;
+  EPISODE_STATUS_TRY_WATCH_WHOLE = 1;
+  EPISODE_STATUS_NOT_TRY_WATCH = 2;
+  EPISODE_STATUS_TRY_WATCH_5_MINUTES = 3;
+}
+
+// 片段类型。
+enum ClipType {
+  CLIP_TYPE_UNSPECIFIED = 0;
+  CLIP_TYPE_HE = 1;
+}
+
+// 限播码。
+enum PlayLimitCode {
+  PLC_UNKNOWN = 0;
+  PLC_DRM_NOT_LOGIN = 1;
+}
+
+// 限播按钮样式。
+message ButtonStyle {
+  string text = 1;
+  string textColor = 2;
+  string bgColor = 3;
+  string jumpLink = 4;
+}
+
+// 试看片段信息。
+message ClipInfo {
+  ClipType clipType = 1;
+  int64 materialNo = 2;
+  int32 start = 3;
+  int32 end = 4;
+}
+
+// 风控信息。
+message RiskControl {
+  bool needSendSms = 1;
+  string title = 2;
+  string riskMessage = 3;
+  string actionDesc = 4;
+  string sendSmsUrl = 5;
+  string buvid = 6;
+}
+
+// 播放器遮罩文案。
+message PlayerMask {
+  string title = 1;
+  string prefix = 2;
+  string suffix = 3;
+}
+
+// 限播信息。
+message PlayLimit {
+  PlayLimitCode code = 1;
+  string message = 2;
+  string subMessage = 3;
+  ButtonStyle button = 4;
+}
+
+// PUGV 补充模型，通常作为 Any 业务体承载。
+message PUGVAnyModel {
+  int64 seasonId = 1;
+  int64 episodeId = 2;
+  EpisodeStatus status = 3;
+  RiskControl riskControl = 4;
+  PlayerMask playerMask = 5;
+  ClipInfo clipInfo = 6;
+  PlayLimit playLimit = 7;
+}

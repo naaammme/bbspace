@@ -1,0 +1,20 @@
+syntax = "proto3";
+package com.bapis.bilibili.metadata.restriction;
+
+// ModeType 模式类型枚举
+enum ModeType {
+    NORMAL = 0;      // 正常模式xianz
+    TEENAGERS = 1;   // 青少年模式
+    LESSONS = 2;     // 课堂模式
+    BASIC = 3;       // 基础模式
+}
+// Restriction 限制信息
+message Restriction {
+    bool teenagers_mode = 1;  // 青少年模式开关
+    bool lessons_mode = 2;    // 课堂模式开关
+    ModeType mode = 3;        // 当前模式类型
+    bool review = 4;          // 审核模式
+    bool disable_rcmd = 5;    // 禁用推荐
+    bool basic_mode = 6;      // 基础模式开关
+    int32 teenagers_age = 7;  // 青少年年龄
+}

@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package bilibili.app.coldstart.v1;
+
+import "google/protobuf/any.proto";
+
+// gRPC 冷启动服务用于批量请求
+// "app.bilibili.com/x/resource/ip"：请求获取当前客户端的 IP 及地理位置信息。
+// "grpc.biliapi.net/bilibili.app.wall.v1.Wall/RuleInfo"：获取免流域名替换规则信息
+
+service ColdStart {
+  // 获取冷启动延迟数据
+  rpc GetColdStartDeferredData (GetColdStartDataReq) returns (GetColdStartDataResp);
+}
+
+// 冷启动数据请求
+message GetColdStartDataReq {
+  repeated ColdStartBizReq reqList = 1;
+}
+
+// 冷启动数据响应
+message GetColdStartDataResp {
+  repeated ColdStartBizResp respList = 1;
+}
+
+// 单个业务请求
+message ColdStartBizReq {
+  string biz_key = 1;
+  google.protobuf.Any biz_param = 2;
+}
+
+// 单个业务响应
+message ColdStartBizResp {
+  string biz_key = 1;
+  google.protobuf.Any biz_resp = 2;
+  oneof status {
+    GrpcStatus grpc_status = 3;
+    HttpStatus http_status = 4;
+  }
+}
+
+// gRPC 状态
+message GrpcStatus {
+  int32 code = 1;
+  string message = 2;
+}
+
+// HTTP 状态
+message HttpStatus {
+  int32 code = 1;
+  string message = 2;
+}
+
+// HTTP JSON 业务响应（用于存储 JSON 字符串数据）
+message HttpJsonBizResp {
+  string data = 1;
+}
