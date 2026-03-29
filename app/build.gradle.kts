@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -6,9 +6,34 @@
     alias(libs.plugins.hilt)
 }
 
+val signingStoreFile = providers.gradleProperty("SIGNING_STORE_FILE").orNull
+    ?: System.getenv("SIGNING_STORE_FILE")
+val signingStorePassword = providers.gradleProperty("SIGNING_STORE_PASSWORD").orNull
+    ?: System.getenv("SIGNING_STORE_PASSWORD")
+val signingKeyAlias = providers.gradleProperty("SIGNING_KEY_ALIAS").orNull
+    ?: System.getenv("SIGNING_KEY_ALIAS")
+val signingKeyPassword = providers.gradleProperty("SIGNING_KEY_PASSWORD").orNull
+    ?: System.getenv("SIGNING_KEY_PASSWORD")
+val hasReleaseSigning =
+    !signingStoreFile.isNullOrBlank() &&
+        !signingStorePassword.isNullOrBlank() &&
+        !signingKeyAlias.isNullOrBlank() &&
+        !signingKeyPassword.isNullOrBlank()
+
 android {
     namespace = "com.naaammme.bbspace"
     compileSdk = 36
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(signingStoreFile!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.naaammme.bbspace"
@@ -24,6 +49,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
