@@ -14,6 +14,7 @@ val signingKeyAlias = providers.gradleProperty("SIGNING_KEY_ALIAS").orNull
     ?: System.getenv("SIGNING_KEY_ALIAS")
 val signingKeyPassword = providers.gradleProperty("SIGNING_KEY_PASSWORD").orNull
     ?: System.getenv("SIGNING_KEY_PASSWORD")
+    ?: signingStorePassword
 val hasReleaseSigning =
     !signingStoreFile.isNullOrBlank() &&
         !signingStorePassword.isNullOrBlank() &&
