@@ -48,9 +48,7 @@ class AccountViewModel @Inject constructor(
     }
 
     fun removeAccount(mid: Long) {
-        val credential = authRepo.getAllAccounts().find { it.mid == mid } ?: return
         viewModelScope.launch {
-            authRepo.logout(credential)
             authRepo.removeAccount(mid)
             refresh()
         }

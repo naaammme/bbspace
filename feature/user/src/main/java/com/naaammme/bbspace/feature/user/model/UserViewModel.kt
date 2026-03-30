@@ -18,14 +18,20 @@ class UserViewModel @Inject constructor(
 
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user.asStateFlow()
+    private val _showAccountExpiredDialog = MutableStateFlow(false)
+    val showAccountExpiredDialog: StateFlow<Boolean> = _showAccountExpiredDialog.asStateFlow()
 
     init {
         _user.value = authRepo.getUserInfo()
         viewModelScope.launch {
             authRepo.currentMidFlow
                 .collect { mid ->
-                    if (mid > 0) fetchMineInfo()
-                    else _user.value = null
+                    if (mid > 0) {
+                        fetchMineInfo()
+                    } else {
+                        _user.value = null
+                        _showAccountExpiredDialog.value = false
+                    }
                 }
         }
     }
@@ -33,7 +39,19 @@ class UserViewModel @Inject constructor(
     fun fetchMineInfo() {
         val credential = authRepo.getSavedCredential() ?: return
         viewModelScope.launch {
-            authRepo.fetchMineInfo(credential).onSuccess { _user.value = it }
+            authRepo.fetchMineInfo(credential).onSuccess {
+                if (it.mid == 0L) {
+                    _user.value = null
+                    _showAccountExpiredDialog.value = true
+                } else {
+                    _user.value = it
+                    _showAccountExpiredDialog.value = false
+                }
+            }
         }
+    }
+
+    fun dismissAccountExpiredDialog() {
+        _showAccountExpiredDialog.value = false
     }
 }
