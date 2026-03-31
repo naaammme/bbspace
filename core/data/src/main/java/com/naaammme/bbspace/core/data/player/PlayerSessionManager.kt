@@ -7,7 +7,9 @@ import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.PlayerSessionState
+import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineSource
+import com.naaammme.bbspace.infra.player.PlayerConfig
 import com.naaammme.bbspace.infra.player.PlayerEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,7 @@ class PlayerSessionManager @Inject constructor(
     suspend fun start(request: PlaybackRequest) {
         _state.value = _state.value.copy(isPreparing = true, error = null, currentRequest = request)
         try {
+            playerEngine.updateConfig(buildPlayerConfig())
             val source = repository.fetchPlaybackSource(request)
             val preferredQuality = request.preferredQuality ?: appSettings.defaultVideoQuality.first()
             val preferredAudioId = appSettings.defaultAudioQuality.first()
@@ -103,5 +106,21 @@ class PlayerSessionManager @Inject constructor(
             )
             null -> null
         }
+    }
+
+    private suspend fun buildPlayerConfig(): PlayerConfig {
+        return PlayerConfig(
+            minBufferMs = appSettings.playerMinBufferMs.first(),
+            maxBufferMs = appSettings.playerMaxBufferMs.first(),
+            playBufferMs = appSettings.playerPlaybackBufferMs.first(),
+            rebufferMs = appSettings.playerRebufferMs.first(),
+            backBufferMs = appSettings.playerBackBufferMs.first(),
+            decoderMode = if (appSettings.preferSoftwareDecode.first()) {
+                DecoderMode.Soft
+            } else {
+                DecoderMode.Hard
+            },
+            decoderFallback = appSettings.decoderFallback.first()
+        )
     }
 }

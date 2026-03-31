@@ -3,6 +3,7 @@
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.player.PlayerSessionManager
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.VideoPlaybackId
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class VideoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    appSettings: AppSettings,
     private val sessionManager: PlayerSessionManager
 ) : ViewModel() {
 
@@ -39,6 +41,12 @@ class VideoViewModel @Inject constructor(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = VideoUiState()
+    )
+
+    val backgroundPlayback = appSettings.backgroundPlayback.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = false
     )
 
     init {

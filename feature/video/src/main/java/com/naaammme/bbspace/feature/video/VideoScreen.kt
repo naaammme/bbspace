@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -49,6 +48,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.model.PlaybackError
+import com.naaammme.bbspace.core.model.PlaybackStream
+import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
 
@@ -60,6 +61,7 @@ fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val backgroundPlayback by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val scrollState = rememberScrollState()
     var showQualityDialog by remember { mutableStateOf(false) }
@@ -71,9 +73,9 @@ fun VideoScreen(
         }
     }
 
-    DisposableEffect(lifecycleOwner, viewModel) {
+    DisposableEffect(lifecycleOwner, viewModel, backgroundPlayback) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
+            if (event == Lifecycle.Event.ON_STOP && !backgroundPlayback) {
                 viewModel.pause()
             }
         }
@@ -140,103 +142,110 @@ fun VideoScreen(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (uiState.error != null) {
-                val message = when (val error = uiState.error) {
-                    is PlaybackError.NoPlayableStream -> error.message
-                    is PlaybackError.RequestFailed -> error.message
-                    null -> "未知错误"
+            when {
+                uiState.error != null -> {
+                    val message = when (val error = uiState.error) {
+                        is PlaybackError.NoPlayableStream -> error.message
+                        is PlaybackError.RequestFailed -> error.message
+                        null -> "未知错误"
+                    }
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error
-                )
-            } else if (!uiState.isLoading && uiState.playbackSource != null) {
-                val source = uiState.playbackSource!!
 
-                Text(
-                    text = "视频信息",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                !uiState.isLoading && uiState.playbackSource != null -> {
+                    val source = uiState.playbackSource!!
 
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        InfoRow("AV号", "av${source.videoId.aid}")
-                        InfoRow("CID", source.videoId.cid.toString())
-                        InfoRow("时长", formatDuration(source.durationMs))
-                        uiState.currentStream?.let { stream ->
-                            InfoRow("分辨率", "${stream.width}x${stream.height}")
-                            if (stream is com.naaammme.bbspace.core.model.PlaybackStream.Dash) {
-                                InfoRow("帧率", stream.frameRate ?: "未知")
-                                InfoRow("编码", getCodecName(stream.codecId))
-                                InfoRow("带宽", "${stream.bandwidth / 1000} kbps")
+                    Text(
+                        text = "视频信息",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            InfoRow("AV号", "av${source.videoId.aid}")
+                            InfoRow("CID", source.videoId.cid.toString())
+                            InfoRow("时长", formatDuration(source.durationMs))
+                            uiState.currentStream?.let { stream ->
+                                InfoRow("分辨率", "${stream.width ?: 0}x${stream.height ?: 0}")
+                                if (stream is PlaybackStream.Dash) {
+                                    InfoRow("帧率", stream.frameRate ?: "未知")
+                                    InfoRow("编码", getCodecName(stream.codecId))
+                                    InfoRow("带宽", "${stream.bandwidth / 1000} kbps")
+                                }
                             }
-                        }
-                        uiState.currentAudio?.let { audio ->
-                            InfoRow("音频ID", audio.id.toString())
-                            InfoRow("音频带宽", "${audio.bandwidth / 1000} kbps")
+                            InfoRow("视频解码器", uiState.snapshot.videoDecoderName ?: "未初始化")
+                            uiState.currentAudio?.let { audio ->
+                                InfoRow("音频ID", audio.id.toString())
+                                InfoRow("音频带宽", "${audio.bandwidth / 1000} kbps")
+                            }
+                            InfoRow("音频解码器", uiState.snapshot.audioDecoderName ?: "未初始化")
                         }
                     }
-                }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { showQualityDialog = true },
-                        modifier = Modifier.weight(1f)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("切换画质")
-                    }
-                    if (source.audios.size > 1) {
                         Button(
-                            onClick = { showAudioDialog = true },
+                            onClick = { showQualityDialog = true },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("切换音频")
+                            Text("切换画质")
+                        }
+                        if (source.audios.size > 1) {
+                            Button(
+                                onClick = { showAudioDialog = true },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("切换音频")
+                            }
+                        }
+                        Button(
+                            onClick = viewModel::togglePlayPause,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (uiState.snapshot.isPlaying) "暂停视频" else "播放视频")
                         }
                     }
-                    Button(
-                        onClick = viewModel::togglePlayPause,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(if (uiState.snapshot.isPlaying) "暂停视频" else "播放视频")
-                    }
-                }
 
-                Text(
-                    text = "可用画质",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                    Text(
+                        text = "可用画质",
+                        style = MaterialTheme.typography.titleMedium
+                    )
 
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        source.qualityOptions.forEachIndexed { index, option ->
-                            QualityOptionItem(
-                                option = option,
-                                isSelected = option.quality == uiState.currentStream?.quality,
-                                onClick = {
-                                    viewModel.switchQuality(option.quality)
-                                    showQualityDialog = false
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            source.qualityOptions.forEachIndexed { index, option ->
+                                QualityOptionItem(
+                                    option = option,
+                                    isSelected = option.quality == uiState.currentStream?.quality,
+                                    onClick = {
+                                        viewModel.switchQuality(option.quality)
+                                        showQualityDialog = false
+                                    }
+                                )
+                                if (index < source.qualityOptions.size - 1) {
+                                    HorizontalDivider()
                                 }
-                            )
-                            if (index < source.qualityOptions.size - 1) {
-                                HorizontalDivider()
                             }
                         }
                     }
-                }
 
-                Text(
-                    text = "播放状态",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                    Text(
+                        text = "播放状态",
+                        style = MaterialTheme.typography.titleMedium
+                    )
 
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        InfoRow("播放位置", formatDuration(uiState.snapshot.positionMs))
-                        InfoRow("缓冲位置", formatDuration(uiState.snapshot.bufferedPositionMs))
-                        InfoRow("播放状态", if (uiState.snapshot.isPlaying) "播放中" else "已暂停")
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            InfoRow("播放位置", formatDuration(uiState.snapshot.positionMs))
+                            InfoRow("缓冲到位置", formatDuration(uiState.snapshot.bufferedPositionMs))
+                            InfoRow("实际缓冲时长", formatDuration(uiState.snapshot.totalBufferedDurationMs))
+                            InfoRow("播放状态", if (uiState.snapshot.isPlaying) "播放中" else "已暂停")
+                        }
                     }
                 }
             }
@@ -290,7 +299,7 @@ private fun InfoRow(label: String, value: String) {
 
 @Composable
 private fun QualityOptionItem(
-    option: com.naaammme.bbspace.core.model.QualityOption,
+    option: QualityOption,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -323,9 +332,9 @@ private fun QualityOptionItem(
                     }
                 }
             }
-            if (option.limit != null) {
+            option.limit?.message?.let { message ->
                 Text(
-                    text = option.limit!!.message ?: "受限",
+                    text = message,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -343,7 +352,7 @@ private fun QualityOptionItem(
 
 @Composable
 private fun QualitySelectionDialog(
-    options: List<com.naaammme.bbspace.core.model.QualityOption>,
+    options: List<QualityOption>,
     currentQuality: Int?,
     onDismiss: () -> Unit,
     onSelect: (Int) -> Unit
@@ -359,6 +368,50 @@ private fun QualitySelectionDialog(
                         isSelected = option.quality == currentQuality,
                         onClick = { onSelect(option.quality) }
                     )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun AudioSelectionDialog(
+    audios: List<com.naaammme.bbspace.core.model.PlaybackAudio>,
+    currentAudioId: Int?,
+    onDismiss: () -> Unit,
+    onSelect: (Int) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择音频") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                audios.forEach { audio ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(audio.id) }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = getAudioName(audio.id),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        if (audio.id == currentAudioId) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
         },
@@ -398,46 +451,4 @@ private fun getAudioName(audioId: Int): String {
         30251 -> "Hi-Res 无损"
         else -> "音频 $audioId"
     }
-}
-
-@Composable
-private fun AudioSelectionDialog(
-    audios: List<com.naaammme.bbspace.core.model.PlaybackAudio>,
-    currentAudioId: Int?,
-    onDismiss: () -> Unit,
-    onSelect: (Int) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("选择音频") },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                audios.forEach { audio ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(audio.id) }
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = getAudioName(audio.id),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (audio.id == currentAudioId) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        }
-    )
 }

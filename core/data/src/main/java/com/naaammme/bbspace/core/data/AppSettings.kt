@@ -121,6 +121,14 @@ class AppSettings @Inject constructor(
     private val forceHostKey = intPreferencesKey("force_host")
     private val needTrialKey = booleanPreferencesKey("need_trial")
     private val preferredCodecKey = intPreferencesKey("preferred_codec_qn")
+    private val playerMinBufMsKey = intPreferencesKey("player_min_buf_ms")
+    private val playerMaxBufMsKey = intPreferencesKey("player_max_buf_ms")
+    private val playerPlayBufMsKey = intPreferencesKey("player_play_buf_ms")
+    private val playerRebufMsKey = intPreferencesKey("player_rebuf_ms")
+    private val playerBackBufMsKey = intPreferencesKey("player_back_buf_ms")
+    private val preferSoftDecKey = booleanPreferencesKey("prefer_soft_dec")
+    private val decFallbackKey = booleanPreferencesKey("dec_fallback")
+    private val bgPlayKey = booleanPreferencesKey("bg_play")
 
     val enableHdrAnd8k: Flow<Boolean> = context.appSettingsStore.data.map { it[enableHdrAnd8kKey] ?: false }
     val defaultVideoQuality: Flow<Int> = context.appSettingsStore.data.map { it[defaultVideoQualityKey] ?: 80 }
@@ -128,6 +136,14 @@ class AppSettings @Inject constructor(
     val forceHost: Flow<Int> = context.appSettingsStore.data.map { it[forceHostKey] ?: 0 }
     val needTrial: Flow<Boolean> = context.appSettingsStore.data.map { it[needTrialKey] ?: false }
     val preferredCodec: Flow<Int> = context.appSettingsStore.data.map { it[preferredCodecKey] ?: 2 }
+    val playerMinBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerMinBufMsKey] ?: 2_000 }
+    val playerMaxBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerMaxBufMsKey] ?: 15_000 }
+    val playerPlaybackBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerPlayBufMsKey] ?: 250 }
+    val playerRebufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerRebufMsKey] ?: 500 }
+    val playerBackBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerBackBufMsKey] ?: 5_000 }
+    val preferSoftwareDecode: Flow<Boolean> = context.appSettingsStore.data.map { it[preferSoftDecKey] ?: false }
+    val decoderFallback: Flow<Boolean> = context.appSettingsStore.data.map { it[decFallbackKey] ?: true }
+    val backgroundPlayback: Flow<Boolean> = context.appSettingsStore.data.map { it[bgPlayKey] ?: false }
 
     suspend fun updateEnableHdrAnd8k(enabled: Boolean) {
         context.appSettingsStore.edit { it[enableHdrAnd8kKey] = enabled }
@@ -151,5 +167,37 @@ class AppSettings @Inject constructor(
 
     suspend fun updatePreferredCodec(codec: Int) {
         context.appSettingsStore.edit { it[preferredCodecKey] = codec }
+    }
+
+    suspend fun updatePlayerMinBufferMs(value: Int) {
+        context.appSettingsStore.edit { it[playerMinBufMsKey] = value }
+    }
+
+    suspend fun updatePlayerMaxBufferMs(value: Int) {
+        context.appSettingsStore.edit { it[playerMaxBufMsKey] = value }
+    }
+
+    suspend fun updatePlayerPlaybackBufferMs(value: Int) {
+        context.appSettingsStore.edit { it[playerPlayBufMsKey] = value }
+    }
+
+    suspend fun updatePlayerRebufferMs(value: Int) {
+        context.appSettingsStore.edit { it[playerRebufMsKey] = value }
+    }
+
+    suspend fun updatePlayerBackBufferMs(value: Int) {
+        context.appSettingsStore.edit { it[playerBackBufMsKey] = value }
+    }
+
+    suspend fun updatePreferSoftwareDecode(enabled: Boolean) {
+        context.appSettingsStore.edit { it[preferSoftDecKey] = enabled }
+    }
+
+    suspend fun updateDecoderFallback(enabled: Boolean) {
+        context.appSettingsStore.edit { it[decFallbackKey] = enabled }
+    }
+
+    suspend fun updateBackgroundPlayback(enabled: Boolean) {
+        context.appSettingsStore.edit { it[bgPlayKey] = enabled }
     }
 }

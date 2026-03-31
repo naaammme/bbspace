@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.settings.playback
+package com.naaammme.bbspace.feature.settings.audioVideo
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +32,9 @@ import com.naaammme.bbspace.feature.settings.components.SettingSwitch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaybackSettingsScreen(
+fun AudioVideoSettingsScreen(
     onBack: () -> Unit,
-    viewModel: PlaybackSettingsViewModel = hiltViewModel()
+    viewModel: AudioVideoSettingsViewModel = hiltViewModel()
 ) {
     val enableHdrAnd8k by viewModel.enableHdrAnd8k.collectAsStateWithLifecycle()
     val defaultVideoQuality by viewModel.defaultVideoQuality.collectAsStateWithLifecycle()
@@ -51,7 +51,7 @@ fun PlaybackSettingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("播放设置")
+                    Text("音视频设置")
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

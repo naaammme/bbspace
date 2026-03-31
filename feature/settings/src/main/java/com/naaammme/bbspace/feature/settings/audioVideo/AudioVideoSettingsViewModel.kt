@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.settings.playback
+package com.naaammme.bbspace.feature.settings.audioVideo
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class PlaybackSettingsViewModel @Inject constructor(
+class AudioVideoSettingsViewModel @Inject constructor(
     private val appSettings: AppSettings
 ) : ViewModel() {
 

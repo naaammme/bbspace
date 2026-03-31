@@ -10,14 +10,14 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.ConcatenatingMediaSource2
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
-import com.naaammme.bbspace.infra.network.UserAgentBuilder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.OkHttpClient
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.max
 
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi
@@ -35,66 +36,95 @@ class Media3PlayerEngine @Inject constructor(
     okHttpClient: OkHttpClient
 ) : PlayerEngine {
 
+    private val appContext = context.applicationContext
+
     private val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
         .setUserAgent("Bilibili Freedoooooom/MarkII")
 
     private val mediaSourceFactory = ProgressiveMediaSource.Factory(dataSourceFactory)
 
-    private val loadControl = DefaultLoadControl.Builder()
-        .setBufferDurationsMs(
-            10_000,
-            30_000,
-            250,
-            750
-        )
-        .setBackBuffer(10_000, true)
-        .build()
-
-    private val trackSelector = DefaultTrackSelector(context)
-
-    private val exoPlayer: ExoPlayer = ExoPlayer.Builder(
-        context,
-        DefaultRenderersFactory(context).setEnableDecoderFallback(true)
-    )
-        .setLoadControl(loadControl)
-        .setTrackSelector(trackSelector)
-        .build()
-        .apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                    .build(),
-                true
-            )
-            setHandleAudioBecomingNoisy(true)
-        }
-
     private val _snapshot = MutableStateFlow(PlaybackSnapshot())
     override val snapshot: StateFlow<PlaybackSnapshot> = _snapshot.asStateFlow()
+    private var playerConfig = PlayerConfig()
+    private var videoDecoderName: String? = null
+    private var audioDecoderName: String? = null
+    private val playerListener = object : Player.Listener {
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            updateSnapshot(playbackState = playbackState)
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            updateSnapshot(isPlaying = isPlaying)
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            _snapshot.value = _snapshot.value.copy(errorMessage = error.message)
+        }
+
+        override fun onEvents(player: Player, events: Player.Events) {
+            updateSnapshot()
+        }
+    }
+    private val analyticsListener = object : AnalyticsListener {
+        override fun onVideoDecoderInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String,
+            initializedTimestampMs: Long,
+            initializationDurationMs: Long
+        ) {
+            videoDecoderName = decoderName
+            updateSnapshot()
+        }
+
+        override fun onAudioDecoderInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String,
+            initializedTimestampMs: Long,
+            initializationDurationMs: Long
+        ) {
+            audioDecoderName = decoderName
+            updateSnapshot()
+        }
+
+        override fun onVideoDecoderReleased(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String
+        ) {
+            if (videoDecoderName == decoderName) {
+                videoDecoderName = null
+                updateSnapshot()
+            }
+        }
+
+        override fun onAudioDecoderReleased(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String
+        ) {
+            if (audioDecoderName == decoderName) {
+                audioDecoderName = null
+                updateSnapshot()
+            }
+        }
+    }
+    private var exoPlayer = buildPlayer(appContext, playerConfig)
 
     override fun getPlayerForView(): Player = exoPlayer
 
     init {
-        exoPlayer.addListener(
-            object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    updateSnapshot(playbackState = playbackState)
-                }
+        updateSnapshot()
+    }
 
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    updateSnapshot(isPlaying = isPlaying)
-                }
+    override fun updateConfig(config: PlayerConfig) {
+        val next = normalizeConfig(config)
+        if (next == playerConfig) return
 
-                override fun onPlayerError(error: PlaybackException) {
-                    _snapshot.value = _snapshot.value.copy(errorMessage = error.message)
-                }
-
-                override fun onEvents(player: Player, events: Player.Events) {
-                    updateSnapshot()
-                }
-            }
-        )
+        val prev = exoPlayer
+        playerConfig = next
+        videoDecoderName = null
+        audioDecoderName = null
+        exoPlayer = buildPlayer(appContext, next)
+        prev.release()
+        _snapshot.value = PlaybackSnapshot()
     }
 
     override fun setSource(source: EngineSource, startPositionMs: Long?) {
@@ -121,6 +151,8 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun stopForReuse(resetPosition: Boolean) {
+        videoDecoderName = null
+        audioDecoderName = null
         exoPlayer.playWhenReady = false
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
@@ -131,7 +163,71 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun release() {
+        videoDecoderName = null
+        audioDecoderName = null
         exoPlayer.release()
+    }
+
+    private fun buildPlayer(context: Context, config: PlayerConfig): ExoPlayer {
+        val renderersFactory = DefaultRenderersFactory(context)
+            // .forceDisableMediaCodecAsynchronousQueueing()
+            .setEnableDecoderFallback(config.decoderFallback)
+            .setMediaCodecSelector(buildCodecSelector(config))
+
+        return ExoPlayer.Builder(context, renderersFactory)
+            .setLoadControl(buildLoadControl(config))
+            .build()
+            .apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                        .build(),
+                    true
+                )
+                setHandleAudioBecomingNoisy(true)
+                addListener(playerListener)
+                addAnalyticsListener(analyticsListener)
+            }
+    }
+
+    private fun buildCodecSelector(config: PlayerConfig): MediaCodecSelector {
+        return MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+            when (config.decoderMode) {
+                DecoderMode.Hard -> MediaCodecSelector.DEFAULT
+                    .getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+                    .filterNot { it.softwareOnly }
+
+                DecoderMode.Soft -> MediaCodecSelector.PREFER_SOFTWARE
+                    .getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+            }
+        }
+    }
+
+    private fun buildLoadControl(config: PlayerConfig): DefaultLoadControl {
+        return DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                config.minBufferMs,
+                config.maxBufferMs,
+                config.playBufferMs,
+                config.rebufferMs
+            )
+            .setBackBuffer(config.backBufferMs, true)
+            .build()
+    }
+
+    private fun normalizeConfig(config: PlayerConfig): PlayerConfig {
+        val playMs = max(config.playBufferMs, 0)
+        val rebufMs = max(config.rebufferMs, 0)
+        val minBufMs = max(config.minBufferMs, max(playMs, rebufMs))
+        val maxBufMs = max(config.maxBufferMs, minBufMs)
+        return config.copy(
+            minBufferMs = minBufMs,
+            maxBufferMs = maxBufMs,
+            playBufferMs = playMs,
+            rebufferMs = rebufMs,
+            backBufferMs = max(config.backBufferMs, 0)
+        )
     }
 
     private fun buildMediaSource(source: EngineSource): MediaSource {
@@ -172,10 +268,13 @@ class Media3PlayerEngine @Inject constructor(
             playbackState = playbackState.toEngineState(),
             positionMs = exoPlayer.currentPosition.coerceAtLeast(0L),
             bufferedPositionMs = exoPlayer.bufferedPosition.coerceAtLeast(0L),
+            totalBufferedDurationMs = exoPlayer.totalBufferedDuration.coerceAtLeast(0L),
             durationMs = exoPlayer.duration.takeIf { it > 0 } ?: 0L,
             speed = exoPlayer.playbackParameters.speed,
             videoWidth = exoPlayer.videoSize.width,
             videoHeight = exoPlayer.videoSize.height,
+            videoDecoderName = videoDecoderName,
+            audioDecoderName = audioDecoderName,
             errorMessage = null
         )
     }
