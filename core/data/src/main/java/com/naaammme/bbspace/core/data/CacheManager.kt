@@ -26,8 +26,6 @@ class CacheManager @Inject constructor(
         private const val TAG = "CacheManager"
     }
 
-    private val prefs = context.getSharedPreferences("cache", Context.MODE_PRIVATE)
-
     // ── 会话信息（转发到 GuestIdGenerator）──
 
     val guestId: String get() = guestIdGenerator.getCachedGuestId()

@@ -54,7 +54,7 @@ fun GeetestDialog(
                             }
 
                             @JavascriptInterface
-                            fun onError(jsonStr: String) {
+                            fun onError(ignored: String) {
                                 post { onDismiss() }
                             }
                         }, "GeetestBridge")

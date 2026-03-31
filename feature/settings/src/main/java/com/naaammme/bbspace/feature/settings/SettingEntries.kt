@@ -27,7 +27,7 @@ val playbackEntries = listOf(
     SettingEntry("自动画质", "根据网络状况自动调整画质", PLAYBACK_ROUTE),
     SettingEntry("音量均衡", "平衡不同视频的音量", PLAYBACK_ROUTE),
     SettingEntry("强制 HTTPS", "使用 HTTPS 播放地址", PLAYBACK_ROUTE),
-    SettingEntry("试看模式", "启用试看功能", PLAYBACK_ROUTE),
+    // SettingEntry("4k模式", "需要4k", PLAYBACK_ROUTE),
 )
 
 val feedEntries = listOf(

@@ -36,10 +36,12 @@ class PlayerSessionManager @Inject constructor(
                 ?: source.streams.firstOrNull()
             val audio = selectAudio(stream, source.audios, preferredAudioId)
 
+            val eng = buildEngineSource(stream, audio) ?: error("No playable stream")
             playerEngine.setSource(
-                buildEngineSource(stream, audio) ?: throw IllegalStateException("No playable stream"),
+                eng,
                 request.seekToMs ?: source.resumePositionMs
             )
+
             _state.value = PlayerSessionState(
                 currentRequest = request,
                 playbackSource = source,
@@ -88,8 +90,8 @@ class PlayerSessionManager @Inject constructor(
     ): PlaybackAudio? {
         if (audios.isEmpty()) return null
         val linkedId = (stream as? PlaybackStream.Dash)?.audioId
-        return audios.firstOrNull { it.id == linkedId }
-            ?: audios.firstOrNull { it.id == preferredId && preferredId > 0 }
+        return audios.firstOrNull { it.id == preferredId && preferredId > 0 }
+            ?: audios.firstOrNull { it.id == linkedId }
             ?: audios.firstOrNull()
     }
 

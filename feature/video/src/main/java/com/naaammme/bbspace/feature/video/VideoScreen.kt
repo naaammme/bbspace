@@ -50,6 +50,7 @@ import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
+import java.util.Locale
 
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi
@@ -374,8 +375,8 @@ private fun formatDuration(ms: Long): String {
     val minutes = seconds / 60
     val hours = minutes / 60
     return when {
-        hours > 0 -> String.format("%d:%02d:%02d", hours, minutes % 60, seconds % 60)
-        else -> String.format("%d:%02d", minutes, seconds % 60)
+        hours > 0 -> String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes % 60, seconds % 60)
+        else -> String.format(Locale.ROOT, "%d:%02d", minutes, seconds % 60)
     }
 }
 

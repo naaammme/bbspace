@@ -7,7 +7,6 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.infra.coldstart.ColdStartClient
-import com.naaammme.bbspace.core.data.AuthStore
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.CacheManager
 import com.naaammme.bbspace.infra.grpc.GaiaReporter
@@ -34,7 +33,6 @@ class AppInitializer @Inject constructor(
     private val ticketGenerator: TicketGenerator,
     private val buvidFetcher: BuvidFetcher,
     private val guestIdGenerator: GuestIdGenerator,
-    private val authStore: AuthStore,
     private val biliDns: BiliDns,
     private val okHttpClient: OkHttpClient,
     private val gaiaReporter: GaiaReporter,

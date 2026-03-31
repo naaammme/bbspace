@@ -38,7 +38,6 @@ class AppSettings @Inject constructor(
     private val cornerStyleKey = stringPreferencesKey("corner_style")
     private val hdFeedKey = booleanPreferencesKey("hd_feed")
     private val personalizedRcmdKey = booleanPreferencesKey("personalized_rcmd")
-    private val regionCodeKey = stringPreferencesKey("region_code")
 
     val themeConfig: Flow<ThemeConfig> = context.appSettingsStore.data.map { prefs ->
         ThemeConfig(

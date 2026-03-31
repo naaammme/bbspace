@@ -1,7 +1,6 @@
 package com.naaammme.bbspace.core.data.repository
 
 import com.naaammme.bbspace.core.common.BiliConstants
-import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.AuthStore
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
@@ -36,7 +35,6 @@ class FeedRepoImpl @Inject constructor(
 ) : FeedRepository {
 
     companion object {
-        private const val TAG = "FeedRepo"
         private const val FEED_ENDPOINT = "/x/v2/feed/index"
     }
 
@@ -157,14 +155,14 @@ class FeedRepoImpl @Inject constructor(
         }
     }
 
-    private val AD_CARD_GOTOS = setOf("banner", "ad_web_s", "ad_web", "ad")
+    private val adCardGotos = setOf("banner", "ad_web_s", "ad_web", "ad")
 
     private fun parseItems(arr: org.json.JSONArray?): List<FeedItem> {
         if (arr == null) return emptyList()
         val result = mutableListOf<FeedItem>()
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
-            if (obj.optString("card_goto") in AD_CARD_GOTOS) continue
+            if (obj.optString("card_goto") in adCardGotos) continue
             result.add(parseFeedItem(obj))
         }
         return result

@@ -6,7 +6,6 @@ import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.infra.crypto.RegionCodeCache
 import com.naaammme.bbspace.infra.crypto.AuroraEidGenerator
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
-import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
 import com.naaammme.bbspace.infra.crypto.TicketGenerator
 import com.naaammme.bbspace.infra.crypto.TraceIdGenerator
 import com.naaammme.bbspace.infra.network.BiliMetadataBuilder
@@ -24,8 +23,7 @@ class GrpcHeaderBuilder @Inject constructor(
     private val deviceIdentity: DeviceIdentity,
     private val metadataBuilder: BiliMetadataBuilder,
     private val regionCodeCache: RegionCodeCache,
-    private val ticketGenerator: TicketGenerator,
-    private val guestIdGenerator: GuestIdGenerator
+    private val ticketGenerator: TicketGenerator
 ) {
     fun build(
         deviceBin: ByteArray = metadataBuilder.buildDevice(),

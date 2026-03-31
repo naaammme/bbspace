@@ -336,27 +336,6 @@ private fun InfoCardLongPress(
 }
 
 @Composable
-private fun InfoCardWithAction(
-    entries: List<Pair<String, String>>,
-    actionLabel: String,
-    onAction: () -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            entries.forEach { (key, value) ->
-                InfoRow(key, value)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onAction
-            ) {
-                Text(actionLabel)
-            }
-        }
-    }
-}
-
-@Composable
 private fun InfoRow(key: String, value: String) {
     Row(
         modifier = Modifier
