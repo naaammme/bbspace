@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package bilibili.broadcast.message.main;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.broadcast.message.main";
+option optimize_for = LITE_RUNTIME;
+
+// Minimal stub for cross-package validation of bilibili.polymer.app.search.v1.
+message ChatResult {
+}

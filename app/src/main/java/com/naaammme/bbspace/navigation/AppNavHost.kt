@@ -30,6 +30,8 @@ import com.naaammme.bbspace.feature.auth.navigation.accountScreen
 import com.naaammme.bbspace.feature.auth.navigation.loginScreen
 import com.naaammme.bbspace.feature.auth.navigation.smsLoginScreen
 import com.naaammme.bbspace.feature.home.ui.HomeScreen
+import com.naaammme.bbspace.feature.search.navigation.navigateToSearch
+import com.naaammme.bbspace.feature.search.navigation.searchScreen
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
 import com.naaammme.bbspace.feature.user.UserScreen
@@ -55,6 +57,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
     ) {
         composable(MAIN_ROUTE) {
             MainTabsScaffold(
+                onNavigateToSearch = { rootNavController.navigateToSearch() },
                 onNavigateToSettings = { rootNavController.navigate(SETTINGS_ROUTE) },
                 onNavigateToLogin = { rootNavController.navigate(SMS_LOGIN_ROUTE) },
                 onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
@@ -89,12 +92,17 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
         )
 
         settingsScreen(rootNavController)
+        searchScreen(
+            onBack = { rootNavController.popBackStack() },
+            onOpenVideo = { aid, cid -> rootNavController.navigateToVideo(aid, cid) }
+        )
         videoScreen(onBack = { rootNavController.popBackStack() })
     }
 }
 
 @Composable
 private fun MainTabsScaffold(
+    onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToAccount: () -> Unit,
@@ -124,6 +132,7 @@ private fun MainTabsScaffold(
                     saveableStateHolder.SaveableStateProvider(tab.route) {
                         when (tab) {
                             TopLevelRoute.HOME -> HomeScreen(
+                                onNavigateToSearch = onNavigateToSearch,
                                 onNavigateToSettings = onNavigateToSettings,
                                 onOpenVideo = onNavigateToVideo
                             )

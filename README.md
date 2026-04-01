@@ -1,7 +1,24 @@
-﻿# bbspace
+# bbspace
+<p align="center">
+  <a href="https://github.com/naaammme/bbspace/releases">
+    <img src="https://img.shields.io/github/v/release/naaammme/bbspace?style=for-the-badge" alt="release" />
+  </a>
+  <a href="https://github.com/naaammme/bbspace/releases">
+    <img src="https://img.shields.io/github/downloads/naaammme/bbspace/total?style=for-the-badge" alt="downloads" />
+  </a>
+  <a href="https://github.com/naaammme/bbspace/releases/latest">
+    <img src="https://img.shields.io/github/downloads/naaammme/bbspace/latest/total?style=for-the-badge" alt="latest release downloads" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/naaammme/bbspace?style=for-the-badge" alt="license" />
+  </a>
+</p>
 <p align="center"><img src="images/banner.jpg" alt="bbspace banner" width="480" /></p>
 
 一个使用 Jetpack Compose + Material3 开发的第三方 B 站 Android 客户端。
+
+## 下载
+点击[release](https://github.com/naaammme/bbspace/releases)下载
 
 ## 已实现功能
 
@@ -32,11 +49,8 @@
 </p>
 
 ## 声明
-
-此项目 ( bbspace ) 的代码由 AI 生成, 仅用于个人娱乐和测试
+此项目是个人为了兴趣而开发，仅用于学习和测试，所用 API 皆从官方网站收集，不包含任何破解和付费内容。
 
 ## License
 
 [GPL-3.0](LICENSE)
-
-

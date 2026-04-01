@@ -4,10 +4,12 @@ import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.data.AuthProviderImpl
 import com.naaammme.bbspace.core.data.repository.AuthRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
+import com.naaammme.bbspace.core.data.repository.SearchRepoImpl
 import com.naaammme.bbspace.core.data.repository.VideoPlayerRepoImpl
 import com.naaammme.bbspace.core.domain.auth.AuthRepository
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
+import com.naaammme.bbspace.core.domain.search.SearchRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -29,6 +31,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindFeedRepo(impl: FeedRepoImpl): FeedRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSearchRepo(impl: SearchRepoImpl): SearchRepository
 
     @Binds
     @Singleton

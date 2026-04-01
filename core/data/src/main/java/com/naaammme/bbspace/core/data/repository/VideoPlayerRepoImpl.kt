@@ -241,7 +241,7 @@ class VideoPlayerRepoImpl @Inject constructor(
     private companion object {
         const val TAG = "PlayViewUnite"
         const val ENDPOINT = "bilibili.app.playerunite.v1.Player/PlayViewUnite"
-        const val EP_ID = "search.search-result.0.0"
+        const val EP_ID = "tm.recommend.0.0" // TODO:根据实际场景?
         const val FROM_SCENE = "normal"
     }
 }
