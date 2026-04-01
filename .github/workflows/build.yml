@@ -10,6 +10,10 @@ on:
         description: 'Version name (e.g. 1.2.0)'
         required: true
         default: '1.0.0'
+      release_notes:
+        description: 'Release notes'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -104,4 +108,5 @@ jobs:
           name: v${{ steps.ver.outputs.name }}
           target_commitish: ${{ github.sha }}
           files: app/build/outputs/apk/release/*.apk
+          body: ${{ github.event.inputs.release_notes }}
           generate_release_notes: true
