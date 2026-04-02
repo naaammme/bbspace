@@ -194,9 +194,15 @@ class Media3PlayerEngine @Inject constructor(
     private fun buildCodecSelector(config: PlayerConfig): MediaCodecSelector {
         return MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
             when (config.decoderMode) {
-                DecoderMode.Hard -> MediaCodecSelector.DEFAULT
-                    .getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
-                    .filterNot { it.softwareOnly }
+                DecoderMode.Hard -> {
+                    val infos = MediaCodecSelector.DEFAULT
+                        .getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+                    if (mimeType.startsWith("video/")) {
+                        infos.sortedBy { it.softwareOnly }
+                    } else {
+                        infos
+                    }
+                }
 
                 DecoderMode.Soft -> MediaCodecSelector.PREFER_SOFTWARE
                     .getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)

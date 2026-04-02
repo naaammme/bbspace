@@ -11,10 +11,12 @@ import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerConfig
 import com.naaammme.bbspace.infra.player.PlayerEngine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,10 +29,15 @@ class PlayerSessionManager @Inject constructor(
     private val _state = MutableStateFlow(PlayerSessionState())
     val state: StateFlow<PlayerSessionState> = _state.asStateFlow()
 
+    suspend fun prepareEngine() {
+        val config = withContext(Dispatchers.IO) { buildPlayerConfig() }
+        playerEngine.updateConfig(config)
+    }
+
     suspend fun start(request: PlaybackRequest) {
         _state.value = _state.value.copy(isPreparing = true, error = null, currentRequest = request)
         try {
-            playerEngine.updateConfig(buildPlayerConfig())
+            prepareEngine()
             val source = repository.fetchPlaybackSource(request)
             val preferredQuality = request.preferredQuality ?: appSettings.defaultVideoQuality.first()
             val preferredAudioId = appSettings.defaultAudioQuality.first()

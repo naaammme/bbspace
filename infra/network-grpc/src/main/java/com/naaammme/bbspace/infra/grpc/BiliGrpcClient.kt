@@ -2,8 +2,8 @@ package com.naaammme.bbspace.infra.grpc
 
 import com.google.protobuf.MessageLite
 import com.google.protobuf.Parser
-import com.naaammme.bbspace.infra.network.BiliApiException
 import com.naaammme.bbspace.core.common.BiliConstants
+import com.naaammme.bbspace.infra.network.BiliApiException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -36,10 +36,8 @@ class BiliGrpcClient @Inject constructor(
         parser: Parser<Resp>,
         extraDeviceBin: ByteArray? = null
     ): Resp {
-        // 编码 根据 payload 大小自动决定是否 gzip 压缩
         val encodeResult = GrpcFrameCodec.encode(requestBytes)
 
-        // 构建 header编码相关的 header 取决于是否压缩
         val headers = if (extraDeviceBin != null) {
             grpcHeaderBuilder.build(deviceBin = extraDeviceBin, compressed = encodeResult.compressed)
         } else {
@@ -52,20 +50,19 @@ class BiliGrpcClient @Inject constructor(
 
         headers.forEach { (key, value) -> requestBuilder.addHeader(key, value) }
 
-        val response = withContext(Dispatchers.IO) {
-            okHttpClient.newCall(requestBuilder.build()).execute()
+        return withContext(Dispatchers.IO) {
+            val response = okHttpClient.newCall(requestBuilder.build()).execute()
+
+            if (response.code != 200) {
+                throw BiliApiException(response.code, "HTTP ${response.code}: ${response.message}")
+            }
+
+            val responseBytes = response.body?.bytes()
+                ?: throw BiliApiException(-1, "Empty gRPC response")
+
+            val grpcEncoding = response.header("grpc-encoding")
+            val payload = GrpcFrameCodec.decode(responseBytes, grpcEncoding)
+            parser.parseFrom(payload)
         }
-
-        if (response.code != 200) {
-            throw BiliApiException(response.code, "HTTP ${response.code}: ${response.message}")
-        }
-
-        val responseBytes = response.body?.bytes()
-            ?: throw BiliApiException(-1, "Empty gRPC response")
-
-        // 解码 检查压缩标志 + 响应头 grpc-encoding
-        val grpcEncoding = response.header("grpc-encoding")
-        val payload = GrpcFrameCodec.decode(responseBytes, grpcEncoding)
-        return parser.parseFrom(payload)
     }
 }

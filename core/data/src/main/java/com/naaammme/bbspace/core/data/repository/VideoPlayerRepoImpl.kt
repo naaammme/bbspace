@@ -23,7 +23,9 @@ import com.naaammme.bbspace.core.model.ProgressiveSegment
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.StreamLimitInfo
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,13 +36,15 @@ class VideoPlayerRepoImpl @Inject constructor(
 ) : VideoPlayerRepository {
 
     override suspend fun fetchPlaybackSource(request: PlaybackRequest): PlaybackSource {
-        val req = buildRequest(request)
-        val reply = grpcClient.call(
-            endpoint = ENDPOINT,
-            requestBytes = req.toByteArray(),
-            parser = PlayViewUniteReply.parser()
-        )
-        return mapReply(request, reply)
+        val reply = withContext(Dispatchers.IO) {
+            val req = buildRequest(request)
+            grpcClient.call(
+                endpoint = ENDPOINT,
+                requestBytes = req.toByteArray(),
+                parser = PlayViewUniteReply.parser()
+            )
+        }
+        return withContext(Dispatchers.Default) { mapReply(request, reply) }
     }
 
     private suspend fun buildRequest(request: PlaybackRequest): PlayViewUniteReq {

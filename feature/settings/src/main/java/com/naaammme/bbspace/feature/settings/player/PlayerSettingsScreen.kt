@@ -159,7 +159,7 @@ fun PlayerSettingsScreen(
             IntOptionDialog(
                 title = "选择起播缓冲时长",
                 currentValue = playbackBufferMs,
-                options = listOf(250, 500, 1_000, 1_500, 2_000),
+                options = listOf(50, 100, 150, 250, 400, 600, 800, 1_000),
                 label = ::formatBufferMs,
                 onSelect = viewModel::updatePlaybackBufferMs,
                 onDismiss = { dialog = null }
@@ -170,7 +170,7 @@ fun PlayerSettingsScreen(
             IntOptionDialog(
                 title = "选择重缓冲恢复时长",
                 currentValue = rebufferMs,
-                options = listOf(500, 750, 1_000, 1_500, 2_000, 3_000),
+                options = listOf(100, 250, 400, 500, 750, 1_000, 1_500),
                 label = ::formatBufferMs,
                 onSelect = viewModel::updateRebufferMs,
                 onDismiss = { dialog = null }

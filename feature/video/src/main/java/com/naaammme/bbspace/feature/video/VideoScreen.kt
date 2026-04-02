@@ -61,14 +61,18 @@ fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val engineReady by viewModel.engineReady.collectAsStateWithLifecycle()
     val backgroundPlayback by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val scrollState = rememberScrollState()
     var showQualityDialog by remember { mutableStateOf(false) }
     var showAudioDialog by remember { mutableStateOf(false) }
+    var pv by remember { mutableStateOf<PlayerView?>(null) }
 
     DisposableEffect(viewModel) {
         onDispose {
+            pv?.player = null
+            pv = null
             viewModel.close()
         }
     }
@@ -98,23 +102,27 @@ fun VideoScreen(
                 .aspectRatio(16f / 9f)
                 .background(Color.Black)
         ) {
-            AndroidView(
-                factory = { context ->
-                    PlayerView(context).apply {
-                        useController = true
-                        setKeepContentOnPlayerReset(true)
-                        findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)
+            if (engineReady) {
+                AndroidView(
+                    factory = { context ->
+                        PlayerView(context).apply {
+                            useController = true
+                            setKeepContentOnPlayerReset(true)
+                            findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)
+                                ?.setTimeBarScrubbingEnabled(true)
+                            player = viewModel.getPlayerForView()
+                            post { viewModel.ensureStarted() }
+                        }.also { pv = it }
+                    },
+                    update = { view ->
+                        pv = view
+                        view.player = viewModel.getPlayerForView()
+                        view.findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)
                             ?.setTimeBarScrubbingEnabled(true)
-                        player = viewModel.getPlayerForView()
-                    }
-                },
-                update = {
-                    it.player = viewModel.getPlayerForView()
-                    it.findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)
-                        ?.setTimeBarScrubbingEnabled(true)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             Surface(
                 modifier = Modifier

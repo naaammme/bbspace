@@ -9,8 +9,10 @@ import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.VideoPlaybackId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,6 +24,20 @@ class VideoViewModel @Inject constructor(
 ) : ViewModel() {
 
     private var closed = false
+    private var started = false
+    private val _engineReady = MutableStateFlow(false)
+    val engineReady = _engineReady.asStateFlow()
+    private val req = run {
+        val aid = savedStateHandle.get<Long>("aid") ?: 0L
+        val cid = savedStateHandle.get<Long>("cid") ?: 0L
+        if (aid > 0 && cid > 0) {
+            PlaybackRequest(
+                videoId = VideoPlaybackId(aid = aid, cid = cid)
+            )
+        } else {
+            null
+        }
+    }
 
     fun getPlayerForView() = sessionManager.playerEngine.getPlayerForView()
 
@@ -50,16 +66,18 @@ class VideoViewModel @Inject constructor(
     )
 
     init {
-        val aid = savedStateHandle.get<Long>("aid") ?: 0L
-        val cid = savedStateHandle.get<Long>("cid") ?: 0L
-        if (aid > 0 && cid > 0) {
-            viewModelScope.launch {
-                sessionManager.start(
-                        PlaybackRequest(
-                            videoId = VideoPlaybackId(aid = aid, cid = cid)
-                        )
-                    )
-            }
+        viewModelScope.launch {
+            sessionManager.prepareEngine()
+            _engineReady.value = true
+        }
+    }
+
+    fun ensureStarted() {
+        if (started || !engineReady.value) return
+        val request = req ?: return
+        started = true
+        viewModelScope.launch {
+            sessionManager.start(request)
         }
     }
 
