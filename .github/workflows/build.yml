@@ -10,10 +10,6 @@ on:
         description: 'Version name (e.g. 1.2.0)'
         required: true
         default: '1.0.0'
-      release_notes:
-        description: 'Release notes'
-        required: false
-        default: ''
 
 permissions:
   contents: write
@@ -98,7 +94,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/*.apk
-          generate_release_notes: true
+          body_path: .github/release-notes.md
 
       - name: Create GitHub Release (manual)
         if: github.event_name == 'workflow_dispatch'
@@ -108,5 +104,4 @@ jobs:
           name: v${{ steps.ver.outputs.name }}
           target_commitish: ${{ github.sha }}
           files: app/build/outputs/apk/release/*.apk
-          body: ${{ github.event.inputs.release_notes }}
-          generate_release_notes: true
+          body_path: .github/release-notes.md
