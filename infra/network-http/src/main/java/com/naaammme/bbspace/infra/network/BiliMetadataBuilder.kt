@@ -1,28 +1,22 @@
 package com.naaammme.bbspace.infra.network
 
-import bilibili.metadata.device.device
-import bilibili.metadata.fawkes.fawkesReq
-import bilibili.metadata.locale.locale
-import bilibili.metadata.locale.localeIds
-import bilibili.metadata.metadata
+import bilibili.metadata.MetadataOuterClass
+import bilibili.metadata.device.DeviceOuterClass
+import bilibili.metadata.fawkes.Fawkes
+import bilibili.metadata.locale.LocaleOuterClass
 import bilibili.metadata.network.NetworkOuterClass
-import bilibili.metadata.network.network
-import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.core.common.BiliConstants
+import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Binary Metadata 构建器
- * HTTP 和 gRPC 共用
- */
 @Singleton
 class BiliMetadataBuilder @Inject constructor(
     private val deviceIdentity: DeviceIdentity
 ) {
     fun buildMetadata(accessKey: String = ""): ByteArray {
-        return metadata {
+        return MetadataOuterClass.Metadata.newBuilder().apply {
             if (accessKey.isNotEmpty()) {
                 this.accessKey = accessKey
             }
@@ -32,12 +26,12 @@ class BiliMetadataBuilder @Inject constructor(
             channel = BiliConstants.CHANNEL
             buvid = deviceIdentity.buvid
             platform = BiliConstants.PLATFORM
-        }.toByteArray()
+        }.build().toByteArray()
     }
 
     fun buildDevice(): ByteArray {
         val fts = System.currentTimeMillis() / 1000 - (30 * 24 * 3600)
-        return device {
+        return DeviceOuterClass.Device.newBuilder().apply {
             appId = BiliConstants.APP_ID
             build = BiliConstants.BUILD
             buvid = deviceIdentity.buvid
@@ -53,47 +47,52 @@ class BiliMetadataBuilder @Inject constructor(
             versionName = BiliConstants.VERSION
             fp = deviceIdentity.fp
             this.fts = fts
-        }.toByteArray()
+        }.build().toByteArray()
     }
 
-    fun buildNetwork(): ByteArray { // TODO 动态化 type用ConnectivityManager检测WiFi或蜂窝 oid用TelephonyManager.getNetworkOperator读运营商 cellular读蜂窝代数 tf等免流模块实现后接入
-        return network {
+    fun buildNetwork(): ByteArray {
+        val quality = NetworkOuterClass.NetQuality.newBuilder()
+            .setSuccessRate(-1.0f)
+            .build()
+
+        return NetworkOuterClass.Network.newBuilder().apply {
             type = NetworkOuterClass.NetworkType.WIFI
             tf = NetworkOuterClass.TFType.TF_UNKNOWN
             oid = "46000"
-            quality = NetworkOuterClass.NetQuality.newBuilder()
-                .setSuccessRate(-1.0f)
-                .build()
-        }.toByteArray()
+            this.quality = quality
+        }.build().toByteArray()
     }
 
-    fun buildLocale(): ByteArray { // locale就硬编码吧
-        return locale {
-            cLocale = localeIds {
-                language = "zh"
-                script = "Hans"
-                region = "CN"
-            }
-            sLocale = localeIds {
-                language = "zh"
-                script = "Hans"
-                region = "CN"
-            }
+    fun buildLocale(): ByteArray {
+        val cLocale = LocaleOuterClass.LocaleIds.newBuilder()
+            .setLanguage("zh")
+            .setScript("Hans")
+            .setRegion("CN")
+            .build()
+        val sLocale = LocaleOuterClass.LocaleIds.newBuilder()
+            .setLanguage("zh")
+            .setScript("Hans")
+            .setRegion("CN")
+            .build()
+
+        return LocaleOuterClass.Locale.newBuilder().apply {
+            this.cLocale = cLocale
+            this.sLocale = sLocale
             // simCode = ""
             timezone = "Asia/Shanghai"
             utcOffset = "+08:00"
             // is_daylight_time = 0 // 是否夏令时
             // always_translate = 0 // 是否始终翻译
 
-        }.toByteArray()
+        }.build().toByteArray()
     }
 
     fun buildFawkes(): ByteArray {
         val sessionId = UUID.randomUUID().toString().replace("-", "").substring(0, 8)
-        return fawkesReq {
+        return Fawkes.FawkesReq.newBuilder().apply {
             appkey = BiliConstants.MOBI_APP
             env = BiliConstants.ENV
             this.sessionId = sessionId
-        }.toByteArray()
+        }.build().toByteArray()
     }
 }

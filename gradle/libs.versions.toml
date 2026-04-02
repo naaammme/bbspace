@@ -18,9 +18,7 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 kotlinxSerializationJson = "1.7.3"
 
-# gRPC & Protobuf
-grpc = "1.68.0"
-grpcKotlin = "1.4.1"
+# Protobuf
 protobuf = "4.29.2"
 protobufPlugin = "0.9.4"
 
@@ -103,12 +101,8 @@ okhttp-brotli = { group = "com.squareup.okhttp3", name = "okhttp-brotli", versio
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
-# gRPC
-grpc-okhttp = { group = "io.grpc", name = "grpc-okhttp", version.ref = "grpc" }
-grpc-protobuf-lite = { group = "io.grpc", name = "grpc-protobuf-lite", version.ref = "grpc" }
-grpc-stub = { group = "io.grpc", name = "grpc-stub", version.ref = "grpc" }
-grpc-kotlin-stub = { group = "io.grpc", name = "grpc-kotlin-stub", version.ref = "grpcKotlin" }
-protobuf-kotlin-lite = { group = "com.google.protobuf", name = "protobuf-kotlin-lite", version.ref = "protobuf" }
+# Protobuf
+protobuf-javalite = { group = "com.google.protobuf", name = "protobuf-javalite", version.ref = "protobuf" }
 
 # Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.infra.crypto
 
 import android.util.Base64
+import bilibili.metadata.locale.LocaleOuterClass
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.common.log.Logger
 import kotlinx.coroutines.Dispatchers
@@ -10,10 +11,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-/**
- * 远程 buvid 获取器
- * 调用 /x/polymer/buvid/get 接口，用服务端返回的高权限 buvid 替换本地生成的
- */
 class BuvidFetcher(
     private val okHttpClient: OkHttpClient,
     private val deviceIdentity: DeviceIdentity
@@ -23,10 +20,6 @@ class BuvidFetcher(
         private const val ENDPOINT = "/x/polymer/buvid/get"
     }
 
-    /**
-     * 获取远程 buvid 并更新本地存储
-     * 已有远程 buvid 时直接返回缓存值
-     */
     suspend fun fetchAndUpdate(): String? {
         val cached = deviceIdentity.remoteBuvid
         if (cached.isNotEmpty()) return cached
@@ -83,7 +76,6 @@ class BuvidFetcher(
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string() ?: return@runCatching null
 
-
             val json = JSONObject(body)
             if (json.optInt("code") != 0) {
                 Logger.w(TAG) { "远程 buvid 获取失败: ${json.optString("message")}" }
@@ -97,7 +89,7 @@ class BuvidFetcher(
                 return@runCatching null
             }
 
-            Logger.i(TAG) { "远程 buvid: $remote (匹配: ${data.optString("match_device")}, 类型: ${data.optString("device_type")})" }
+            Logger.i(TAG) { "远程 buvid: $remote 匹配: ${data.optString("match_device")} 类型: ${data.optString("device_type")}" }
             deviceIdentity.updateRemoteBuvid(remote)
             remote
         }.getOrElse { e ->
@@ -107,17 +99,20 @@ class BuvidFetcher(
     }
 
     private fun buildLocaleProtobuf(): ByteArray {
-        return bilibili.metadata.locale.locale {
-            cLocale = bilibili.metadata.locale.localeIds {
-                language = "zh"
-                region = "CN"
-            }
-            sLocale = bilibili.metadata.locale.localeIds {
-                language = "zh"
-                region = "CN"
-            }
+        val cLocale = LocaleOuterClass.LocaleIds.newBuilder()
+            .setLanguage("zh")
+            .setRegion("CN")
+            .build()
+        val sLocale = LocaleOuterClass.LocaleIds.newBuilder()
+            .setLanguage("zh")
+            .setRegion("CN")
+            .build()
+
+        return LocaleOuterClass.Locale.newBuilder().apply {
+            this.cLocale = cLocale
+            this.sLocale = sLocale
             timezone = ""
-        }.toByteArray()
+        }.build().toByteArray()
     }
 
     private fun genSessionId(): String {
