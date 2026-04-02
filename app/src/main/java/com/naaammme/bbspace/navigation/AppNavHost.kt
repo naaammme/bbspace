@@ -18,6 +18,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -44,16 +45,19 @@ private const val MAIN_ROUTE = "main"
 fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
     val rootNavController = rememberNavController()
     val transitions = remember(themeConfig.transitionStyle, themeConfig.animationSpeed) {
-        buildNavTransitions(themeConfig.transitionStyle, themeConfig.animationSpeed)
+        buildNavTransitions<NavBackStackEntry>(
+            themeConfig.transitionStyle,
+            themeConfig.animationSpeed
+        )
     }
 
     NavHost(
         navController = rootNavController,
         startDestination = MAIN_ROUTE,
-        enterTransition = { transitions.enter },
-        exitTransition = { transitions.exit },
-        popEnterTransition = { transitions.popEnter },
-        popExitTransition = { transitions.popExit }
+        enterTransition = { transitions.enter(this) },
+        exitTransition = { transitions.exit(this) },
+        popEnterTransition = { transitions.popEnter(this) },
+        popExitTransition = { transitions.popExit(this) }
     ) {
         composable(MAIN_ROUTE) {
             MainTabsScaffold(

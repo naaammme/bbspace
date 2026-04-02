@@ -1,7 +1,6 @@
 ﻿package com.naaammme.bbspace.feature.home.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -93,11 +92,6 @@ fun HomeScreen(
     }
     LaunchedEffect(shouldLoadMore, viewModel.isRefreshing) {
         if (shouldLoadMore && !viewModel.isRefreshing) viewModel.loadMore()
-    }
-    LaunchedEffect(viewModel.isRefreshing) {
-        if (!viewModel.isRefreshing && items.isNotEmpty()) {
-            gridState.scrollToItem(0)
-        }
     }
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -212,9 +206,9 @@ private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
             .build()
     }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = item.playerArgs != null, onClick = onClick),
+        onClick = onClick,
+        enabled = item.playerArgs != null,
+        modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {

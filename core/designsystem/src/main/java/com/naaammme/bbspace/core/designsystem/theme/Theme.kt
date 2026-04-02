@@ -27,13 +27,21 @@ fun BiliTheme(
         ThemeMode.DARK -> true
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
+    val context = LocalContext.current
 
-    val colorScheme = when {
-        config.useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    val colorScheme = remember(
+        context,
+        darkTheme,
+        config.seedColor,
+        config.useDynamicColor,
+        config.isPureBlack
+    ) {
+        when {
+            config.useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            }
+            else -> createColorScheme(config.seedColor, darkTheme, config.isPureBlack)
         }
-        else -> createColorScheme(config.seedColor, darkTheme, config.isPureBlack)
     }
 
     val typography = remember(config.fontScale) { createTypography(config.fontScale) }

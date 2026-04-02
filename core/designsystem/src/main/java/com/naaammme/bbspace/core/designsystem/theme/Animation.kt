@@ -4,8 +4,11 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 
+@Immutable
 data class BiliAnimations(
     val short: Int,
     val medium: Int,
@@ -48,8 +51,9 @@ fun ProvideAnimations(
     speed: AnimationSpeed,
     content: @Composable () -> Unit
 ) {
+    val anim = remember(speed) { createAnimations(speed) }
     CompositionLocalProvider(
-        LocalAnimations provides createAnimations(speed),
+        LocalAnimations provides anim,
         content = content
     )
 }

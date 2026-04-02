@@ -76,6 +76,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.theme.LocalAnimations
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -85,6 +86,7 @@ import com.naaammme.bbspace.core.model.SearchOp
 import com.naaammme.bbspace.core.model.SearchTime
 import com.naaammme.bbspace.core.model.SearchVideo
 import java.util.Calendar
+import kotlinx.coroutines.delay
 
 @Composable
 fun SearchScreen(
@@ -789,12 +791,14 @@ private fun SearchTopBar(
     onBack: () -> Unit,
     onSearch: () -> Unit
 ) {
+    val anim = LocalAnimations.current
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(autoFocus) {
         if (autoFocus) {
+            delay(anim.long.toLong())
             focusRequester.requestFocus()
             keyboard?.show()
         }
