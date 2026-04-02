@@ -27,6 +27,7 @@ interface PlayerEngine {
     fun setSource(source: EngineSource, startPositionMs: Long? = null)
     fun play()
     fun pause()
+    fun setSpeed(speed: Float)
     fun seekTo(positionMs: Long)
     fun stopForReuse(resetPosition: Boolean = true)
     fun release()

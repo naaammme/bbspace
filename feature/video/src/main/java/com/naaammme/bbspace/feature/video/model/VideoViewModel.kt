@@ -101,6 +101,14 @@ class VideoViewModel @Inject constructor(
         sessionManager.pause()
     }
 
+    fun seekTo(positionMs: Long) {
+        sessionManager.seekTo(positionMs)
+    }
+
+    fun setSpeed(speed: Float) {
+        sessionManager.setSpeed(speed)
+    }
+
     fun close() {
         if (closed) return
         closed = true

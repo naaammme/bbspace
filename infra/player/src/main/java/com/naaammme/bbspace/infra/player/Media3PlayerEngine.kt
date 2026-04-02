@@ -5,6 +5,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -144,6 +145,11 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun pause() {
         exoPlayer.pause()
+    }
+
+    override fun setSpeed(speed: Float) {
+        exoPlayer.playbackParameters = PlaybackParameters(speed.coerceIn(0.25f, 3f))
+        updateSnapshot()
     }
 
     override fun seekTo(positionMs: Long) {

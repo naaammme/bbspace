@@ -69,6 +69,7 @@ class PlayerSessionManager @Inject constructor(
 
     fun play() = playerEngine.play()
     fun pause() = playerEngine.pause()
+    fun setSpeed(speed: Float) = playerEngine.setSpeed(speed)
     fun seekTo(positionMs: Long) = playerEngine.seekTo(positionMs)
 
     fun switchQuality(quality: Int) {

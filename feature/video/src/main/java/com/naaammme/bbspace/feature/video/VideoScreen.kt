@@ -1,57 +1,52 @@
 package com.naaammme.bbspace.feature.video
 
-import androidx.compose.foundation.background
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
-import com.naaammme.bbspace.core.model.PlaybackError
-import com.naaammme.bbspace.core.model.PlaybackStream
+import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.QualityOption
+import com.naaammme.bbspace.feature.video.model.VideoUiState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
+internal val speedOps = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi
@@ -62,306 +57,211 @@ fun VideoScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val engineReady by viewModel.engineReady.collectAsStateWithLifecycle()
-    val backgroundPlayback by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val scrollState = rememberScrollState()
-    var showQualityDialog by remember { mutableStateOf(false) }
-    var showAudioDialog by remember { mutableStateOf(false) }
-    var pv by remember { mutableStateOf<PlayerView?>(null) }
+    val bgPlay by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
+    val owner = LocalLifecycleOwner.current
+    val ctx = LocalContext.current
+    val act = remember(ctx) { ctx.findActivity() }
+    val pv = remember(ctx) {
+        PlayerView(ctx).apply {
+            useController = false
+            setKeepContentOnPlayerReset(true)
+        }
+    }
+    var showQ by remember { mutableStateOf(false) }
+    var showA by remember { mutableStateOf(false) }
+    var showSp by remember { mutableStateOf(false) }
+    var showCtrl by remember { mutableStateOf(true) }
+    var isFull by rememberSaveable { mutableStateOf(false) }
+    var posMs by remember { mutableStateOf(0L) }
+    var durMs by remember { mutableStateOf(0L) }
+    var dragMs by remember { mutableStateOf<Long?>(null) }
+
+    BackHandler(enabled = isFull) {
+        isFull = false
+    }
 
     DisposableEffect(viewModel) {
         onDispose {
-            pv?.player = null
-            pv = null
             viewModel.close()
         }
     }
 
-    DisposableEffect(lifecycleOwner, viewModel, backgroundPlayback) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !backgroundPlayback) {
+    DisposableEffect(act, isFull) {
+        val a = act
+        if (a == null) {
+            onDispose { }
+        } else {
+            val win = a.window
+            val ctrl = WindowInsetsControllerCompat(win, win.decorView)
+            if (isFull) {
+                ctrl.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                ctrl.hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                ctrl.show(WindowInsetsCompat.Type.systemBars())
+            }
+            onDispose {
+                ctrl.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    DisposableEffect(owner, viewModel, bgPlay) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && !bgPlay) {
                 viewModel.pause()
             }
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
+        owner.lifecycle.addObserver(obs)
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+            owner.lifecycle.removeObserver(obs)
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .verticalScroll(scrollState)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .aspectRatio(16f / 9f)
-                .background(Color.Black)
-        ) {
-            if (engineReady) {
-                AndroidView(
-                    factory = { context ->
-                        PlayerView(context).apply {
-                            useController = true
-                            setKeepContentOnPlayerReset(true)
-                            findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)
-                                ?.setTimeBarScrubbingEnabled(true)
-                            player = viewModel.getPlayerForView()
-                            post { viewModel.ensureStarted() }
-                        }.also { pv = it }
-                    },
-                    update = { view ->
-                        pv = view
-                        view.player = viewModel.getPlayerForView()
-                        view.findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)
-                            ?.setTimeBarScrubbingEnabled(true)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(12.dp),
-                color = Color.Black.copy(alpha = 0.5f),
-                shape = MaterialTheme.shapes.small
-            ) {
-                IconButton(
-                    onClick = {
-                        viewModel.close()
-                        onBack()
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                        tint = Color.White
-                    )
-                }
-            }
-        }
-
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            when {
-                uiState.error != null -> {
-                    val message = when (val error = uiState.error) {
-                        is PlaybackError.NoPlayableStream -> error.message
-                        is PlaybackError.RequestFailed -> error.message
-                        null -> "未知错误"
-                    }
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-
-                !uiState.isLoading && uiState.playbackSource != null -> {
-                    val source = uiState.playbackSource!!
-
-                    Text(
-                        text = "视频信息",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            InfoRow("AV号", "av${source.videoId.aid}")
-                            InfoRow("CID", source.videoId.cid.toString())
-                            InfoRow("时长", formatDuration(source.durationMs))
-                            uiState.currentStream?.let { stream ->
-                                InfoRow("分辨率", "${stream.width ?: 0}x${stream.height ?: 0}")
-                                if (stream is PlaybackStream.Dash) {
-                                    InfoRow("帧率", stream.frameRate ?: "未知")
-                                    InfoRow("编码", getCodecName(stream.codecId))
-                                    InfoRow("带宽", "${stream.bandwidth / 1000} kbps")
-                                }
-                            }
-                            InfoRow("视频解码器", uiState.snapshot.videoDecoderName ?: "未初始化")
-                            uiState.currentAudio?.let { audio ->
-                                InfoRow("音频ID", audio.id.toString())
-                                InfoRow("音频带宽", "${audio.bandwidth / 1000} kbps")
-                            }
-                            InfoRow("音频解码器", uiState.snapshot.audioDecoderName ?: "未初始化")
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = { showQualityDialog = true },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("切换画质")
-                        }
-                        if (source.audios.size > 1) {
-                            Button(
-                                onClick = { showAudioDialog = true },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("切换音频")
-                            }
-                        }
-                        Button(
-                            onClick = viewModel::togglePlayPause,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (uiState.snapshot.isPlaying) "暂停视频" else "播放视频")
-                        }
-                    }
-
-                    Text(
-                        text = "可用画质",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            source.qualityOptions.forEachIndexed { index, option ->
-                                QualityOptionItem(
-                                    option = option,
-                                    isSelected = option.quality == uiState.currentStream?.quality,
-                                    onClick = {
-                                        viewModel.switchQuality(option.quality)
-                                        showQualityDialog = false
-                                    }
-                                )
-                                if (index < source.qualityOptions.size - 1) {
-                                    HorizontalDivider()
-                                }
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = "播放状态",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            InfoRow("播放位置", formatDuration(uiState.snapshot.positionMs))
-                            InfoRow("缓冲到位置", formatDuration(uiState.snapshot.bufferedPositionMs))
-                            InfoRow("实际缓冲时长", formatDuration(uiState.snapshot.totalBufferedDurationMs))
-                            InfoRow("播放状态", if (uiState.snapshot.isPlaying) "播放中" else "已暂停")
-                        }
-                    }
-                }
-            }
+    LaunchedEffect(uiState.snapshot.positionMs, uiState.snapshot.durationMs, dragMs) {
+        if (dragMs == null) {
+            posMs = uiState.snapshot.positionMs
+            durMs = uiState.snapshot.durationMs
         }
     }
 
-    if (showQualityDialog && uiState.playbackSource != null) {
+    LaunchedEffect(engineReady, uiState.snapshot.isPlaying, dragMs, uiState.snapshot.durationMs) {
+        while (isActive && engineReady) {
+            if (dragMs == null) {
+                val player = viewModel.getPlayerForView()
+                posMs = player.currentPosition.coerceAtLeast(0L)
+                durMs = (player.duration.takeIf { it > 0 } ?: uiState.snapshot.durationMs)
+                    .coerceAtLeast(0L)
+            }
+            delay(if (uiState.snapshot.isPlaying) 500 else 1_000)
+        }
+    }
+
+    LaunchedEffect(showCtrl, uiState.snapshot.isPlaying, dragMs, showA, showQ, showSp) {
+        if (
+            showCtrl &&
+            uiState.snapshot.isPlaying &&
+            dragMs == null &&
+            !showA &&
+            !showQ &&
+            !showSp
+        ) {
+            delay(3_000)
+            showCtrl = false
+        }
+    }
+
+    val barMs = dragMs ?: posMs
+    val sliderVal = if (durMs > 0) {
+        (barMs.toFloat() / durMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    val pane: @Composable (Modifier) -> Unit = { mod ->
+        VideoPlayerPane(
+            modifier = mod,
+            playerView = pv,
+            engineReady = engineReady,
+            viewModel = viewModel,
+            showCtrl = showCtrl,
+            barMs = barMs,
+            durMs = durMs,
+            sliderVal = sliderVal,
+            isFull = isFull,
+            isPlaying = uiState.snapshot.isPlaying,
+            audioText = uiState.currentAudio?.let { getAudioName(it.id, short = true) } ?: "音频",
+            qualityText = getQualityName(uiState),
+            speedText = formatSpeed(uiState.snapshot.speed),
+            audioOn = (uiState.playbackSource?.audios?.size ?: 0) > 1,
+            qualityOn = (uiState.playbackSource?.qualityOptions?.size ?: 0) > 1,
+            onToggleCtrl = { showCtrl = !showCtrl },
+            onTogglePlay = viewModel::togglePlayPause,
+            onAudioClick = {
+                showCtrl = true
+                showA = true
+            },
+            onQualityClick = {
+                showCtrl = true
+                showQ = true
+            },
+            onSpeedClick = {
+                showCtrl = true
+                showSp = true
+            },
+            onFullClick = {
+                showCtrl = true
+                isFull = !isFull
+            },
+            onBackClick = {
+                if (isFull) {
+                    isFull = false
+                } else {
+                    onBack()
+                }
+            },
+            onSeekChange = { frac ->
+                showCtrl = true
+                dragMs = (durMs * frac).toLong()
+            },
+            onSeekDone = {
+                val next = dragMs ?: return@VideoPlayerPane
+                viewModel.seekTo(next)
+                posMs = next
+                dragMs = null
+            }
+        )
+    }
+
+    if (isFull) {
+        VideoFullPage(playerPane = pane)
+    } else {
+        VideoDetailPage(
+            uiState = uiState,
+            playerPane = pane
+        )
+    }
+
+    if (showQ && uiState.playbackSource != null) {
         QualitySelectionDialog(
             options = uiState.playbackSource!!.qualityOptions,
-            currentQuality = uiState.currentStream?.quality,
-            onDismiss = { showQualityDialog = false },
+            curQuality = uiState.currentStream?.quality,
+            onDismiss = { showQ = false },
             onSelect = { quality ->
                 viewModel.switchQuality(quality)
-                showQualityDialog = false
+                showQ = false
             }
         )
     }
 
-    if (showAudioDialog && uiState.playbackSource != null) {
+    if (showA && uiState.playbackSource != null) {
         AudioSelectionDialog(
             audios = uiState.playbackSource!!.audios,
-            currentAudioId = uiState.currentAudio?.id,
-            onDismiss = { showAudioDialog = false },
+            curAudioId = uiState.currentAudio?.id,
+            onDismiss = { showA = false },
             onSelect = { audioId ->
                 viewModel.switchAudio(audioId)
-                showAudioDialog = false
+                showA = false
             }
         )
     }
-}
 
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
-
-@Composable
-private fun QualityOptionItem(
-    option: QualityOption,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = option.description,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                if (option.needVip) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.extraSmall
-                    ) {
-                        Text(
-                            text = "大会员",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
+    if (showSp) {
+        SpeedSelectionDialog(
+            curSpeed = uiState.snapshot.speed,
+            onDismiss = { showSp = false },
+            onSelect = { speed ->
+                viewModel.setSpeed(speed)
+                showSp = false
             }
-            option.limit?.message?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "已选择",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
+        )
     }
 }
 
 @Composable
 private fun QualitySelectionDialog(
     options: List<QualityOption>,
-    currentQuality: Int?,
+    curQuality: Int?,
     onDismiss: () -> Unit,
     onSelect: (Int) -> Unit
 ) {
@@ -373,7 +273,7 @@ private fun QualitySelectionDialog(
                 options.forEach { option ->
                     QualityOptionItem(
                         option = option,
-                        isSelected = option.quality == currentQuality,
+                        isSelected = option.quality == curQuality,
                         onClick = { onSelect(option.quality) }
                     )
                 }
@@ -389,8 +289,8 @@ private fun QualitySelectionDialog(
 
 @Composable
 private fun AudioSelectionDialog(
-    audios: List<com.naaammme.bbspace.core.model.PlaybackAudio>,
-    currentAudioId: Int?,
+    audios: List<PlaybackAudio>,
+    curAudioId: Int?,
     onDismiss: () -> Unit,
     onSelect: (Int) -> Unit
 ) {
@@ -412,7 +312,7 @@ private fun AudioSelectionDialog(
                             text = getAudioName(audio.id),
                             style = MaterialTheme.typography.bodyLarge
                         )
-                        if (audio.id == currentAudioId) {
+                        if (audio.id == curAudioId) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
@@ -431,32 +331,108 @@ private fun AudioSelectionDialog(
     )
 }
 
-private fun formatDuration(ms: Long): String {
-    val seconds = ms / 1000
-    val minutes = seconds / 60
-    val hours = minutes / 60
-    return when {
-        hours > 0 -> String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes % 60, seconds % 60)
-        else -> String.format(Locale.ROOT, "%d:%02d", minutes, seconds % 60)
+@Composable
+private fun SpeedSelectionDialog(
+    curSpeed: Float,
+    onDismiss: () -> Unit,
+    onSelect: (Float) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("播放速度") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                speedOps.forEach { speed ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(speed) }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatSpeed(speed),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        if (speed == curSpeed) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+internal fun formatDuration(ms: Long): String {
+    val sec = ms / 1000
+    val min = sec / 60
+    val hour = min / 60
+    return if (hour > 0) {
+        String.format(Locale.ROOT, "%d:%02d:%02d", hour, min % 60, sec % 60)
+    } else {
+        String.format(Locale.ROOT, "%d:%02d", min, sec % 60)
     }
 }
 
-private fun getCodecName(codecId: Int): String {
+internal fun formatPlaybackTime(posMs: Long, durMs: Long): String {
+    return "${formatDuration(posMs)} / ${formatDuration(durMs)}"
+}
+
+internal fun formatSpeed(speed: Float): String {
+    val num = if (speed % 1f == 0f) {
+        String.format(Locale.ROOT, "%.1f", speed)
+    } else {
+        String.format(Locale.ROOT, "%.2f", speed).trimEnd('0').trimEnd('.')
+    }
+    return "${num}x"
+}
+
+internal fun getCodecName(codecId: Int): String {
     return when (codecId) {
         7 -> "AVC/H.264"
         12 -> "HEVC/H.265"
         13 -> "AV1"
-        else -> "未知 ($codecId)"
+        else -> "未知 $codecId"
     }
 }
 
-private fun getAudioName(audioId: Int): String {
+internal fun getAudioName(audioId: Int, short: Boolean = false): String {
     return when (audioId) {
         30216 -> "64K"
         30232 -> "132K"
         30280 -> "192K"
-        30250 -> "杜比全景声"
-        30251 -> "Hi-Res 无损"
-        else -> "音频 $audioId"
+        30250 -> if (short) "杜比" else "杜比全景声"
+        30251 -> if (short) "无损" else "Hi-Res 无损"
+        else -> if (short) "音频" else "音频 $audioId"
+    }
+}
+
+internal fun getQualityName(uiState: VideoUiState): String {
+    val source = uiState.playbackSource ?: return "画质"
+    val stream = uiState.currentStream ?: return "画质"
+    val option = source.qualityOptions.firstOrNull { it.quality == stream.quality }
+    val label = option?.displayDescription?.takeIf(String::isNotBlank)
+        ?: option?.description?.takeIf(String::isNotBlank)
+        ?: stream.description.takeIf(String::isNotBlank)
+        ?: "画质"
+    return label.substringBefore(' ').ifBlank { label }
+}
+
+private tailrec fun Context.findActivity(): Activity? {
+    return when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
     }
 }
