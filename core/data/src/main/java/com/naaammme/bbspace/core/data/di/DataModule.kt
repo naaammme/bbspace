@@ -5,11 +5,13 @@ import com.naaammme.bbspace.core.data.AuthProviderImpl
 import com.naaammme.bbspace.core.data.repository.AuthRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
 import com.naaammme.bbspace.core.data.repository.SearchRepoImpl
+import com.naaammme.bbspace.core.data.repository.VideoDetailRepoImpl
 import com.naaammme.bbspace.core.data.repository.VideoPlayerRepoImpl
 import com.naaammme.bbspace.core.domain.auth.AuthRepository
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
 import com.naaammme.bbspace.core.domain.search.SearchRepository
+import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -39,4 +41,8 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindVideoPlayerRepo(impl: VideoPlayerRepoImpl): VideoPlayerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindVideoDetailRepo(impl: VideoDetailRepoImpl): VideoDetailRepository
 }

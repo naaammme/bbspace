@@ -8,27 +8,31 @@ option optimize_for = LITE_RUNTIME;
 
 import "google/protobuf/any.proto";
 import "bilibili/playershared/playershared.proto";
+
 // 源于 粉版 v8.62.0
 // 字段名与字段号以当前反编译产物为准。
 
 // 统一播放页请求。
 message PlayViewUniteReq {
-    bilibili.playershared.VideoVod vod = 1;
-    int64 aid = 2;
-    string ep_id = 3;
-    string spmid = 4;
-    string from_spmid = 5;
-    string session = 6;
-    bilibili.playershared.VideoVod vod_param = 7;
-    string from_scene = 8;
-    map<string, string> extra_content = 9;
-    int32 play_ctrl = 10;
-    bilibili.playershared.Fragment fragment = 11;
-    int64 material_no = 12;
-    string risk_info = 13;
-    string mode = 14;
+  // 点播标识与播放能力参数。
+  .bilibili.playershared.VideoVod vod = 1;
+  // 当前页面或请求的 SPM 标识。
+  string spmid = 2;
+  // 来源页的 SPM 标识。
+  string fromSpmid = 3;
+  // 场景相关的附加参数。
+  map<string, string> extraContent = 4;
+  // 目标稿件的 BVID。
+  string bvid = 5;
+  // 广告相关的透传扩展串。
+  string adExtra = 6;
+  // 分片播放上下文。
+  .bilibili.playershared.Fragment fragment = 7;
+  // 请求来源场景。
+  string fromScene = 8;
+  // 播放控制模式。
+  .bilibili.playershared.PlayCtrl playCtrl = 9;
 }
-
 
 // 统一播放页响应。
 message PlayViewUniteReply {

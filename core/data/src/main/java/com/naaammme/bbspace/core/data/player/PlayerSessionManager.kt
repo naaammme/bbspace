@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,17 +29,23 @@ class PlayerSessionManager @Inject constructor(
 ) {
     private val _state = MutableStateFlow(PlayerSessionState())
     val state: StateFlow<PlayerSessionState> = _state.asStateFlow()
+    private val ownerId = AtomicLong(0L)
 
     suspend fun prepareEngine() {
         val config = withContext(Dispatchers.IO) { buildPlayerConfig() }
         playerEngine.updateConfig(config)
     }
 
-    suspend fun start(request: PlaybackRequest) {
+    suspend fun start(
+        who: Long,
+        request: PlaybackRequest
+    ) {
+        ownerId.set(who)
         _state.value = _state.value.copy(isPreparing = true, error = null, currentRequest = request)
         try {
             prepareEngine()
             val source = repository.fetchPlaybackSource(request)
+            if (!isOwner(who)) return
             val preferredQuality = request.preferredQuality ?: appSettings.defaultVideoQuality.first()
             val preferredAudioId = appSettings.defaultAudioQuality.first()
 
@@ -47,10 +54,12 @@ class PlayerSessionManager @Inject constructor(
             val audio = selectAudio(stream, source.audios, preferredAudioId)
 
             val eng = buildEngineSource(stream, audio) ?: error("No playable stream")
+            if (!isOwner(who)) return
             playerEngine.setSource(
                 eng,
                 request.seekToMs ?: source.resumePositionMs
             )
+            if (!isOwner(who)) return
 
             _state.value = PlayerSessionState(
                 currentRequest = request,
@@ -60,6 +69,7 @@ class PlayerSessionManager @Inject constructor(
                 isPreparing = false
             )
         } catch (t: Throwable) {
+            if (!isOwner(who)) return
             _state.value = _state.value.copy(
                 isPreparing = false,
                 error = PlaybackError.RequestFailed(t.message ?: "Failed to load playback source", t)
@@ -67,12 +77,37 @@ class PlayerSessionManager @Inject constructor(
         }
     }
 
-    fun play() = playerEngine.play()
-    fun pause() = playerEngine.pause()
-    fun setSpeed(speed: Float) = playerEngine.setSpeed(speed)
-    fun seekTo(positionMs: Long) = playerEngine.seekTo(positionMs)
+    fun play(who: Long) {
+        if (!isOwner(who)) return
+        playerEngine.play()
+    }
 
-    fun switchQuality(quality: Int) {
+    fun pause(who: Long) {
+        if (!isOwner(who)) return
+        playerEngine.pause()
+    }
+
+    fun setSpeed(
+        who: Long,
+        speed: Float
+    ) {
+        if (!isOwner(who)) return
+        playerEngine.setSpeed(speed)
+    }
+
+    fun seekTo(
+        who: Long,
+        positionMs: Long
+    ) {
+        if (!isOwner(who)) return
+        playerEngine.seekTo(positionMs)
+    }
+
+    fun switchQuality(
+        who: Long,
+        quality: Int
+    ) {
+        if (!isOwner(who)) return
         val s = _state.value
         val source = s.playbackSource ?: return
         val stream = source.streams.firstOrNull { it.quality == quality } ?: return
@@ -81,7 +116,11 @@ class PlayerSessionManager @Inject constructor(
         _state.value = s.copy(currentStream = stream, currentAudio = audio)
     }
 
-    fun switchAudio(audioId: Int) {
+    fun switchAudio(
+        who: Long,
+        audioId: Int
+    ) {
+        if (!isOwner(who)) return
         val s = _state.value
         val source = s.playbackSource ?: return
         val audio = source.audios.firstOrNull { it.id == audioId } ?: return
@@ -89,9 +128,21 @@ class PlayerSessionManager @Inject constructor(
         _state.value = s.copy(currentAudio = audio)
     }
 
-    fun closeCurrentSession() {
+    fun closeCurrentSession(who: Long) {
+        if (!ownerId.compareAndSet(who, 0L)) return
         playerEngine.stopForReuse(resetPosition = true)
         _state.value = PlayerSessionState()
+    }
+
+    fun hasSession(
+        who: Long,
+        request: PlaybackRequest
+    ): Boolean {
+        val state = _state.value
+        return ownerId.get() == who &&
+                state.currentRequest == request &&
+                (state.playbackSource != null || state.isPreparing) &&
+                state.error == null
     }
 
     private fun selectAudio(
@@ -130,5 +181,9 @@ class PlayerSessionManager @Inject constructor(
             },
             decoderFallback = appSettings.decoderFallback.first()
         )
+    }
+
+    private fun isOwner(who: Long): Boolean {
+        return ownerId.get() == who
     }
 }

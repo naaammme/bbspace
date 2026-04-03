@@ -15,10 +15,9 @@ data class FeedItem(
     val coverLeftText2: String?,
     val coverRightText: String?,
     val idx: Long,
-    val trackId: String?,
+    val jump: VideoJump?,
     val descButton: DescButton?,
     val rcmdReason: RcmdReason?,
-    val playerArgs: FeedPlayerArgs?,
     val args: FeedArgs?,
     val threePointV2: List<ThreePointItem>?
 )
@@ -36,14 +35,6 @@ data class RcmdReason(
     val bgColor: String?,
     val textColorNight: String?,
     val bgColorNight: String?
-)
-
-@Immutable
-data class FeedPlayerArgs(
-    val aid: Long,
-    val cid: Long,
-    val duration: Int,
-    val type: String?
 )
 
 @Immutable

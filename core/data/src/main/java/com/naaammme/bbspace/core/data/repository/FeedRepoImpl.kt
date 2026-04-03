@@ -8,7 +8,6 @@ import com.naaammme.bbspace.core.domain.feed.FeedResult
 import com.naaammme.bbspace.core.model.DescButton
 import com.naaammme.bbspace.core.model.FeedArgs
 import com.naaammme.bbspace.core.model.FeedItem
-import com.naaammme.bbspace.core.model.FeedPlayerArgs
 import com.naaammme.bbspace.core.model.FeedToast
 import com.naaammme.bbspace.core.model.InterestAge
 import com.naaammme.bbspace.core.model.InterestChoose
@@ -18,6 +17,8 @@ import com.naaammme.bbspace.core.model.InterestSubItem
 import com.naaammme.bbspace.core.model.RcmdReason
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.ThreePointReason
+import com.naaammme.bbspace.core.model.VideoJump
+import com.naaammme.bbspace.core.model.VideoJumpTool
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.crypto.AppSigner
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -173,20 +174,40 @@ class FeedRepoImpl @Inject constructor(
         val descBtn = obj.optJSONObject("desc_button")
         val rcmd = obj.optJSONObject("rcmd_reason_style")
         val player = obj.optJSONObject("player_args")
+        val uri = obj.optString("uri")
+        val reportFlowData = obj.optString("report_flow_data")
+            .takeIf { it.isNotEmpty() }
+            ?: VideoJumpTool.arg(uri, "report_flow_data")
+        val jump = player?.let {
+            val aid = it.optLong("aid")
+            val cid = it.optLong("cid")
+            if (aid <= 0L || cid <= 0L) {
+                null
+            } else {
+                VideoJump(
+                    aid = aid,
+                    cid = cid,
+                    src = VideoJumpTool.feed(
+                        trackId = obj.optString("track_id").takeIf { value -> value.isNotEmpty() },
+                        reportFlowData = reportFlowData
+                    )
+                )
+            }
+        }
 
         return FeedItem(
             cardType = obj.optString("card_type"),
             cardGoto = obj.optString("card_goto"),
             goto = obj.optString("goto"),
             param = obj.optString("param"),
-            uri = obj.optString("uri"),
+            uri = uri,
             title = obj.optString("title"),
             cover = obj.optString("cover").replace("http://", "https://"),
             coverLeftText1 = obj.optString("cover_left_text_1").takeIf { it.isNotEmpty() },
             coverLeftText2 = obj.optString("cover_left_text_2").takeIf { it.isNotEmpty() },
             coverRightText = obj.optString("cover_right_text").takeIf { it.isNotEmpty() },
             idx = obj.optLong("idx"),
-            trackId = obj.optString("track_id").takeIf { it.isNotEmpty() },
+            jump = jump,
             descButton = descBtn?.let {
                 DescButton(
                     text = it.optString("text"),
@@ -200,14 +221,6 @@ class FeedRepoImpl @Inject constructor(
                     bgColor = it.optString("bg_color").takeIf { s -> s.isNotEmpty() },
                     textColorNight = it.optString("text_color_night").takeIf { s -> s.isNotEmpty() },
                     bgColorNight = it.optString("bg_color_night").takeIf { s -> s.isNotEmpty() }
-                )
-            },
-            playerArgs = player?.let {
-                FeedPlayerArgs(
-                    aid = it.optLong("aid"),
-                    cid = it.optLong("cid"),
-                    duration = it.optInt("duration"),
-                    type = it.optString("type").takeIf { s -> s.isNotEmpty() }
                 )
             },
             args = args?.let {

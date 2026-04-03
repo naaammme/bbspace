@@ -1,6 +1,5 @@
 package com.naaammme.bbspace.core.data.repository
 
-import android.net.Uri
 import android.text.Html
 import com.bapis.bilibili.app.archive.middleware.v1.PlayerArgs
 import com.bapis.bilibili.app.archive.middleware.v1.QnPolicy
@@ -22,6 +21,8 @@ import com.naaammme.bbspace.core.model.SearchOrder
 import com.naaammme.bbspace.core.model.SearchPage
 import com.naaammme.bbspace.core.model.SearchReq
 import com.naaammme.bbspace.core.model.SearchVideo
+import com.naaammme.bbspace.core.model.VideoJump
+import com.naaammme.bbspace.core.model.VideoJumpTool
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import java.util.Locale
 import java.util.TimeZone
@@ -66,8 +67,7 @@ class SearchRepoImpl @Inject constructor(
 
         return SearchPage(
             keyword = resp.keyword.ifBlank { req.keyword },
-            trackId = resp.trackid,
-            videos = resp.itemList.mapNotNull(::mapVideo),
+            videos = resp.itemList.mapNotNull { mapVideo(it, resp.trackid) },
             next = resp.pagination.next,
             filters = resp.searchFilter.filterEntriesList.mapNotNull(::mapFilter)
         )
@@ -87,16 +87,28 @@ class SearchRepoImpl @Inject constructor(
             .build()
     }
 
-    private fun mapVideo(item: Item): SearchVideo? {
+    private fun mapVideo(
+        item: Item,
+        pageTrackId: String
+    ): SearchVideo? {
         if (item.cardItemCase != Item.CardItemCase.AV) return null
         val av = item.av
-        val aid = item.param.toLongOrNull() ?: item.uri.toAid() ?: return null
-        val cid = item.uri.toCid()
+        val aid = item.param.toLongOrNull() ?: VideoJumpTool.aid(item.uri) ?: return null
+        val cid = VideoJumpTool.cid(item.uri)
             ?: av.share.video.cid.takeIf { it > 0L }
             ?: return null
+        val jump = VideoJump(
+            aid = aid,
+            cid = cid,
+            src = VideoJumpTool.search(
+                uri = item.uri,
+                fallbackTrackId = pageTrackId
+            )
+        )
         return SearchVideo(
             aid = aid,
             cid = cid,
+            jump = jump,
             title = av.title.cleanHtml(),
             cover = av.cover.replace("http://", "https://"),
             author = av.author,
@@ -165,14 +177,6 @@ class SearchRepoImpl @Inject constructor(
 
     private fun String.cleanHtml(): String {
         return Html.fromHtml(this, Html.FROM_HTML_MODE_LEGACY).toString().trim()
-    }
-
-    private fun String.toAid(): Long? {
-        return Uri.parse(this).lastPathSegment?.toLongOrNull()
-    }
-
-    private fun String.toCid(): Long? {
-        return Uri.parse(this).getQueryParameter("cid")?.toLongOrNull()
     }
 
     private fun Long?.formatCount(): String {

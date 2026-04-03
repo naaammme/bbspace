@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
+import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.feature.auth.navigation.ACCOUNT_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.LOGIN_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.SMS_LOGIN_ROUTE
@@ -65,7 +66,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                 onNavigateToSettings = { rootNavController.navigate(SETTINGS_ROUTE) },
                 onNavigateToLogin = { rootNavController.navigate(SMS_LOGIN_ROUTE) },
                 onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
-                onNavigateToVideo = { aid, cid -> rootNavController.navigateToVideo(aid, cid) }
+                onNavigateToVideo = rootNavController::navigateToVideo
             )
         }
 
@@ -98,9 +99,12 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
         settingsScreen(rootNavController)
         searchScreen(
             onBack = { rootNavController.popBackStack() },
-            onOpenVideo = { aid, cid -> rootNavController.navigateToVideo(aid, cid) }
+            onOpenVideo = rootNavController::navigateToVideo
         )
-        videoScreen(onBack = { rootNavController.popBackStack() })
+        videoScreen(
+            onBack = { rootNavController.popBackStack() },
+            onOpenVideo = rootNavController::navigateToVideo
+        )
     }
 }
 
@@ -110,7 +114,7 @@ private fun MainTabsScaffold(
     onNavigateToSettings: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToAccount: () -> Unit,
-    onNavigateToVideo: (Long, Long) -> Unit
+    onNavigateToVideo: (VideoJump) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()

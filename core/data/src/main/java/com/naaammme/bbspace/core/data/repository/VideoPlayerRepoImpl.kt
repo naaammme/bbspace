@@ -22,6 +22,7 @@ import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.ProgressiveSegment
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.StreamLimitInfo
+import com.naaammme.bbspace.core.model.VideoJumpTool
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -76,19 +77,24 @@ class VideoPlayerRepoImpl @Inject constructor(
             putAll(request.extraContent)
         }
 
-        return PlayViewUniteReq.newBuilder()
+        val playCtrl = when (request.controlMode) {
+            PlaybackControlMode.Simple -> PlayCtrl.PLAY_CTRL_SIMPLE
+            PlaybackControlMode.Default -> PlayCtrl.PLAY_CTRL_DEFAULT
+        }
+
+        val builder = PlayViewUniteReq.newBuilder()
             .setVod(vod)
+            .setSpmid(VideoJumpTool.SPMID)
             .setFromSpmid(request.fromSpmid ?: "")
-            .setEpId(EP_ID)
             .setFromScene(FROM_SCENE)
-            .setPlayCtrl(
-                when (request.controlMode) {
-                    PlaybackControlMode.Simple -> PlayCtrl.PLAY_CTRL_SIMPLE.number
-                    PlaybackControlMode.Default -> PlayCtrl.PLAY_CTRL_DEFAULT.number
-                }
-            )
+            .setPlayCtrl(playCtrl)
             .putAllExtraContent(extra)
-            .build()
+
+        request.videoId.bvid
+            ?.takeIf(String::isNotBlank)
+            ?.let(builder::setBvid)
+
+        return builder.build()
     }
 
     private fun mapReply(request: PlaybackRequest, reply: PlayViewUniteReply): PlaybackSource {
@@ -245,7 +251,6 @@ class VideoPlayerRepoImpl @Inject constructor(
     private companion object {
         const val TAG = "PlayViewUnite"
         const val ENDPOINT = "bilibili.app.playerunite.v1.Player/PlayViewUnite"
-        const val EP_ID = "tm.recommend.0.0" // TODO:根据实际场景?
         const val FROM_SCENE = "normal"
     }
 }

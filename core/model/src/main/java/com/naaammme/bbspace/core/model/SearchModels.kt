@@ -24,6 +24,7 @@ enum class SearchOrder {
 data class SearchVideo(
     val aid: Long,
     val cid: Long,
+    val jump: VideoJump,
     val title: String,
     val cover: String,
     val author: String,
@@ -82,7 +83,6 @@ data class SearchReq(
 @Immutable
 data class SearchPage(
     val keyword: String,
-    val trackId: String,
     val videos: List<SearchVideo>,
     val next: String,
     val filters: List<SearchFilter>

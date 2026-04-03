@@ -85,13 +85,14 @@ import com.naaammme.bbspace.core.model.SearchFilter
 import com.naaammme.bbspace.core.model.SearchOp
 import com.naaammme.bbspace.core.model.SearchTime
 import com.naaammme.bbspace.core.model.SearchVideo
+import com.naaammme.bbspace.core.model.VideoJump
 import java.util.Calendar
 import kotlinx.coroutines.delay
 
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
-    onOpenVideo: (Long, Long) -> Unit,
+    onOpenVideo: (VideoJump) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val videos by viewModel.videos.collectAsStateWithLifecycle()
@@ -179,7 +180,7 @@ fun SearchScreen(
                         ) { video ->
                             SearchCard(
                                 video = video,
-                                onClick = { onOpenVideo(video.aid, video.cid) }
+                                onClick = { onOpenVideo(video.jump) }
                             )
                         }
 
