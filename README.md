@@ -1,6 +1,8 @@
 <p align="center">
+  <img src="images/banner.jpg" alt="BBSpace banner" width="920" />
 </p>
-<p align="center"><img src="images/banner.jpg" alt="bbspace banner" width="480" />
+
+<p align="center">
   <a href="https://github.com/naaammme/bbspace/releases">
     <img src="https://img.shields.io/github/v/release/naaammme/bbspace?style=for-the-badge" alt="release" />
   </a>
@@ -15,42 +17,46 @@
   </a>
 </p>
 
-一个使用 Jetpack Compose + Material3 开发的第三方 B 站 Android 客户端。
+<p align="center">
+  一个使用 Jetpack Compose 和 Material 3 构建的第三方 B 站 Android 客户端。
+</p>
 
 ## 下载
-点击[release](https://github.com/naaammme/bbspace/releases)下载
+
+前往 [Releases](https://github.com/naaammme/bbspace/releases) 页面获取最新安装包。
 
 ## 已实现功能
 
-- 扫码登录 / 短信登录
+- 扫码登录和短信登录
 - 首页推荐视频流
 - 视频播放
-- 多账户管理
+- 多账号管理
 - 设置
 - 视频搜索
-- 其他
+- 其他基础能力持续补全中
 
-## 待实现
+## 开发计划
 
 - [ ] 视频详情页
-- [ ] 视频弹幕字幕
+- [ ] 弹幕和字幕
 - [ ] 直播
 - [ ] 个人空间
 - [ ] 分类搜索
 - [ ] 评论区
-- [ ] 收藏 / 历史记录
+- [ ] 收藏和历史记录
 - [ ] 动态
-- [ ] 其他
+- [ ] 其他功能完善
 
 ## 截图
 
 <p align="center">
-  <img src="images/shot.png" alt="bbspace screenshot 1" width="240" />
-  <img src="images/shot2.png" alt="bbspace screenshot 2" width="240" />
+  <img src="images/shot.png" alt="BBSpace screenshot 1" width="240" />
+  <img src="images/shot2.png" alt="BBSpace screenshot 2" width="240" />
 </p>
 
-## 声明
-此项目是个人为了兴趣而开发，仅用于学习和测试，所用 API 皆从官方网站收集，不包含任何破解和付费内容。
+## 说明
+
+项目主要用于学习、研究和界面实现练习。仓库内涉及的接口信息均来自公开资料整理，仅用于技术交流，不包含破解和付费内容分发。
 
 ## License
 
