@@ -49,7 +49,7 @@ class BiliMetadataBuilder @Inject constructor(
             this.fts = fts
         }.build().toByteArray()
     }
-
+    // TODO 动态化 type用ConnectivityManager检测WiFi或蜂窝 oid用TelephonyManager.getNetworkOperator读运营商 cellular读蜂窝代数 tf等免流模块实现后接入
     fun buildNetwork(): ByteArray {
         val quality = NetworkOuterClass.NetQuality.newBuilder()
             .setSuccessRate(-1.0f)

@@ -23,7 +23,7 @@ class AudioVideoSettingsViewModel @Inject constructor(
     val defaultVideoQuality = appSettings.defaultVideoQuality.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = 80
+        initialValue = 64
     )
 
     val defaultAudioQuality = appSettings.defaultAudioQuality.stateIn(

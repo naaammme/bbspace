@@ -1,5 +1,6 @@
-# bbspace
 <p align="center">
+</p>
+<p align="center"><img src="images/banner.jpg" alt="bbspace banner" width="480" />
   <a href="https://github.com/naaammme/bbspace/releases">
     <img src="https://img.shields.io/github/v/release/naaammme/bbspace?style=for-the-badge" alt="release" />
   </a>
@@ -13,7 +14,6 @@
     <img src="https://img.shields.io/github/license/naaammme/bbspace?style=for-the-badge" alt="license" />
   </a>
 </p>
-<p align="center"><img src="images/banner.jpg" alt="bbspace banner" width="480" /></p>
 
 一个使用 Jetpack Compose + Material3 开发的第三方 B 站 Android 客户端。
 

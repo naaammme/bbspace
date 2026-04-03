@@ -124,4 +124,10 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    fun resetAllSettings() {
+        viewModelScope.launch {
+            appSettings.resetAllSettings()
+        }
+    }
 }

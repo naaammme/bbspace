@@ -132,7 +132,7 @@ class AppSettings @Inject constructor(
     private val bgPlayKey = booleanPreferencesKey("bg_play")
 
     val enableHdrAnd8k: Flow<Boolean> = context.appSettingsStore.data.map { it[enableHdrAnd8kKey] ?: false }
-    val defaultVideoQuality: Flow<Int> = context.appSettingsStore.data.map { it[defaultVideoQualityKey] ?: 80 }
+    val defaultVideoQuality: Flow<Int> = context.appSettingsStore.data.map { it[defaultVideoQualityKey] ?: 64 }
     val defaultAudioQuality: Flow<Int> = context.appSettingsStore.data.map { it[defaultAudioQualityKey] ?: 0 }
     val forceHost: Flow<Int> = context.appSettingsStore.data.map { it[forceHostKey] ?: 0 }
     val needTrial: Flow<Boolean> = context.appSettingsStore.data.map { it[needTrialKey] ?: false }
@@ -200,5 +200,15 @@ class AppSettings @Inject constructor(
 
     suspend fun updateBackgroundPlayback(enabled: Boolean) {
         context.appSettingsStore.edit { it[bgPlayKey] = enabled }
+    }
+
+    suspend fun resetAllSettings() {
+        context.appSettingsStore.edit {
+            val interestDone = it[interestDoneKey] ?: false
+            it.clear()
+            if (interestDone) {
+                it[interestDoneKey] = true
+            }
+        }
     }
 }

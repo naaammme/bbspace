@@ -68,7 +68,7 @@ fun AboutScreen(
                             contentScale = ContentScale.Fit
                         )
                         Text(
-                            "v$versionName ($versionCode)",
+                            "v$versionName - $versionCode",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
