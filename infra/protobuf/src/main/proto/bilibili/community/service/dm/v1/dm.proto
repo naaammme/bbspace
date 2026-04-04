@@ -1,0 +1,791 @@
+syntax = "proto3";
+
+package bilibili.community.service.dm.v1;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.community.service.dm.v1";
+option optimize_for = LITE_RUNTIME;
+
+enum AvatarType {
+  AvatarTypeNone = 0;
+  AvatarTypeNFT = 1;
+}
+
+enum BubbleType {
+  BubbleTypeNone = 0;
+  BubbleTypeClickButton = 1;
+  BubbleTypeDmSettingPanel = 2;
+}
+
+enum CheckboxType {
+  CheckboxTypeNone = 0;
+  CheckboxTypeEncourage = 1;
+  CheckboxTypeColorDM = 2;
+}
+
+enum DmColorfulType {
+  NoneType = 0;
+}
+
+enum DmFromType {
+  DmFromUnknown = 0;
+  DmFromNormal = 1;
+  DmFromCmd = 2;
+  DmFromLive = 3;
+}
+
+enum DmMaskWallBizType {
+  Unknown = 0;
+  OGV = 1;
+  BizPic = 2;
+  Mute = 3;
+  Record = 4;
+  Cloud = 5;
+  AIGC = 6;
+}
+
+enum DmMaskWallContentType {
+  DmMaskWallContentTypeUnknown = 0;
+  DmMaskWallContentTypeText = 1;
+  DmMaskWallContentTypePic = 2;
+}
+
+enum ExposureType {
+  ExposureTypeNone = 0;
+  ExposureTypeDMSend = 1;
+}
+
+enum PostPanelBizType {
+  PostPanelBizTypeNone = 0;
+  PostPanelBizTypeEncourage = 1;
+  PostPanelBizTypeColorDM = 2;
+  PostPanelBizTypeNFTDM = 3;
+  PostPanelBizTypeFragClose = 4;
+  PostPanelBizTypeRecommend = 5;
+  PostPanelBizTypePlotLeak = 6;
+  PostPanelBizTypeAntiHarassment = 7;
+}
+
+enum PostStatus {
+  PostStatusNormal = 0;
+  PostStatusClosed = 1;
+}
+
+enum RenderType {
+  RenderTypeNone = 0;
+  RenderTypeSingle = 1;
+  RenderTypeRotation = 2;
+}
+
+enum SubtitleAiStatus {
+  None = 0;
+  Exposure = 1;
+  Assist = 2;
+}
+
+enum SubtitleAiType {
+  Normal = 0;
+  Translate = 1;
+}
+
+enum SubtitleRole {
+  Default = 0;
+  Main = 1;
+  Secondary = 2;
+}
+
+enum SubtitleType {
+  CC = 0;
+  AI = 1;
+}
+
+enum ToastFunctionType {
+  ToastFunctionTypeNone = 0;
+  ToastFunctionTypePostPanel = 1;
+}
+
+message Avatar {
+  string id = 1;
+  string url = 2;
+  AvatarType avatarType = 3;
+}
+
+message Bubble {
+  string text = 1;
+  string url = 2;
+}
+
+message BubbleV2 {
+  string text = 1;
+  string url = 2;
+  BubbleType bubbleType = 3;
+  bool exposureOnce = 4;
+  ExposureType exposureType = 5;
+}
+
+message Button {
+  string text = 1;
+  ToastFunctionType action = 2;
+}
+
+message BuzzwordConfig {
+  repeated BuzzwordShowConfig keywords = 1;
+}
+
+message BuzzwordShowConfig {
+  string name = 1;
+  string schema = 2;
+  int32 source = 3;
+  int64 id = 4;
+  int64 buzzwordId = 5;
+  int32 schemaType = 6;
+}
+
+message CheckBox {
+  string text = 1;
+  CheckboxType type = 2;
+  bool defaultValue = 3;
+  bool show = 4;
+}
+
+message CheckBoxV2 {
+  string text = 1;
+  CheckboxType type = 2;
+  bool defaultValue = 3;
+}
+
+message ClickButton {
+  repeated string portraitText = 1;
+  repeated string landscapeText = 2;
+  repeated string portraitTextFocus = 3;
+  repeated string landscapeTextFocus = 4;
+  RenderType renderType = 5;
+  bool show = 6;
+  Bubble bubble = 7;
+}
+
+message ClickButtonV2 {
+  repeated string portraitText = 1;
+  repeated string landscapeText = 2;
+  repeated string portraitTextFocus = 3;
+  repeated string landscapeTextFocus = 4;
+  RenderType renderType = 5;
+  bool textInputPost = 6;
+  bool exposureOnce = 7;
+  ExposureType exposureType = 8;
+}
+
+message Command {
+  repeated CommandDm commandDms = 1;
+}
+
+message CommandDm {
+  int64 id = 1;
+  int64 oid = 2;
+  int64 mid = 3;
+  string command = 4;
+  string content = 5;
+  int32 progress = 6;
+  string ctime = 7;
+  string mtime = 8;
+  string extra = 9;
+  string idstr = 10;
+  int32 type = 11;
+  bool autoCreate = 12;
+  int32 countDown = 13;
+  int32 attr = 14;
+}
+
+message DanmakuAIFlag {
+  repeated DanmakuFlag dmFlags = 1;
+}
+
+message DanmakuElem {
+  int64 id = 1;
+  int32 progress = 2;
+  int32 mode = 3;
+  int32 fontsize = 4;
+  uint32 color = 5;
+  string midHash = 6;
+  string content = 7;
+  int64 ctime = 8;
+  int32 weight = 9;
+  string action = 10;
+  int32 pool = 11;
+  string idStr = 12;
+  int32 attr = 13;
+  int64 likeCount = 15;
+  string animation = 22;
+  string extra = 23;
+  DmColorfulType colorful = 24;
+  int32 type = 25;
+  int64 oid = 26;
+  DmFromType dmFrom = 27;
+}
+
+message DanmakuFlag {
+  int64 dmid = 1;
+  uint32 flag = 2;
+}
+
+message DanmakuFlagConfig {
+  int32 recFlag = 1;
+  string recText = 2;
+  int32 recSwitch = 3;
+}
+
+message DanmuDefaultPlayerConfig {
+  bool playerDanmakuUseDefaultConfig = 1;
+  bool playerDanmakuAiRecommendedSwitch = 4;
+  int32 playerDanmakuAiRecommendedLevel = 5;
+  bool playerDanmakuBlocktop = 6;
+  bool playerDanmakuBlockscroll = 7;
+  bool playerDanmakuBlockbottom = 8;
+  bool playerDanmakuBlockcolorful = 9;
+  bool playerDanmakuBlockrepeat = 10;
+  bool playerDanmakuBlockspecial = 11;
+  float playerDanmakuOpacity = 12;
+  float playerDanmakuScalingfactor = 13;
+  float playerDanmakuDomain = 14;
+  int32 playerDanmakuSpeed = 15;
+  bool inlinePlayerDanmakuSwitch = 16;
+  int32 playerDanmakuSeniorModeSwitch = 17;
+  int32 playerDanmakuAiRecommendedLevelV2 = 18;
+  map<int32, int32> playerDanmakuAiRecommendedLevelV2Map = 19;
+  bool playerDanmakuEnableHerdDm = 20;
+}
+
+message DanmuPlayerConfig {
+  bool playerDanmakuSwitch = 1;
+  bool playerDanmakuSwitchSave = 2;
+  bool playerDanmakuUseDefaultConfig = 3;
+  bool playerDanmakuAiRecommendedSwitch = 4;
+  int32 playerDanmakuAiRecommendedLevel = 5;
+  bool playerDanmakuBlocktop = 6;
+  bool playerDanmakuBlockscroll = 7;
+  bool playerDanmakuBlockbottom = 8;
+  bool playerDanmakuBlockcolorful = 9;
+  bool playerDanmakuBlockrepeat = 10;
+  bool playerDanmakuBlockspecial = 11;
+  float playerDanmakuOpacity = 12;
+  float playerDanmakuScalingfactor = 13;
+  float playerDanmakuDomain = 14;
+  int32 playerDanmakuSpeed = 15;
+  bool playerDanmakuEnableblocklist = 16;
+  bool inlinePlayerDanmakuSwitch = 17;
+  int32 inlinePlayerDanmakuConfig = 18;
+  int32 playerDanmakuIosSwitchSave = 19;
+  int32 playerDanmakuSeniorModeSwitch = 20;
+  int32 playerDanmakuAiRecommendedLevelV2 = 21;
+  map<int32, int32> playerDanmakuAiRecommendedLevelV2Map = 22;
+  bool playerDanmakuEnableHerdDm = 23;
+  bool playerDanmakuBlocktopBottom = 24;
+  int32 playerDanmakuDomainV2 = 25;
+  int32 playerDanmakuDensity = 26;
+  bool playerDanmakuSubtitleProof = 27;
+  bool playerDanmakuPeopleProof = 28;
+}
+
+message DanmuPlayerConfigPanel {
+  string selectionText = 1;
+}
+
+message DanmuPlayerDynamicConfig {
+  int32 progress = 1;
+  float playerDanmakuDomain = 14;
+}
+
+message DanmuPlayerViewConfig {
+  DanmuDefaultPlayerConfig danmukuDefaultPlayerConfig = 1;
+  DanmuPlayerConfig danmukuPlayerConfig = 2;
+  repeated DanmuPlayerDynamicConfig danmukuPlayerDynamicConfig = 3;
+  DanmuPlayerConfigPanel danmukuPlayerConfigPanel = 4;
+}
+
+message DanmuWebPlayerConfig {
+  bool dmSwitch = 1;
+  bool aiSwitch = 2;
+  int32 aiLevel = 3;
+  bool blocktop = 4;
+  bool blockscroll = 5;
+  bool blockbottom = 6;
+  bool blockcolor = 7;
+  bool blockspecial = 8;
+  bool preventshade = 9;
+  bool dmask = 10;
+  float opacity = 11;
+  int32 dmarea = 12;
+  float speedplus = 13;
+  float fontsize = 14;
+  bool screensync = 15;
+  bool speedsync = 16;
+  string fontfamily = 17;
+  bool bold = 18;
+  int32 fontborder = 19;
+  string drawType = 20;
+  int32 seniorModeSwitch = 21;
+  int32 aiLevelV2 = 22;
+  map<int32, int32> aiLevelV2Map = 23;
+  bool blocktopBottom = 24;
+  int32 dmAreaV2 = 25;
+  int32 dmDensity = 26;
+}
+
+message DmColorful {
+  DmColorfulType type = 1;
+  string src = 2;
+}
+
+message DmExpoReportReq {
+  string sessionId = 1;
+  int64 oid = 2;
+  bytes dmids = 3;
+  string spmid = 4;
+}
+
+message DmExpoReportRes {
+}
+
+message DmHerdView {
+  int32 displayHerdDmNum = 1;
+  repeated ViewHerdDmElem herdDms = 2;
+}
+
+message DmMaskWall {
+  int64 start = 1;
+  int64 end = 2;
+  string content = 3;
+  DmMaskWallContentType contentType = 4;
+  DmMaskWallBizType bizType = 5;
+  repeated DmMaskWallContent contents = 6;
+}
+
+message DmMaskWallContent {
+  DmMaskWallContentType type = 1;
+  string content = 2;
+}
+
+message DmPlayerConfigReq {
+  int64 ts = 1;
+  PlayerDanmakuSwitch switch = 2;
+  PlayerDanmakuSwitchSave switchSave = 3;
+  PlayerDanmakuUseDefaultConfig useDefaultConfig = 4;
+  PlayerDanmakuAiRecommendedSwitch aiRecommendedSwitch = 5;
+  PlayerDanmakuAiRecommendedLevel aiRecommendedLevel = 6;
+  PlayerDanmakuBlocktop blocktop = 7;
+  PlayerDanmakuBlockscroll blockscroll = 8;
+  PlayerDanmakuBlockbottom blockbottom = 9;
+  PlayerDanmakuBlockcolorful blockcolorful = 10;
+  PlayerDanmakuBlockrepeat blockrepeat = 11;
+  PlayerDanmakuBlockspecial blockspecial = 12;
+  PlayerDanmakuOpacity opacity = 13;
+  PlayerDanmakuScalingfactor scalingfactor = 14;
+  PlayerDanmakuDomain domain = 15;
+  PlayerDanmakuSpeed speed = 16;
+  PlayerDanmakuEnableblocklist enableblocklist = 17;
+  InlinePlayerDanmakuSwitch inlinePlayerDanmakuSwitch = 18;
+  PlayerDanmakuSeniorModeSwitch seniorModeSwitch = 19;
+  PlayerDanmakuAiRecommendedLevelV2 aiRecommendedLevelV2 = 20;
+  PlayerDanmakuEnableHerdDm enableHerdDm = 21;
+  PlayerDanmakuBlocktopBottom blocktopBottom = 22;
+  PlayerDanmakuDomainV2 domainV2 = 23;
+  PlayerDanmakuDensity density = 24;
+  PlayerDanmakuSubtitleProof subtitleProof = 25;
+  PlayerDanmakuPeopleProof peopleProof = 26;
+}
+
+message DmSegCacheReq {
+  int32 type = 1;
+  int64 oid = 2;
+  int64 pid = 3;
+}
+
+message DmSegConfig {
+  int64 pageSize = 1;
+  int64 total = 2;
+}
+
+message DmSegMobileReply {
+  repeated DanmakuElem elems = 1;
+  int32 state = 2;
+  DanmakuAIFlag aiFlag = 3;
+  repeated int64 segmentRules = 4;
+  repeated DmColorful colorfulSrc = 5;
+  string contextSrc = 6;
+}
+
+message DmSegMobileReq {
+  int64 pid = 1;
+  int64 oid = 2;
+  int32 type = 3;
+  int64 segmentIndex = 4;
+  int32 teenagersMode = 5;
+  int64 ps = 6;
+  int64 pe = 7;
+  int32 pullMode = 8;
+  int32 fromScene = 9;
+  string spmid = 10;
+  string contextExt = 11;
+}
+
+message DmSegOttReply {
+  repeated DanmakuElem elems = 1;
+  int32 state = 2;
+}
+
+message DmSegOttReq {
+  int64 pid = 1;
+  int64 oid = 2;
+  int32 type = 3;
+  int64 segmentIndex = 4;
+}
+
+message DmSegSDKReply {
+  bool closed = 1;
+  repeated DanmakuElem elems = 2;
+}
+
+message DmSegSDKReq {
+  int64 pid = 1;
+  int64 oid = 2;
+  int32 type = 3;
+  int64 segmentIndex = 4;
+}
+
+message DmSubView {
+  int32 type = 1;
+  int64 oid = 2;
+  int64 pid = 3;
+  repeated PostPanelV2 postPanel2 = 4;
+}
+
+message DmViewReply {
+  bool closed = 1;
+  VideoMask mask = 2;
+  VideoSubtitle subtitle = 3;
+  repeated string specialDms = 4;
+  DanmakuFlagConfig aiFlag = 5;
+  DanmuPlayerViewConfig playerConfig = 6;
+  int32 sendBoxStyle = 7;
+  bool allow = 8;
+  bool checkBox = 9;
+  string checkBoxShowMsg = 10;
+  string textPlaceholder = 11;
+  string inputPlaceholder = 12;
+  repeated string reportFilterContent = 13;
+  ExpoReport expoReport = 14;
+  BuzzwordConfig buzzwordConfig = 15;
+  repeated Expressions expressions = 16;
+  repeated PostPanel postPanel = 17;
+  repeated string activityMeta = 18;
+  repeated PostPanelV2 postPanel2 = 19;
+  repeated DmMaskWall dmMaskWall = 20;
+  DmHerdView dmHerd = 21;
+  Command command = 22;
+  string kv = 23;
+  repeated DmSubView subViews = 24;
+  QoeInfo qoe = 25;
+}
+
+message DmViewReq {
+  int64 pid = 1;
+  int64 oid = 2;
+  int32 type = 3;
+  string spmid = 4;
+  int32 isHardBoot = 5;
+  string contextExt = 6;
+  string curLanguage = 7;
+}
+
+message DmWebViewReply {
+  int32 state = 1;
+  string text = 2;
+  string textSide = 3;
+  DmSegConfig dmSge = 4;
+  DanmakuFlagConfig flag = 5;
+  repeated string specialDms = 6;
+  bool checkBox = 7;
+  int64 count = 8;
+  repeated CommandDm commandDms = 9;
+  DanmuWebPlayerConfig playerConfig = 10;
+  repeated string reportFilterContent = 11;
+  repeated Expressions expressions = 12;
+  repeated PostPanel postPanel = 13;
+  repeated string activityMeta = 14;
+  repeated PostPanelV2 postPanel2 = 15;
+  repeated DmSubView subViews = 16;
+  QoeInfo qoe = 17;
+}
+
+message ExpoReport {
+  bool shouldReportAtEnd = 1;
+  double playerSample = 2;
+  repeated ReportDuration durations = 3;
+  int32 maxSize = 4;
+}
+
+message Expression {
+  repeated string keyword = 1;
+  string url = 2;
+  repeated Period period = 3;
+}
+
+message Expressions {
+  repeated Expression data = 1;
+}
+
+message InlinePlayerDanmakuSwitch {
+  bool value = 1;
+}
+
+message Label {
+  string title = 1;
+  repeated string content = 2;
+}
+
+message LabelV2 {
+  string title = 1;
+  repeated string content = 2;
+  bool exposureOnce = 3;
+  ExposureType exposureType = 4;
+}
+
+message Period {
+  int64 start = 1;
+  int64 end = 2;
+}
+
+message PlayerDanmakuAiRecommendedLevel {
+  int32 value = 1;
+}
+
+message PlayerDanmakuAiRecommendedLevelV2 {
+  int32 value = 1;
+}
+
+message PlayerDanmakuAiRecommendedSwitch {
+  bool value = 1;
+}
+
+message PlayerDanmakuBlockbottom {
+  bool value = 1;
+}
+
+message PlayerDanmakuBlockcolorful {
+  bool value = 1;
+}
+
+message PlayerDanmakuBlockrepeat {
+  bool value = 1;
+}
+
+message PlayerDanmakuBlockscroll {
+  bool value = 1;
+}
+
+message PlayerDanmakuBlockspecial {
+  bool value = 1;
+}
+
+message PlayerDanmakuBlocktop {
+  bool value = 1;
+}
+
+message PlayerDanmakuBlocktopBottom {
+  bool value = 1;
+}
+
+message PlayerDanmakuDensity {
+  int32 value = 1;
+}
+
+message PlayerDanmakuDomain {
+  float value = 1;
+}
+
+message PlayerDanmakuDomainV2 {
+  int32 value = 1;
+}
+
+message PlayerDanmakuEnableblocklist {
+  bool value = 1;
+}
+
+message PlayerDanmakuEnableHerdDm {
+  bool value = 1;
+}
+
+message PlayerDanmakuOpacity {
+  float value = 1;
+}
+
+message PlayerDanmakuPeopleProof {
+  bool value = 1;
+}
+
+message PlayerDanmakuScalingfactor {
+  float value = 1;
+}
+
+message PlayerDanmakuSeniorModeSwitch {
+  int32 value = 1;
+}
+
+message PlayerDanmakuSpeed {
+  int32 value = 1;
+}
+
+message PlayerDanmakuSubtitleProof {
+  bool value = 1;
+}
+
+message PlayerDanmakuSwitch {
+  bool value = 1;
+  bool canIgnore = 2;
+}
+
+message PlayerDanmakuSwitchSave {
+  bool value = 1;
+}
+
+message PlayerDanmakuUseDefaultConfig {
+  bool value = 1;
+}
+
+message PostPanel {
+  int64 start = 1;
+  int64 end = 2;
+  int64 priority = 3;
+  int64 bizId = 4;
+  PostPanelBizType bizType = 5;
+  ClickButton clickButton = 6;
+  TextInput textInput = 7;
+  CheckBox checkBox = 8;
+  Toast toast = 9;
+}
+
+message PostPanelV2 {
+  int64 start = 1;
+  int64 end = 2;
+  PostPanelBizType bizType = 3;
+  ClickButtonV2 clickButton = 4;
+  TextInputV2 textInput = 5;
+  CheckBoxV2 checkBox = 6;
+  ToastV2 toast = 7;
+  BubbleV2 bubble = 8;
+  LabelV2 label = 9;
+  PostStatus postStatus = 10;
+}
+
+message QoeInfo {
+  string info = 1;
+}
+
+message ReportDuration {
+  int64 startSecond = 1;
+  int64 endSecond = 2;
+}
+
+message Response {
+  int32 code = 1;
+  string message = 2;
+}
+
+message SubtitleHeight {
+  double value = 1;
+}
+
+message SubtitleItem {
+  int64 id = 1;
+  string idStr = 2;
+  string lan = 3;
+  string lanDoc = 4;
+  string subtitleUrl = 5;
+  UserInfo author = 6;
+  SubtitleType type = 7;
+  string lanDocBrief = 8;
+  SubtitleAiType aiType = 9;
+  SubtitleAiStatus aiStatus = 10;
+  SubtitleRole role = 11;
+  SubtitleHeight subtitleHeight = 12;
+}
+
+message TextInput {
+  repeated string portraitPlaceholder = 1;
+  repeated string landscapePlaceholder = 2;
+  RenderType renderType = 3;
+  bool placeholderPost = 4;
+  bool show = 5;
+  repeated Avatar avatar = 6;
+  PostStatus postStatus = 7;
+  Label label = 8;
+}
+
+message TextInputV2 {
+  repeated string portraitPlaceholder = 1;
+  repeated string landscapePlaceholder = 2;
+  RenderType renderType = 3;
+  bool placeholderPost = 4;
+  repeated Avatar avatar = 5;
+  int32 textInputLimit = 6;
+}
+
+message Toast {
+  string text = 1;
+  int32 duration = 2;
+  bool show = 3;
+  Button button = 4;
+}
+
+message ToastButtonV2 {
+  string text = 1;
+  ToastFunctionType action = 2;
+}
+
+message ToastV2 {
+  string text = 1;
+  int32 duration = 2;
+  ToastButtonV2 toastButtonV2 = 3;
+}
+
+message UserInfo {
+  int64 mid = 1;
+  string name = 2;
+  string sex = 3;
+  string face = 4;
+  string sign = 5;
+  int32 rank = 6;
+}
+
+message VideoMask {
+  int64 cid = 1;
+  int32 plat = 2;
+  int32 fps = 3;
+  int64 time = 4;
+  string maskUrl = 5;
+}
+
+message VideoSubtitle {
+  string lan = 1;
+  string lanDoc = 2;
+  repeated SubtitleItem subtitles = 3;
+}
+
+message ViewHerdDmElem {
+  string herdMsg = 1;
+  int32 herdStartCnt = 2;
+  int32 herdEndCnt = 3;
+  string regexRule = 4;
+  int32 startProgress = 5;
+  int32 endProgress = 6;
+}
+
+service DM {
+  rpc DmExpoReport(DmExpoReportReq) returns (DmExpoReportRes);
+  rpc DmPlayerConfig(DmPlayerConfigReq) returns (Response);
+  rpc DmSegCache(DmSegCacheReq) returns (DmSegMobileReply);
+  rpc DmSegMobile(DmSegMobileReq) returns (DmSegMobileReply);
+  rpc DmSegOtt(DmSegOttReq) returns (DmSegOttReply);
+  rpc DmSegSDK(DmSegSDKReq) returns (DmSegSDKReply);
+  rpc DmView(DmViewReq) returns (DmViewReply);
+}

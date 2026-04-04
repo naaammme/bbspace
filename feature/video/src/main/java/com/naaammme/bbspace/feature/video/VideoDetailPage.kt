@@ -261,16 +261,6 @@ private fun LazyListScope.detailItems(
             }
 
             if (detail.relates.isNotEmpty()) {
-                item(
-                    key = "relate_title",
-                    contentType = "title"
-                ) {
-                    SectionTitle(
-                        text = "相关推荐",
-                        modifier = itemMod
-                    )
-                }
-
                 items(
                     items = detail.relates,
                     key = { "${it.jump.aid}_${it.jump.cid}" },
@@ -526,8 +516,6 @@ private fun ToggleChip(
 ) {
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
-        // 这里就是使用了 Material 3 的第三色体系 (Tertiary) 
-        // 算法会自动生成一个与主色不同但非常和谐的颜色
         color = MaterialTheme.colorScheme.tertiaryContainer,
         modifier = Modifier.clickable(onClick = onClick)
     ) {
@@ -551,8 +539,8 @@ private fun ActionChip(
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp), 
-            verticalAlignment = Alignment.CenterVertically 
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
