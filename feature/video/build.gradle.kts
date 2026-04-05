@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":core:navigation"))
     implementation(project(":infra:player"))
     implementation(libs.media3.ui)
+    implementation(libs.danmakuFlameMaster)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

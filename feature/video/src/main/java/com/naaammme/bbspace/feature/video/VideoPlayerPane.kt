@@ -53,7 +53,6 @@ import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi
@@ -62,42 +61,25 @@ internal fun VideoPlayerPane(
     modifier: Modifier,
     playerView: PlayerView,
     viewModel: VideoViewModel,
+    danmakuOverlayState: VideoDanmakuOverlayState,
+    danmakuOn: Boolean,
+    onToggleDanmaku: () -> Unit,
     isFull: Boolean,
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val state by viewModel.playerState.collectAsStateWithLifecycle()
+    val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val tapSrc = remember { MutableInteractionSource() }
     var showQ by remember { mutableStateOf(false) }
     var showA by remember { mutableStateOf(false) }
     var showSp by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(true) }
-    var posMs by remember { mutableStateOf(0L) }
-    var durMs by remember { mutableStateOf(0L) }
     var dragMs by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(viewModel) {
         viewModel.ensureStarted()
-    }
-
-    LaunchedEffect(state.snapshot.positionMs, state.snapshot.durationMs, dragMs) {
-        if (dragMs == null) {
-            posMs = state.snapshot.positionMs
-            durMs = state.snapshot.durationMs
-        }
-    }
-
-    LaunchedEffect(state.snapshot.isPlaying, dragMs, state.snapshot.durationMs) {
-        while (isActive) {
-            if (dragMs == null) {
-                val player = viewModel.getPlayerForView()
-                posMs = player.currentPosition.coerceAtLeast(0L)
-                durMs = (player.duration.takeIf { it > 0 } ?: state.snapshot.durationMs)
-                    .coerceAtLeast(0L)
-            }
-            delay(if (state.snapshot.isPlaying) 500 else 1_000)
-        }
     }
 
     LaunchedEffect(showCtrl, state.snapshot.isPlaying, dragMs, showA, showQ, showSp, showInfo) {
@@ -115,9 +97,13 @@ internal fun VideoPlayerPane(
         }
     }
 
-    val barMs = dragMs ?: posMs
-    val sliderVal = if (durMs > 0) {
-        (barMs.toFloat() / durMs.toFloat()).coerceIn(0f, 1f)
+    val durationMs = state.snapshot.durationMs
+        .takeIf { it > 0 }
+        ?: state.playbackSource?.durationMs?.coerceAtLeast(0L)
+        ?: 0L
+    val barMs = dragMs ?: state.snapshot.positionMs
+    val sliderVal = if (durationMs > 0) {
+        (barMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
     } else {
         0f
     }
@@ -138,6 +124,15 @@ internal fun VideoPlayerPane(
                 }
             },
             modifier = Modifier.fillMaxSize()
+        )
+
+        VideoDanmakuOverlay(
+            modifier = Modifier.fillMaxSize(),
+            overlayState = danmakuOverlayState,
+            playerState = state,
+            danmakuState = danmakuState,
+            positionMs = state.snapshot.positionMs,
+            enabled = danmakuOn
         )
 
         Box(
@@ -167,17 +162,39 @@ internal fun VideoPlayerPane(
                         tint = Color.White
                     )
                 }
-                IconButton(
-                    onClick = {
-                        showCtrl = true
-                        showInfo = true
-                    }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "更多信息",
-                        tint = Color.White
-                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = if (danmakuOn) 0.42f else 0.26f),
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable {
+                                showCtrl = true
+                                onToggleDanmaku()
+                            }
+                    ) {
+                        Text(
+                            text = if (danmakuOn) "弹幕" else "弹幕关",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            showCtrl = true
+                            showInfo = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "更多信息",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -185,13 +202,13 @@ internal fun VideoPlayerPane(
         if (showCtrl) {
             PlayerCtrlBar(
                 playText = if (state.snapshot.isPlaying) "暂停" else "播放",
-                timeText = formatPlaybackTime(barMs, durMs),
+                timeText = formatPlaybackTime(barMs, durationMs),
                 audioText = state.currentAudio?.let { getAudioName(it.id, short = true) } ?: "音频",
                 qualityText = getQualityName(state.playbackSource, state.currentStream),
                 speedText = formatSpeed(state.snapshot.speed),
                 fullText = if (isFull) "还原" else "全屏",
                 sliderVal = sliderVal,
-                sliderOn = durMs > 0,
+                sliderOn = durationMs > 0,
                 audioOn = (state.playbackSource?.audios?.size ?: 0) > 1,
                 qualityOn = (state.playbackSource?.qualityOptions?.size ?: 0) > 1,
                 onTogglePlay = viewModel::togglePlayPause,
@@ -213,12 +230,11 @@ internal fun VideoPlayerPane(
                 },
                 onSeekChange = { frac ->
                     showCtrl = true
-                    dragMs = (durMs * frac).toLong()
+                    dragMs = (durationMs * frac).toLong()
                 },
                 onSeekDone = {
                     val next = dragMs ?: return@PlayerCtrlBar
                     viewModel.seekTo(next)
-                    posMs = next
                     dragMs = null
                 },
                 modifier = Modifier

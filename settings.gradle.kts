@@ -20,6 +20,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://jitpack.io") {
+            content {
+                includeGroup("com.github.naaammme")
+            }
+        }
     }
 }
 

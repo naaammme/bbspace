@@ -52,6 +52,7 @@ zxing = "3.5.3"
 ksp = "2.2.10-2.0.2"
 
 googleMaterial = "1.12.0"
+danmakuFlameMaster = "1.0.0"
 
 [libraries]
 # AndroidX Core
@@ -80,6 +81,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 google-material = { group = "com.google.android.material", name = "material", version.ref = "googleMaterial" }
+danmakuFlameMaster = { group = "com.github.naaammme", name = "DanmakuFlameMaster", version.ref = "danmakuFlameMaster" }
 
 # Adaptive
 androidx-compose-material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version.ref = "m3Adaptive" }

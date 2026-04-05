@@ -1,6 +1,8 @@
 ﻿package com.naaammme.bbspace.infra.player
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -46,24 +48,35 @@ class Media3PlayerEngine @Inject constructor(
 
     private val _snapshot = MutableStateFlow(PlaybackSnapshot())
     override val snapshot: StateFlow<PlaybackSnapshot> = _snapshot.asStateFlow()
+    private val progressHandler = Handler(Looper.getMainLooper())
     private var playerConfig = PlayerConfig()
     private var videoDecoderName: String? = null
     private var audioDecoderName: String? = null
+    private val progressUpdateRunnable = object : Runnable {
+        override fun run() {
+            updateSnapshot()
+            scheduleProgressUpdate()
+        }
+    }
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
             updateSnapshot(playbackState = playbackState)
+            syncProgressUpdates()
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             updateSnapshot(isPlaying = isPlaying)
+            syncProgressUpdates()
         }
 
         override fun onPlayerError(error: PlaybackException) {
             _snapshot.value = _snapshot.value.copy(errorMessage = error.message)
+            syncProgressUpdates()
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
             updateSnapshot()
+            syncProgressUpdates()
         }
     }
     private val analyticsListener = object : AnalyticsListener {
@@ -119,6 +132,7 @@ class Media3PlayerEngine @Inject constructor(
         val next = normalizeConfig(config)
         if (next == playerConfig) return
 
+        progressHandler.removeCallbacks(progressUpdateRunnable)
         val prev = exoPlayer
         playerConfig = next
         videoDecoderName = null
@@ -126,6 +140,7 @@ class Media3PlayerEngine @Inject constructor(
         exoPlayer = buildPlayer(appContext, next)
         prev.release()
         _snapshot.value = PlaybackSnapshot()
+        syncProgressUpdates()
     }
 
     override fun setSource(source: EngineSource, startPositionMs: Long?) {
@@ -137,14 +152,17 @@ class Media3PlayerEngine @Inject constructor(
             exoPlayer.seekTo(startPositionMs)
         }
         exoPlayer.playWhenReady = true
+        syncProgressUpdates()
     }
 
     override fun play() {
         exoPlayer.play()
+        syncProgressUpdates()
     }
 
     override fun pause() {
         exoPlayer.pause()
+        syncProgressUpdates()
     }
 
     override fun setSpeed(speed: Float) {
@@ -154,6 +172,8 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun seekTo(positionMs: Long) {
         exoPlayer.seekTo(positionMs)
+        updateSnapshot()
+        syncProgressUpdates()
     }
 
     override fun stopForReuse(resetPosition: Boolean) {
@@ -165,12 +185,14 @@ class Media3PlayerEngine @Inject constructor(
         if (resetPosition) {
             exoPlayer.seekTo(0)
         }
+        progressHandler.removeCallbacks(progressUpdateRunnable)
         _snapshot.value = PlaybackSnapshot()
     }
 
     override fun release() {
         videoDecoderName = null
         audioDecoderName = null
+        progressHandler.removeCallbacks(progressUpdateRunnable)
         exoPlayer.release()
     }
 
@@ -291,6 +313,22 @@ class Media3PlayerEngine @Inject constructor(
         )
     }
 
+    private fun syncProgressUpdates() {
+        progressHandler.removeCallbacks(progressUpdateRunnable)
+        scheduleProgressUpdate()
+    }
+
+    private fun scheduleProgressUpdate() {
+        if (!shouldRunProgressUpdates()) return
+        progressHandler.postDelayed(progressUpdateRunnable, SNAPSHOT_UPDATE_INTERVAL_MS)
+    }
+
+    private fun shouldRunProgressUpdates(): Boolean {
+        return exoPlayer.playWhenReady &&
+                exoPlayer.playbackState != Player.STATE_IDLE &&
+                exoPlayer.playbackState != Player.STATE_ENDED
+    }
+
     private fun Int.toEngineState(): EnginePlaybackState {
         return when (this) {
             Player.STATE_BUFFERING -> EnginePlaybackState.Buffering
@@ -298,5 +336,9 @@ class Media3PlayerEngine @Inject constructor(
             Player.STATE_ENDED -> EnginePlaybackState.Ended
             else -> EnginePlaybackState.Idle
         }
+    }
+
+    private companion object {
+        const val SNAPSHOT_UPDATE_INTERVAL_MS = 500L
     }
 }

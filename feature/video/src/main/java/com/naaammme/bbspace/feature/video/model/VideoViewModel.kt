@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.player.PlayerSessionManager
+import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.VideoDetail
@@ -17,6 +18,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -25,7 +27,8 @@ class VideoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     appSettings: AppSettings,
     private val sessionManager: PlayerSessionManager,
-    private val detailRepo: VideoDetailRepository
+    private val detailRepo: VideoDetailRepository,
+    danmakuRepository: DanmakuRepository
 ) : ViewModel() {
 
     private val ownerId = nextOwnerId.getAndIncrement()
@@ -53,6 +56,10 @@ class VideoViewModel @Inject constructor(
         }
     }
     private val _req = MutableStateFlow(initReq)
+    private val danmakuController = VideoDanmakuController(
+        scope = viewModelScope,
+        repository = danmakuRepository
+    )
 
     fun getPlayerForView() = sessionManager.playerEngine.getPlayerForView()
 
@@ -99,7 +106,14 @@ class VideoViewModel @Inject constructor(
         initialValue = false
     )
 
+    internal val danmakuState = danmakuController.state
+
     init {
+        danmakuController.bind(
+            playbackSourceFlow = sessionManager.state.map { it.playbackSource },
+            snapshotFlow = sessionManager.playerEngine.snapshot
+        )
+
         if (aid > 0L) {
             viewModelScope.launch {
                 val result = runCatching { detailRepo.fetchVideoDetail(aid, src) }
@@ -175,6 +189,7 @@ class VideoViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        danmakuController.clear()
         close()
         super.onCleared()
     }

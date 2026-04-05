@@ -48,7 +48,9 @@ fun VideoScreen(
             setKeepContentOnPlayerReset(true)
         }
     }
+    val danmakuOverlayState = rememberVideoDanmakuOverlayState(viewModel)
     var isFull by rememberSaveable { mutableStateOf(false) }
+    var danmakuOn by rememberSaveable { mutableStateOf(true) }
 
     BackHandler(enabled = isFull) {
         isFull = false
@@ -98,6 +100,9 @@ fun VideoScreen(
             modifier = mod,
             playerView = pv,
             viewModel = viewModel,
+            danmakuOverlayState = danmakuOverlayState,
+            danmakuOn = danmakuOn,
+            onToggleDanmaku = { danmakuOn = !danmakuOn },
             isFull = isFull,
             onToggleFull = { isFull = !isFull },
             onBackClick = {
