@@ -21,7 +21,7 @@ data class PlayerConfig(
 interface PlayerEngine {
     val snapshot: StateFlow<PlaybackSnapshot>
 
-    fun getPlayerForView(): Player
+    fun getPlayerForView(): Player?
 
     fun updateConfig(config: PlayerConfig)
     fun setSource(source: EngineSource, startPositionMs: Long? = null)

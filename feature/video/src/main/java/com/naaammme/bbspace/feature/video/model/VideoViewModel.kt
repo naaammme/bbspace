@@ -106,13 +106,19 @@ class VideoViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = VideoPlayerMenuState()
     )
+    val backgroundPlayback = appSettings.backgroundPlayback.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = false
+    )
 
     internal val danmakuState = danmakuController.state
 
     init {
         danmakuController.bind(
             playbackSourceFlow = sessionManager.state.map { it.playbackSource },
-            snapshotFlow = sessionManager.playerEngine.snapshot
+            snapshotFlow = sessionManager.playerEngine.snapshot,
+            enabledFlow = appSettings.danmakuEnabled
         )
 
         if (aid > 0L) {

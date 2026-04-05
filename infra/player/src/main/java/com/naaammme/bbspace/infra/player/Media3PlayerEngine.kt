@@ -120,80 +120,88 @@ class Media3PlayerEngine @Inject constructor(
             }
         }
     }
-    private var exoPlayer = buildPlayer(appContext, playerConfig)
+    private var exoPlayer: ExoPlayer? = null
 
-    override fun getPlayerForView(): Player = exoPlayer
-
-    init {
-        updateSnapshot()
-    }
+    override fun getPlayerForView(): Player? = exoPlayer
 
     override fun updateConfig(config: PlayerConfig) {
         val next = normalizeConfig(config)
-        if (next == playerConfig) return
+        if (next == playerConfig && exoPlayer != null) return
 
         progressHandler.removeCallbacks(progressUpdateRunnable)
         val prev = exoPlayer
         playerConfig = next
         videoDecoderName = null
         audioDecoderName = null
-        exoPlayer = buildPlayer(appContext, next)
-        prev.release()
-        _snapshot.value = PlaybackSnapshot()
+        val nextPlayer = buildPlayer(appContext, next)
+        exoPlayer = nextPlayer
+        _snapshot.value = PlaybackSnapshot(playerInstanceId = System.identityHashCode(nextPlayer))
+        prev?.release()
         syncProgressUpdates()
     }
 
     override fun setSource(source: EngineSource, startPositionMs: Long?) {
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
-        exoPlayer.setMediaSource(buildMediaSource(source))
-        exoPlayer.prepare()
+        val player = checkNotNull(exoPlayer) { "Player not prepared" }
+        player.stop()
+        player.clearMediaItems()
+        player.setMediaSource(buildMediaSource(source))
+        player.prepare()
         if (startPositionMs != null && startPositionMs > 0) {
-            exoPlayer.seekTo(startPositionMs)
+            player.seekTo(startPositionMs)
         }
-        exoPlayer.playWhenReady = true
+        player.playWhenReady = true
         syncProgressUpdates()
     }
 
     override fun play() {
-        exoPlayer.play()
+        val player = exoPlayer ?: return
+        player.play()
         syncProgressUpdates()
     }
 
     override fun pause() {
-        exoPlayer.pause()
+        val player = exoPlayer ?: return
+        player.pause()
         syncProgressUpdates()
     }
 
     override fun setSpeed(speed: Float) {
-        exoPlayer.playbackParameters = PlaybackParameters(speed.coerceIn(0.25f, 3f))
+        val player = exoPlayer ?: return
+        player.playbackParameters = PlaybackParameters(speed.coerceIn(0.25f, 3f))
         updateSnapshot()
     }
 
     override fun seekTo(positionMs: Long) {
-        exoPlayer.seekTo(positionMs)
+        val player = exoPlayer ?: return
+        player.seekTo(positionMs)
         updateSnapshot()
         syncProgressUpdates()
     }
 
     override fun stopForReuse(resetPosition: Boolean) {
+        val player = exoPlayer ?: run {
+            _snapshot.value = PlaybackSnapshot()
+            return
+        }
         videoDecoderName = null
         audioDecoderName = null
-        exoPlayer.playWhenReady = false
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
+        player.playWhenReady = false
+        player.stop()
+        player.clearMediaItems()
         if (resetPosition) {
-            exoPlayer.seekTo(0)
+            player.seekTo(0)
         }
         progressHandler.removeCallbacks(progressUpdateRunnable)
         _snapshot.value = PlaybackSnapshot()
     }
 
     override fun release() {
+        val player = exoPlayer ?: return
         videoDecoderName = null
         audioDecoderName = null
         progressHandler.removeCallbacks(progressUpdateRunnable)
-        exoPlayer.release()
+        exoPlayer = null
+        player.release()
     }
 
     private fun buildPlayer(context: Context, config: PlayerConfig): ExoPlayer {
@@ -294,19 +302,21 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     private fun updateSnapshot(
-        playbackState: Int = exoPlayer.playbackState,
-        isPlaying: Boolean = exoPlayer.isPlaying
+        playbackState: Int = exoPlayer?.playbackState ?: Player.STATE_IDLE,
+        isPlaying: Boolean = exoPlayer?.isPlaying ?: false
     ) {
+        val player = exoPlayer
         _snapshot.value = _snapshot.value.copy(
+            playerInstanceId = player?.let(System::identityHashCode) ?: 0,
             isPlaying = isPlaying,
             playbackState = playbackState.toEngineState(),
-            positionMs = exoPlayer.currentPosition.coerceAtLeast(0L),
-            bufferedPositionMs = exoPlayer.bufferedPosition.coerceAtLeast(0L),
-            totalBufferedDurationMs = exoPlayer.totalBufferedDuration.coerceAtLeast(0L),
-            durationMs = exoPlayer.duration.takeIf { it > 0 } ?: 0L,
-            speed = exoPlayer.playbackParameters.speed,
-            videoWidth = exoPlayer.videoSize.width,
-            videoHeight = exoPlayer.videoSize.height,
+            positionMs = player?.currentPosition?.coerceAtLeast(0L) ?: 0L,
+            bufferedPositionMs = player?.bufferedPosition?.coerceAtLeast(0L) ?: 0L,
+            totalBufferedDurationMs = player?.totalBufferedDuration?.coerceAtLeast(0L) ?: 0L,
+            durationMs = player?.duration?.takeIf { it > 0 } ?: 0L,
+            speed = player?.playbackParameters?.speed ?: 1f,
+            videoWidth = player?.videoSize?.width ?: 0,
+            videoHeight = player?.videoSize?.height ?: 0,
             videoDecoderName = videoDecoderName,
             audioDecoderName = audioDecoderName,
             errorMessage = null
@@ -324,9 +334,10 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     private fun shouldRunProgressUpdates(): Boolean {
-        return exoPlayer.playWhenReady &&
-                exoPlayer.playbackState != Player.STATE_IDLE &&
-                exoPlayer.playbackState != Player.STATE_ENDED
+        val player = exoPlayer ?: return false
+        return player.playWhenReady &&
+                player.playbackState != Player.STATE_IDLE &&
+                player.playbackState != Player.STATE_ENDED
     }
 
     private fun Int.toEngineState(): EnginePlaybackState {

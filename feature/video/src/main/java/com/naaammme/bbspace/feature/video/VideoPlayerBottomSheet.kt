@@ -4,9 +4,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +31,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.PlaybackError
@@ -47,11 +54,31 @@ private enum class PlayerSheetSection(
 internal fun VideoPlayerBottomSheet(
     state: VideoPlayerState,
     viewModel: VideoViewModel,
+    limitUnderPlayer: Boolean,
     onDismiss: () -> Unit
 ) {
     val menuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var section by rememberSaveable { mutableStateOf(PlayerSheetSection.Info) }
+    val configuration = LocalConfiguration.current
+    val shouldLimitHeight = limitUnderPlayer && configuration.screenHeightDp > configuration.screenWidthDp
+    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val maxContentHeight = remember(
+        shouldLimitHeight,
+        configuration.screenHeightDp,
+        configuration.screenWidthDp,
+        statusBarHeight
+    ) {
+        if (shouldLimitHeight) {
+            val screenHeight = configuration.screenHeightDp.dp
+            val screenWidth = configuration.screenWidthDp.dp
+            val playerHeight = statusBarHeight + (screenWidth * (9f / 16f))
+            val sheetTopPadding = 24.dp
+            (screenHeight - playerHeight - sheetTopPadding).coerceAtLeast(240.dp)
+        } else {
+            Dp.Unspecified
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -60,7 +87,15 @@ internal fun VideoPlayerBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(
+                    if (shouldLimitHeight && maxContentHeight != Dp.Unspecified) {
+                        Modifier.heightIn(max = maxContentHeight)
+                    } else {
+                        Modifier
+                    }
+                )
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -106,7 +141,7 @@ private fun PlaybackSettingsSection(
         title = "最小缓冲时长",
         subtitle = "持续补缓冲的最低时长",
         currentValue = menuState.minBufferMs,
-        options = listOf(5_000, 10_000, 15_000, 30_000, 60_000),
+        options = listOf(2_000, 5_000, 10_000, 15_000, 30_000, 60_000),
         label = ::formatBufferMs,
         onSelect = viewModel::updateMinBufferMs
     )

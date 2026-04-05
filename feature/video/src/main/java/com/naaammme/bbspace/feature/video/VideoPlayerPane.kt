@@ -56,14 +56,13 @@ internal fun VideoPlayerPane(
     modifier: Modifier,
     playerView: PlayerView,
     viewModel: VideoViewModel,
-    danmakuOverlayState: VideoDanmakuOverlayState,
+    showPlayerView: Boolean,
     isFull: Boolean,
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val state by viewModel.playerState.collectAsStateWithLifecycle()
     val menuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
-    val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val tapSrc = remember { MutableInteractionSource() }
     var showQ by remember { mutableStateOf(false) }
     var showA by remember { mutableStateOf(false) }
@@ -71,10 +70,6 @@ internal fun VideoPlayerPane(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(true) }
     var dragMs by remember { mutableStateOf<Long?>(null) }
-
-    LaunchedEffect(viewModel) {
-        viewModel.ensureStarted()
-    }
 
     LaunchedEffect(showCtrl, state.snapshot.isPlaying, dragMs, showA, showQ, showSp, showSettingsSheet) {
         if (
@@ -102,33 +97,38 @@ internal fun VideoPlayerPane(
     } else {
         0f
     }
+    val player = if (showPlayerView) {
+        viewModel.getPlayerForView()
+    } else {
+        null
+    }
 
-    Box(modifier = modifier) {
-        AndroidView(
-            factory = {
-                (playerView.parent as? ViewGroup)?.removeView(playerView)
-                playerView.apply {
-                    useController = false
-                    setKeepContentOnPlayerReset(true)
-                }
-            },
-            update = { view ->
-                val player = viewModel.getPlayerForView()
-                if (view.player !== player) {
-                    view.player = player
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+    Box(
+        modifier = modifier.background(Color.Black)
+    ) {
+        if (showPlayerView) {
+            AndroidView(
+                factory = {
+                    (playerView.parent as? ViewGroup)?.removeView(playerView)
+                    playerView.apply {
+                        useController = false
+                        setKeepContentOnPlayerReset(true)
+                    }
+                },
+                update = { view ->
+                    if (view.player !== player) {
+                        view.player = player
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
-        VideoDanmakuOverlay(
+        VideoDanmakuLayer(
             modifier = Modifier.fillMaxSize(),
-            overlayState = danmakuOverlayState,
+            viewModel = viewModel,
             playerState = state,
-            danmakuState = danmakuState,
-            danmakuConfig = menuState.danmaku,
-            positionMs = state.snapshot.positionMs,
-            enabled = menuState.danmaku.enabled
+            danmakuConfig = menuState.danmaku
         )
 
         Box(
@@ -285,6 +285,7 @@ internal fun VideoPlayerPane(
         VideoPlayerBottomSheet(
             state = state,
             viewModel = viewModel,
+            limitUnderPlayer = !isFull,
             onDismiss = { showSettingsSheet = false }
         )
     }

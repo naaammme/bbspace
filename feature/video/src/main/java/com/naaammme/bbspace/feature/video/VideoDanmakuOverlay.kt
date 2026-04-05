@@ -5,14 +5,19 @@ import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
 import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
+import kotlinx.coroutines.delay
 import master.flame.danmaku.api.SegmentDanmakuSession
 import master.flame.danmaku.ui.widget.DanmakuView
 
@@ -52,6 +57,41 @@ internal fun rememberVideoDanmakuOverlayState(
     }
 
     return state
+}
+
+@Composable
+internal fun VideoDanmakuLayer(
+    modifier: Modifier,
+    viewModel: VideoViewModel,
+    playerState: VideoPlayerState,
+    danmakuConfig: VideoDanmakuConfig
+) {
+    val videoId = playerState.playbackSource?.videoId
+    var showLayer by remember(videoId, danmakuConfig.enabled) { mutableStateOf(false) }
+
+    LaunchedEffect(videoId, danmakuConfig.enabled) {
+        showLayer = false
+        if (videoId == null || !danmakuConfig.enabled) return@LaunchedEffect
+        delay(DANMAKU_LAYER_DELAY_MS)
+        showLayer = true
+    }
+
+    if (!showLayer) return
+
+    val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
+    val overlayState = rememberVideoDanmakuOverlayState(
+        viewModel = viewModel,
+        initialConfig = danmakuConfig
+    )
+    VideoDanmakuOverlay(
+        modifier = modifier,
+        overlayState = overlayState,
+        playerState = playerState,
+        danmakuState = danmakuState,
+        danmakuConfig = danmakuConfig,
+        positionMs = playerState.snapshot.positionMs,
+        enabled = danmakuConfig.enabled
+    )
 }
 
 @Composable
@@ -115,3 +155,5 @@ internal fun VideoDanmakuOverlay(
         )
     }
 }
+
+private const val DANMAKU_LAYER_DELAY_MS = 600L

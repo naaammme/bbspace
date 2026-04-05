@@ -8,6 +8,7 @@ enum class EnginePlaybackState {
 }
 
 data class PlaybackSnapshot(
+    val playerInstanceId: Int = 0,
     val isPlaying: Boolean = false,
     val playbackState: EnginePlaybackState = EnginePlaybackState.Idle,
     val positionMs: Long = 0,

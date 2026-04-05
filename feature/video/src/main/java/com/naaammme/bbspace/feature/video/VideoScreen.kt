@@ -6,11 +6,13 @@ import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -26,6 +28,7 @@ import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 internal val speedOps = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
@@ -38,7 +41,7 @@ fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
-    val playerMenuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
+    val backgroundPlayback by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
@@ -48,11 +51,15 @@ fun VideoScreen(
             setKeepContentOnPlayerReset(true)
         }
     }
-    val danmakuOverlayState = rememberVideoDanmakuOverlayState(
-        viewModel = viewModel,
-        initialConfig = playerMenuState.danmaku
-    )
     var isFull by rememberSaveable { mutableStateOf(false) }
+    var showPlayerView by remember { mutableStateOf(false) }
+
+    LaunchedEffect(viewModel) {
+        withFrameNanos { }
+        showPlayerView = true
+        delay(START_DELAY_MS)
+        viewModel.ensureStarted()
+    }
 
     BackHandler(enabled = isFull) {
         isFull = false
@@ -85,9 +92,9 @@ fun VideoScreen(
         }
     }
 
-    DisposableEffect(owner, viewModel, playerMenuState.backgroundPlayback) {
+    DisposableEffect(owner, viewModel, backgroundPlayback) {
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !playerMenuState.backgroundPlayback) {
+            if (event == Lifecycle.Event.ON_STOP && !backgroundPlayback) {
                 viewModel.pause()
             }
         }
@@ -102,7 +109,7 @@ fun VideoScreen(
             modifier = mod,
             playerView = pv,
             viewModel = viewModel,
-            danmakuOverlayState = danmakuOverlayState,
+            showPlayerView = showPlayerView,
             isFull = isFull,
             onToggleFull = { isFull = !isFull },
             onBackClick = {
@@ -129,6 +136,8 @@ fun VideoScreen(
         )
     }
 }
+
+private const val START_DELAY_MS = 120L
 
 internal fun formatDuration(ms: Long): String {
     val sec = ms / 1000

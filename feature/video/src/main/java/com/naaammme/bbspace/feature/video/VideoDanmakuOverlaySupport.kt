@@ -44,15 +44,15 @@ internal class BbspaceDanmakuMapper : DanmakuItemMapper<DanmakuElem> {
 }
 
 internal class PlayerSessionTimeProvider(
-    private val playerProvider: () -> Player
+    private val playerProvider: () -> Player?
 ) : PlayerTimeProvider {
 
     override fun getCurrentTimeMs(): Long {
-        return playerProvider().currentPosition.coerceAtLeast(0L)
+        return playerProvider()?.currentPosition?.coerceAtLeast(0L) ?: 0L
     }
 
     override fun isPlaying(): Boolean {
-        return playerProvider().isPlaying
+        return playerProvider()?.isPlaying == true
     }
 
     override fun getSyncThresholdTimeMs(): Long {

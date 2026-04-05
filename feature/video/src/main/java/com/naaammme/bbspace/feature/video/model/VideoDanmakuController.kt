@@ -40,14 +40,15 @@ internal class VideoDanmakuController(
 
     fun bind(
         playbackSourceFlow: Flow<PlaybackSource?>,
-        snapshotFlow: Flow<PlaybackSnapshot>
+        snapshotFlow: Flow<PlaybackSnapshot>,
+        enabledFlow: Flow<Boolean>
     ) {
         if (observerJob != null) return
         observerJob = scope.launch {
-            combine(playbackSourceFlow, snapshotFlow) { source, snapshot ->
-                source to snapshot
-            }.collect { (source, snapshot) ->
-                handlePlaybackUpdate(source, snapshot)
+            combine(playbackSourceFlow, snapshotFlow, enabledFlow) { source, snapshot, enabled ->
+                Triple(source, snapshot, enabled)
+            }.collect { (source, snapshot, enabled) ->
+                handlePlaybackUpdate(source, snapshot, enabled)
             }
         }
     }
@@ -60,10 +61,16 @@ internal class VideoDanmakuController(
 
     private fun handlePlaybackUpdate(
         source: PlaybackSource?,
-        snapshot: PlaybackSnapshot
+        snapshot: PlaybackSnapshot,
+        enabled: Boolean
     ) {
         if (source == null) {
             reset()
+            return
+        }
+
+        if (!enabled) {
+            reset(source.videoId)
             return
         }
 
@@ -71,6 +78,10 @@ internal class VideoDanmakuController(
         val positionMs = snapshot.positionMs.coerceAtLeast(0L)
         if (currentVideoId != source.videoId) {
             reset(source.videoId)
+        }
+        if (loadedSegments.isEmpty() && positionMs < START_DELAY_MS) {
+            lastPositionMs = positionMs
+            return
         }
 
         val request = DanmakuRequest(
@@ -191,6 +202,7 @@ internal class VideoDanmakuController(
     }
 
     private companion object {
+        const val START_DELAY_MS = 800L
         const val PREFETCH_WINDOW_MS = 30_000L
         const val SEEK_RESET_THRESHOLD_MS = 10_000L
     }
