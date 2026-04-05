@@ -9,6 +9,7 @@ import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.infra.coldstart.ColdStartClient
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.CacheManager
+import com.naaammme.bbspace.core.data.player.PlayerSessionManager
 import com.naaammme.bbspace.infra.grpc.GaiaReporter
 import com.naaammme.bbspace.infra.crypto.BuvidFetcher
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
@@ -37,7 +38,8 @@ class AppInitializer @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val gaiaReporter: GaiaReporter,
     private val appSettings: AppSettings,
-    private val cacheManager: CacheManager
+    private val cacheManager: CacheManager,
+    private val playerSessionManager: PlayerSessionManager
 ) {
     companion object {
         private const val TAG = "AppInitializer"
@@ -53,6 +55,15 @@ class AppInitializer @Inject constructor(
         biliDns.prefetch()
         warmupImageConnections()
         registerNetworkCallback()
+        initScope.launch {
+            runCatching {
+                playerSessionManager.prepareEngine()
+            }.onSuccess {
+                Logger.d(TAG) { "Player warmup done" }
+            }.onFailure { error ->
+                Logger.w(TAG) { "Player warmup failed: ${error.message}" }
+            }
+        }
 
         initScope.launch {
             try {

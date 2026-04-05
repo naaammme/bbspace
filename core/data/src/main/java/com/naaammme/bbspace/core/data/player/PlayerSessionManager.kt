@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -30,10 +32,15 @@ class PlayerSessionManager @Inject constructor(
     private val _state = MutableStateFlow(PlayerSessionState())
     val state: StateFlow<PlayerSessionState> = _state.asStateFlow()
     private val ownerId = AtomicLong(0L)
+    private val prepMu = Mutex()
 
     suspend fun prepareEngine() {
-        val config = withContext(Dispatchers.IO) { buildPlayerConfig() }
-        playerEngine.updateConfig(config)
+        prepMu.withLock {
+            val config = withContext(Dispatchers.IO) { buildPlayerConfig() }
+            withContext(Dispatchers.Main.immediate) {
+                playerEngine.updateConfig(config)
+            }
+        }
     }
 
     suspend fun start(

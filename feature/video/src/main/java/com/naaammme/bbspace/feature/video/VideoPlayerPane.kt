@@ -56,7 +56,6 @@ internal fun VideoPlayerPane(
     modifier: Modifier,
     playerView: PlayerView,
     viewModel: VideoViewModel,
-    showPlayerView: Boolean,
     isFull: Boolean,
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit
@@ -97,32 +96,26 @@ internal fun VideoPlayerPane(
     } else {
         0f
     }
-    val player = if (showPlayerView) {
-        viewModel.getPlayerForView()
-    } else {
-        null
-    }
+    val player = viewModel.getPlayerForView()
 
     Box(
         modifier = modifier.background(Color.Black)
     ) {
-        if (showPlayerView) {
-            AndroidView(
-                factory = {
-                    (playerView.parent as? ViewGroup)?.removeView(playerView)
-                    playerView.apply {
-                        useController = false
-                        setKeepContentOnPlayerReset(true)
-                    }
-                },
-                update = { view ->
-                    if (view.player !== player) {
-                        view.player = player
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        AndroidView(
+            factory = {
+                (playerView.parent as? ViewGroup)?.removeView(playerView)
+                playerView.apply {
+                    useController = false
+                    setKeepContentOnPlayerReset(true)
+                }
+            },
+            update = { view ->
+                if (view.player !== player) {
+                    view.player = player
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
 
         VideoDanmakuLayer(
             modifier = Modifier.fillMaxSize(),
