@@ -130,6 +130,16 @@ class AppSettings @Inject constructor(
     private val preferSoftDecKey = booleanPreferencesKey("prefer_soft_dec")
     private val decFallbackKey = booleanPreferencesKey("dec_fallback")
     private val bgPlayKey = booleanPreferencesKey("bg_play")
+    private val danmakuEnabledKey = booleanPreferencesKey("danmaku_enabled")
+    private val danmakuAreaPercentKey = intPreferencesKey("danmaku_area_percent")
+    private val danmakuOpacityKey = floatPreferencesKey("danmaku_opacity")
+    private val danmakuTextScaleKey = floatPreferencesKey("danmaku_text_scale")
+    private val danmakuSpeedKey = floatPreferencesKey("danmaku_speed")
+    private val danmakuDensityKey = intPreferencesKey("danmaku_density")
+    private val danmakuMergeDuplicatesKey = booleanPreferencesKey("danmaku_merge_duplicates")
+    private val danmakuShowTopKey = booleanPreferencesKey("danmaku_show_top")
+    private val danmakuShowBottomKey = booleanPreferencesKey("danmaku_show_bottom")
+    private val danmakuShowScrollRlKey = booleanPreferencesKey("danmaku_show_scroll_rl")
 
     val enableHdrAnd8k: Flow<Boolean> = context.appSettingsStore.data.map { it[enableHdrAnd8kKey] ?: false }
     val defaultVideoQuality: Flow<Int> = context.appSettingsStore.data.map { it[defaultVideoQualityKey] ?: 64 }
@@ -145,6 +155,19 @@ class AppSettings @Inject constructor(
     val preferSoftwareDecode: Flow<Boolean> = context.appSettingsStore.data.map { it[preferSoftDecKey] ?: false }
     val decoderFallback: Flow<Boolean> = context.appSettingsStore.data.map { it[decFallbackKey] ?: true }
     val backgroundPlayback: Flow<Boolean> = context.appSettingsStore.data.map { it[bgPlayKey] ?: false }
+    val danmakuEnabled: Flow<Boolean> = context.appSettingsStore.data.map { it[danmakuEnabledKey] ?: true }
+    val danmakuAreaPercent: Flow<Int> = context.appSettingsStore.data.map { it[danmakuAreaPercentKey] ?: 100 }
+    val danmakuOpacity: Flow<Float> = context.appSettingsStore.data.map { it[danmakuOpacityKey] ?: 1f }
+    val danmakuTextScale: Flow<Float> = context.appSettingsStore.data.map { it[danmakuTextScaleKey] ?: 1f }
+    val danmakuSpeed: Flow<Float> = context.appSettingsStore.data.map { it[danmakuSpeedKey] ?: 1f }
+    val danmakuDensity: Flow<Int> = context.appSettingsStore.data.map { it[danmakuDensityKey] ?: 1 }
+    val danmakuMergeDuplicates: Flow<Boolean> =
+        context.appSettingsStore.data.map { it[danmakuMergeDuplicatesKey] ?: false }
+    val danmakuShowTop: Flow<Boolean> = context.appSettingsStore.data.map { it[danmakuShowTopKey] ?: true }
+    val danmakuShowBottom: Flow<Boolean> =
+        context.appSettingsStore.data.map { it[danmakuShowBottomKey] ?: true }
+    val danmakuShowScrollRl: Flow<Boolean> =
+        context.appSettingsStore.data.map { it[danmakuShowScrollRlKey] ?: true }
 
     suspend fun updateEnableHdrAnd8k(enabled: Boolean) {
         context.appSettingsStore.edit { it[enableHdrAnd8kKey] = enabled }
@@ -200,6 +223,46 @@ class AppSettings @Inject constructor(
 
     suspend fun updateBackgroundPlayback(enabled: Boolean) {
         context.appSettingsStore.edit { it[bgPlayKey] = enabled }
+    }
+
+    suspend fun updateDanmakuEnabled(enabled: Boolean) {
+        context.appSettingsStore.edit { it[danmakuEnabledKey] = enabled }
+    }
+
+    suspend fun updateDanmakuAreaPercent(percent: Int) {
+        context.appSettingsStore.edit { it[danmakuAreaPercentKey] = percent.coerceIn(25, 100) }
+    }
+
+    suspend fun updateDanmakuOpacity(value: Float) {
+        context.appSettingsStore.edit { it[danmakuOpacityKey] = value.coerceIn(0.1f, 1f) }
+    }
+
+    suspend fun updateDanmakuTextScale(value: Float) {
+        context.appSettingsStore.edit { it[danmakuTextScaleKey] = value.coerceIn(0.5f, 2f) }
+    }
+
+    suspend fun updateDanmakuSpeed(value: Float) {
+        context.appSettingsStore.edit { it[danmakuSpeedKey] = value.coerceIn(0.5f, 2f) }
+    }
+
+    suspend fun updateDanmakuDensity(level: Int) {
+        context.appSettingsStore.edit { it[danmakuDensityKey] = level.coerceIn(0, 2) }
+    }
+
+    suspend fun updateDanmakuMergeDuplicates(enabled: Boolean) {
+        context.appSettingsStore.edit { it[danmakuMergeDuplicatesKey] = enabled }
+    }
+
+    suspend fun updateDanmakuShowTop(enabled: Boolean) {
+        context.appSettingsStore.edit { it[danmakuShowTopKey] = enabled }
+    }
+
+    suspend fun updateDanmakuShowBottom(enabled: Boolean) {
+        context.appSettingsStore.edit { it[danmakuShowBottomKey] = enabled }
+    }
+
+    suspend fun updateDanmakuShowScrollRl(enabled: Boolean) {
+        context.appSettingsStore.edit { it[danmakuShowScrollRlKey] = enabled }
     }
 
     suspend fun resetAllSettings() {

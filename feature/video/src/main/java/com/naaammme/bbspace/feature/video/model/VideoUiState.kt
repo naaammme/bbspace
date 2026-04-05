@@ -22,3 +22,28 @@ data class VideoPlayerState(
     val snapshot: PlaybackSnapshot = PlaybackSnapshot(),
     val error: PlaybackError? = null
 )
+
+data class VideoDanmakuConfig(
+    val enabled: Boolean = true,
+    val areaPercent: Int = 100,
+    val opacity: Float = 1f,
+    val textScale: Float = 1f,
+    val speed: Float = 1f,
+    val densityLevel: Int = 1,
+    val mergeDuplicates: Boolean = false,
+    val showTop: Boolean = true,
+    val showBottom: Boolean = true,
+    val showScrollRl: Boolean = true
+)
+
+data class VideoPlayerMenuState(
+    val minBufferMs: Int = 2_000,
+    val maxBufferMs: Int = 15_000,
+    val playbackBufferMs: Int = 250,
+    val rebufferMs: Int = 500,
+    val backBufferMs: Int = 5_000,
+    val backgroundPlayback: Boolean = false,
+    val preferSoftwareDecode: Boolean = false,
+    val decoderFallback: Boolean = true,
+    val danmaku: VideoDanmakuConfig = VideoDanmakuConfig()
+)

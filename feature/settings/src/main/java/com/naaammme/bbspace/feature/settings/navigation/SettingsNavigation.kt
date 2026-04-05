@@ -1,23 +1,21 @@
-package com.naaammme.bbspace.feature.settings.navigation
+﻿package com.naaammme.bbspace.feature.settings.navigation
 
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import com.naaammme.bbspace.feature.settings.SettingsScreen
 import com.naaammme.bbspace.feature.settings.about.AboutScreen
 import com.naaammme.bbspace.feature.settings.appearance.AppearanceSettingsScreen
+import com.naaammme.bbspace.feature.settings.audioVideo.AudioVideoSettingsScreen
 import com.naaammme.bbspace.feature.settings.errorlog.ErrorLogScreen
 import com.naaammme.bbspace.feature.settings.feed.FeedSettingsScreen
 import com.naaammme.bbspace.feature.settings.performance.PerformanceSettingsScreen
-import com.naaammme.bbspace.feature.settings.player.PlayerSettingsScreen
-import com.naaammme.bbspace.feature.settings.audioVideo.AudioVideoSettingsScreen
 import com.naaammme.bbspace.feature.settings.privacy.PrivacySettingsScreen
-import com.naaammme.bbspace.feature.settings.SettingsScreen
 
 const val SETTINGS_ROUTE = "settings"
 const val APPEARANCE_ROUTE = "settings/appearance"
 const val PERFORMANCE_ROUTE = "settings/performance"
-const val PLAYER_ROUTE = "settings/player"
 const val PRIVACY_ROUTE = "settings/privacy"
 const val FEED_SETTINGS_ROUTE = "settings/feed"
 const val PLAYBACK_ROUTE = "settings/playback"
@@ -30,7 +28,6 @@ fun NavGraphBuilder.settingsScreen(navController: NavHostController) {
             onBack = { navController.popBackStack() },
             onNavigateToAppearance = { navController.navigate(APPEARANCE_ROUTE) },
             onNavigateToPerformance = { navController.navigate(PERFORMANCE_ROUTE) },
-            onNavigateToPlayer = { navController.navigate(PLAYER_ROUTE) },
             onNavigateToFeed = { navController.navigate(FEED_SETTINGS_ROUTE) },
             onNavigateToPlayback = { navController.navigate(PLAYBACK_ROUTE) },
             onNavigateToPrivacy = { navController.navigate(PRIVACY_ROUTE) },
@@ -45,10 +42,6 @@ fun NavGraphBuilder.settingsScreen(navController: NavHostController) {
 
     composable(PERFORMANCE_ROUTE) {
         PerformanceSettingsScreen(onBack = { navController.popBackStack() })
-    }
-
-    composable(PLAYER_ROUTE) {
-        PlayerSettingsScreen(onBack = { navController.popBackStack() })
     }
 
     composable(PLAYBACK_ROUTE) {

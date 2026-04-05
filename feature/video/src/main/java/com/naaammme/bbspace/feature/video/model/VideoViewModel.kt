@@ -15,6 +15,7 @@ import com.naaammme.bbspace.core.model.VideoPlaybackId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -25,7 +26,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class VideoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    appSettings: AppSettings,
+    private val appSettings: AppSettings,
     private val sessionManager: PlayerSessionManager,
     private val detailRepo: VideoDetailRepository,
     danmakuRepository: DanmakuRepository
@@ -100,10 +101,10 @@ class VideoViewModel @Inject constructor(
         initialValue = VideoPlayerState()
     )
 
-    val backgroundPlayback = appSettings.backgroundPlayback.stateIn(
+    val playerMenuState = appSettings.playerMenuStateFlow().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = false
+        initialValue = VideoPlayerMenuState()
     )
 
     internal val danmakuState = danmakuController.state
@@ -163,6 +164,114 @@ class VideoViewModel @Inject constructor(
         sessionManager.setSpeed(ownerId, speed)
     }
 
+    fun updateBackgroundPlayback(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateBackgroundPlayback(enabled)
+        }
+    }
+
+    fun updateMinBufferMs(value: Int) {
+        viewModelScope.launch {
+            appSettings.updatePlayerMinBufferMs(value)
+        }
+    }
+
+    fun updateMaxBufferMs(value: Int) {
+        viewModelScope.launch {
+            appSettings.updatePlayerMaxBufferMs(value)
+        }
+    }
+
+    fun updatePlaybackBufferMs(value: Int) {
+        viewModelScope.launch {
+            appSettings.updatePlayerPlaybackBufferMs(value)
+        }
+    }
+
+    fun updateRebufferMs(value: Int) {
+        viewModelScope.launch {
+            appSettings.updatePlayerRebufferMs(value)
+        }
+    }
+
+    fun updateBackBufferMs(value: Int) {
+        viewModelScope.launch {
+            appSettings.updatePlayerBackBufferMs(value)
+        }
+    }
+
+    fun updatePreferSoftwareDecode(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updatePreferSoftwareDecode(enabled)
+        }
+    }
+
+    fun updateDecoderFallback(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateDecoderFallback(enabled)
+        }
+    }
+
+    fun updateDanmakuEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuEnabled(enabled)
+        }
+    }
+
+    fun updateDanmakuAreaPercent(percent: Int) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuAreaPercent(percent)
+        }
+    }
+
+    fun updateDanmakuOpacity(value: Float) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuOpacity(value)
+        }
+    }
+
+    fun updateDanmakuTextScale(value: Float) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuTextScale(value)
+        }
+    }
+
+    fun updateDanmakuSpeed(value: Float) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuSpeed(value)
+        }
+    }
+
+    fun updateDanmakuDensity(level: Int) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuDensity(level)
+        }
+    }
+
+    fun updateDanmakuMergeDuplicates(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuMergeDuplicates(enabled)
+        }
+    }
+
+    fun updateDanmakuShowTop(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuShowTop(enabled)
+        }
+    }
+
+    fun updateDanmakuShowBottom(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuShowBottom(enabled)
+        }
+    }
+
+    fun updateDanmakuShowScrollRl(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateDanmakuShowScrollRl(enabled)
+        }
+    }
+
     fun switchPage(cid: Long) {
         val request = _req.value ?: return
         if (request.videoId.cid == cid) return
@@ -198,3 +307,131 @@ class VideoViewModel @Inject constructor(
         val nextOwnerId = AtomicLong(1L)
     }
 }
+
+private fun AppSettings.playerMenuStateFlow(): Flow<VideoPlayerMenuState> {
+    val bufferSettings = combine(
+        playerMinBufferMs,
+        playerMaxBufferMs,
+        playerPlaybackBufferMs,
+        playerRebufferMs,
+        playerBackBufferMs
+    ) { minBufferMs, maxBufferMs, playbackBufferMs, rebufferMs, backBufferMs ->
+        PlayerBufferSettings(
+            minBufferMs = minBufferMs,
+            maxBufferMs = maxBufferMs,
+            playbackBufferMs = playbackBufferMs,
+            rebufferMs = rebufferMs,
+            backBufferMs = backBufferMs
+        )
+    }
+
+    val playbackSettings = combine(
+        backgroundPlayback,
+        preferSoftwareDecode,
+        decoderFallback
+    ) { backgroundPlayback, preferSoftwareDecode, decoderFallback ->
+        PlayerPlaybackSettings(
+            backgroundPlayback = backgroundPlayback,
+            preferSoftwareDecode = preferSoftwareDecode,
+            decoderFallback = decoderFallback
+        )
+    }
+
+    val danmakuDisplaySettings = combine(
+        danmakuEnabled,
+        danmakuAreaPercent,
+        danmakuOpacity,
+        danmakuTextScale,
+        danmakuSpeed
+    ) { enabled, areaPercent, opacity, textScale, speed ->
+        DanmakuDisplaySettings(
+            enabled = enabled,
+            areaPercent = areaPercent,
+            opacity = opacity,
+            textScale = textScale,
+            speed = speed
+        )
+    }
+
+    val danmakuBehaviorSettings = combine(
+        danmakuDensity,
+        danmakuMergeDuplicates,
+        danmakuShowTop,
+        danmakuShowBottom,
+        danmakuShowScrollRl
+    ) { densityLevel, mergeDuplicates, showTop, showBottom, showScrollRl ->
+        DanmakuBehaviorSettings(
+            densityLevel = densityLevel,
+            mergeDuplicates = mergeDuplicates,
+            showTop = showTop,
+            showBottom = showBottom,
+            showScrollRl = showScrollRl
+        )
+    }
+
+    val danmakuConfig = combine(
+        danmakuDisplaySettings,
+        danmakuBehaviorSettings
+    ) { displaySettings, behaviorSettings ->
+        VideoDanmakuConfig(
+            enabled = displaySettings.enabled,
+            areaPercent = displaySettings.areaPercent,
+            opacity = displaySettings.opacity,
+            textScale = displaySettings.textScale,
+            speed = displaySettings.speed,
+            densityLevel = behaviorSettings.densityLevel,
+            mergeDuplicates = behaviorSettings.mergeDuplicates,
+            showTop = behaviorSettings.showTop,
+            showBottom = behaviorSettings.showBottom,
+            showScrollRl = behaviorSettings.showScrollRl
+        )
+    }
+
+    return combine(
+        bufferSettings,
+        playbackSettings,
+        danmakuConfig
+    ) { bufferSettings, playbackSettings, danmakuConfig ->
+        VideoPlayerMenuState(
+            minBufferMs = bufferSettings.minBufferMs,
+            maxBufferMs = bufferSettings.maxBufferMs,
+            playbackBufferMs = bufferSettings.playbackBufferMs,
+            rebufferMs = bufferSettings.rebufferMs,
+            backBufferMs = bufferSettings.backBufferMs,
+            backgroundPlayback = playbackSettings.backgroundPlayback,
+            preferSoftwareDecode = playbackSettings.preferSoftwareDecode,
+            decoderFallback = playbackSettings.decoderFallback,
+            danmaku = danmakuConfig
+        )
+    }
+}
+
+private data class PlayerBufferSettings(
+    val minBufferMs: Int,
+    val maxBufferMs: Int,
+    val playbackBufferMs: Int,
+    val rebufferMs: Int,
+    val backBufferMs: Int
+)
+
+private data class PlayerPlaybackSettings(
+    val backgroundPlayback: Boolean,
+    val preferSoftwareDecode: Boolean,
+    val decoderFallback: Boolean
+)
+
+private data class DanmakuDisplaySettings(
+    val enabled: Boolean,
+    val areaPercent: Int,
+    val opacity: Float,
+    val textScale: Float,
+    val speed: Float
+)
+
+private data class DanmakuBehaviorSettings(
+    val densityLevel: Int,
+    val mergeDuplicates: Boolean,
+    val showTop: Boolean,
+    val showBottom: Boolean,
+    val showScrollRl: Boolean
+)

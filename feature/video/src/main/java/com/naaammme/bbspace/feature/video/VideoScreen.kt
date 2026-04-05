@@ -7,10 +7,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -38,7 +38,7 @@ fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
-    val bgPlay by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
+    val playerMenuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
@@ -48,9 +48,11 @@ fun VideoScreen(
             setKeepContentOnPlayerReset(true)
         }
     }
-    val danmakuOverlayState = rememberVideoDanmakuOverlayState(viewModel)
+    val danmakuOverlayState = rememberVideoDanmakuOverlayState(
+        viewModel = viewModel,
+        initialConfig = playerMenuState.danmaku
+    )
     var isFull by rememberSaveable { mutableStateOf(false) }
-    var danmakuOn by rememberSaveable { mutableStateOf(true) }
 
     BackHandler(enabled = isFull) {
         isFull = false
@@ -83,9 +85,9 @@ fun VideoScreen(
         }
     }
 
-    DisposableEffect(owner, viewModel, bgPlay) {
+    DisposableEffect(owner, viewModel, playerMenuState.backgroundPlayback) {
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !bgPlay) {
+            if (event == Lifecycle.Event.ON_STOP && !playerMenuState.backgroundPlayback) {
                 viewModel.pause()
             }
         }
@@ -101,8 +103,6 @@ fun VideoScreen(
             playerView = pv,
             viewModel = viewModel,
             danmakuOverlayState = danmakuOverlayState,
-            danmakuOn = danmakuOn,
-            onToggleDanmaku = { danmakuOn = !danmakuOn },
             isFull = isFull,
             onToggleFull = { isFull = !isFull },
             onBackClick = {

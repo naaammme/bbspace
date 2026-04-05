@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
 import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
@@ -17,11 +18,11 @@ import master.flame.danmaku.ui.widget.DanmakuView
 
 @Composable
 internal fun rememberVideoDanmakuOverlayState(
-    viewModel: VideoViewModel
+    viewModel: VideoViewModel,
+    initialConfig: VideoDanmakuConfig
 ): VideoDanmakuOverlayState {
     val context = LocalContext.current
-    val density = context.resources.displayMetrics.density
-    val state = remember(viewModel, context, density) {
+    val state = remember(viewModel, context) {
         val danmakuView = DanmakuView(context).apply {
             enableDanmakuDrawingCache(true)
             showFPS(false)
@@ -29,12 +30,16 @@ internal fun rememberVideoDanmakuOverlayState(
             isFocusable = false
             isFocusableInTouchMode = false
         }
+        val danmakuContext = createDanmakuContext().apply {
+            applyConfig(initialConfig)
+        }
         VideoDanmakuOverlayState(
             danmakuView = danmakuView,
+            danmakuContext = danmakuContext,
             session = SegmentDanmakuSession(
                 danmakuView,
-                createDanmakuContext(),
-                BbspaceDanmakuMapper(density),
+                danmakuContext,
+                BbspaceDanmakuMapper(),
                 PlayerSessionTimeProvider { viewModel.getPlayerForView() }
             )
         )
@@ -55,6 +60,7 @@ internal fun VideoDanmakuOverlay(
     overlayState: VideoDanmakuOverlayState,
     playerState: VideoPlayerState,
     danmakuState: VideoDanmakuState,
+    danmakuConfig: VideoDanmakuConfig,
     positionMs: Long,
     enabled: Boolean
 ) {
@@ -76,6 +82,10 @@ internal fun VideoDanmakuOverlay(
 
     LaunchedEffect(overlayState) {
         overlayState.prepare()
+    }
+
+    LaunchedEffect(overlayState, danmakuConfig) {
+        overlayState.updateConfig(danmakuConfig)
     }
 
     LaunchedEffect(overlayState, danmakuState.videoId, danmakuState.loadedSegments, enabled) {

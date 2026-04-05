@@ -2,23 +2,36 @@ package com.naaammme.bbspace.feature.video
 
 import com.naaammme.bbspace.core.model.DanmakuElem
 import com.naaammme.bbspace.core.model.VideoPlaybackId
+import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
 import master.flame.danmaku.api.DanmakuSegmentData
 import master.flame.danmaku.api.SegmentDanmakuSession
+import master.flame.danmaku.danmaku.model.android.DanmakuContext
 import master.flame.danmaku.ui.widget.DanmakuView
 import kotlin.math.abs
 
 internal class VideoDanmakuOverlayState(
     internal val danmakuView: DanmakuView,
+    private val danmakuContext: DanmakuContext,
     private val session: SegmentDanmakuSession<DanmakuElem>
 ) {
     private var lastVideoId: VideoPlaybackId? = null
     private var lastObservedPositionMs: Long? = null
     private var pendingResync = true
+    private var lastAppliedConfig: VideoDanmakuConfig? = null
     private val appliedSegmentIndices = linkedSetOf<Long>()
 
     fun prepare() {
         session.prepare()
+    }
+
+    fun updateConfig(config: VideoDanmakuConfig) {
+        if (config == lastAppliedConfig) return
+
+        danmakuContext.applyConfig(config)
+        lastAppliedConfig = config
+        pendingResync = true
+        danmakuView.forceRender()
     }
 
     fun syncSegments(danmakuState: VideoDanmakuState) {

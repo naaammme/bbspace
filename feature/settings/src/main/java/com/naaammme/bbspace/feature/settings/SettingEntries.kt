@@ -1,9 +1,8 @@
-package com.naaammme.bbspace.feature.settings
+﻿package com.naaammme.bbspace.feature.settings
 
 import com.naaammme.bbspace.feature.settings.navigation.APPEARANCE_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.FEED_SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PERFORMANCE_ROUTE
-import com.naaammme.bbspace.feature.settings.navigation.PLAYER_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PLAYBACK_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PRIVACY_ROUTE
 
@@ -24,12 +23,6 @@ val performanceEntries = listOf(
     SettingEntry("屏幕刷新率", "设置应用渲染帧率上限", PERFORMANCE_ROUTE),
 )
 
-val playerEntries = listOf(
-    SettingEntry("默认缓冲", "缓冲时长和重缓冲参数", PLAYER_ROUTE),
-    SettingEntry("软硬解策略", "硬解优先或软解优先", PLAYER_ROUTE),
-    SettingEntry("后台播放", "退到后台时是否继续播放", PLAYER_ROUTE),
-)
-
 val playbackEntries = listOf(
     SettingEntry("默认画质", "设置默认视频和音频质量", PLAYBACK_ROUTE),
     SettingEntry("编码格式", "选择优先的编码格式", PLAYBACK_ROUTE),
@@ -46,4 +39,4 @@ val privacyEntries = listOf(
 )
 
 val allSettingEntries =
-    appearanceEntries + performanceEntries + playerEntries + playbackEntries + feedEntries + privacyEntries
+    appearanceEntries + performanceEntries + playbackEntries + feedEntries + privacyEntries

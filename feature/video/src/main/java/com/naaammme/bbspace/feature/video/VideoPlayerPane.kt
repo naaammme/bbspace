@@ -13,15 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,10 +44,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
-import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.QualityOption
-import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import kotlinx.coroutines.delay
 
@@ -62,19 +57,18 @@ internal fun VideoPlayerPane(
     playerView: PlayerView,
     viewModel: VideoViewModel,
     danmakuOverlayState: VideoDanmakuOverlayState,
-    danmakuOn: Boolean,
-    onToggleDanmaku: () -> Unit,
     isFull: Boolean,
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val state by viewModel.playerState.collectAsStateWithLifecycle()
+    val menuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
     val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val tapSrc = remember { MutableInteractionSource() }
     var showQ by remember { mutableStateOf(false) }
     var showA by remember { mutableStateOf(false) }
     var showSp by remember { mutableStateOf(false) }
-    var showInfo by remember { mutableStateOf(false) }
+    var showSettingsSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(true) }
     var dragMs by remember { mutableStateOf<Long?>(null) }
 
@@ -82,7 +76,7 @@ internal fun VideoPlayerPane(
         viewModel.ensureStarted()
     }
 
-    LaunchedEffect(showCtrl, state.snapshot.isPlaying, dragMs, showA, showQ, showSp, showInfo) {
+    LaunchedEffect(showCtrl, state.snapshot.isPlaying, dragMs, showA, showQ, showSp, showSettingsSheet) {
         if (
             showCtrl &&
             state.snapshot.isPlaying &&
@@ -90,7 +84,7 @@ internal fun VideoPlayerPane(
             !showA &&
             !showQ &&
             !showSp &&
-            !showInfo
+            !showSettingsSheet
         ) {
             delay(3_000)
             showCtrl = false
@@ -101,6 +95,7 @@ internal fun VideoPlayerPane(
         .takeIf { it > 0 }
         ?: state.playbackSource?.durationMs?.coerceAtLeast(0L)
         ?: 0L
+    val danmakuOn = menuState.danmaku.enabled
     val barMs = dragMs ?: state.snapshot.positionMs
     val sliderVal = if (durationMs > 0) {
         (barMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
@@ -131,8 +126,9 @@ internal fun VideoPlayerPane(
             overlayState = danmakuOverlayState,
             playerState = state,
             danmakuState = danmakuState,
+            danmakuConfig = menuState.danmaku,
             positionMs = state.snapshot.positionMs,
-            enabled = danmakuOn
+            enabled = menuState.danmaku.enabled
         )
 
         Box(
@@ -168,12 +164,12 @@ internal fun VideoPlayerPane(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color.Black.copy(alpha = if (danmakuOn) 0.42f else 0.26f),
+                        color = Color.Black.copy(alpha = if (menuState.danmaku.enabled) 0.42f else 0.26f),
                         modifier = Modifier
                             .clip(CircleShape)
                             .clickable {
                                 showCtrl = true
-                                onToggleDanmaku()
+                                viewModel.updateDanmakuEnabled(!menuState.danmaku.enabled)
                             }
                     ) {
                         Text(
@@ -186,7 +182,7 @@ internal fun VideoPlayerPane(
                     IconButton(
                         onClick = {
                             showCtrl = true
-                            showInfo = true
+                            showSettingsSheet = true
                         }
                     ) {
                         Icon(
@@ -285,10 +281,11 @@ internal fun VideoPlayerPane(
         )
     }
 
-    if (showInfo) {
-        PlayerInfoDialog(
+    if (showSettingsSheet) {
+        VideoPlayerBottomSheet(
             state = state,
-            onDismiss = { showInfo = false }
+            viewModel = viewModel,
+            onDismiss = { showSettingsSheet = false }
         )
     }
 }
@@ -553,165 +550,3 @@ private fun SpeedSelectionDialog(
     )
 }
 
-@Composable
-private fun PlayerInfoDialog(
-    state: VideoPlayerState,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("视频信息") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                state.error?.let { err ->
-                    InfoGroup(
-                        title = "请求错误",
-                        rows = listOf("错误" to playbackErrorText(err))
-                    )
-                }
-
-                state.snapshot.errorMessage?.let { msg ->
-                    InfoGroup(
-                        title = "播放器错误",
-                        rows = listOf("错误" to msg)
-                    )
-                }
-
-                val src = state.playbackSource
-                if (src == null) {
-                    Text(
-                        text = if (state.isLoading) "正在加载播放信息" else "暂无播放信息",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    val snap = state.snapshot
-                    val stream = state.currentStream
-                    val audio = state.currentAudio
-
-                    InfoGroup(
-                        title = "视频",
-                        rows = buildList {
-                            add("AV号" to "av${src.videoId.aid}")
-                            add("CID" to src.videoId.cid.toString())
-                            add("时长" to formatDuration(src.durationMs))
-                            stream?.let {
-                                add(
-                                    "分辨率" to listOfNotNull(it.width, it.height)
-                                        .joinToString("x")
-                                        .ifBlank { "未知" }
-                                )
-                                add("画质" to getQualityName(src, it))
-                                if (it is com.naaammme.bbspace.core.model.PlaybackStream.Dash) {
-                                    add("帧率" to (it.frameRate ?: "未知"))
-                                    add("编码" to getCodecName(it.codecId))
-                                    add("带宽" to "${it.bandwidth / 1000} kbps")
-                                }
-                            }
-                            add("视频解码器" to (snap.videoDecoderName ?: "未初始化"))
-                        }
-                    )
-
-                    audio?.let {
-                        InfoGroup(
-                            title = "音频",
-                            rows = listOf(
-                                "音频ID" to it.id.toString(),
-                                "音频名称" to getAudioName(it.id),
-                                "音频带宽" to "${it.bandwidth / 1000} kbps",
-                                "音频解码器" to (snap.audioDecoderName ?: "未初始化")
-                            )
-                        )
-                    }
-
-                    InfoGroup(
-                        title = "播放状态",
-                        rows = listOf(
-                            "状态" to playbackStateText(state),
-                            "播放位置" to formatDuration(snap.positionMs),
-                            "缓冲位置" to formatDuration(snap.bufferedPositionMs),
-                            "缓冲时长" to formatDuration(snap.totalBufferedDurationMs),
-                            "播放速度" to formatSpeed(snap.speed)
-                        )
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("关闭")
-            }
-        }
-    )
-}
-
-@Composable
-private fun InfoGroup(
-    title: String,
-    rows: List<Pair<String, String>>
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall
-        )
-        rows.forEachIndexed { index, (label, value) ->
-            PlayerInfoRow(
-                label = label,
-                value = value
-            )
-            if (index < rows.lastIndex) {
-                HorizontalDivider()
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayerInfoRow(
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.36f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(0.64f)
-        )
-    }
-}
-
-private fun playbackStateText(state: VideoPlayerState): String {
-    return when {
-        state.snapshot.isPlaying -> "播放中"
-        state.isLoading -> "准备中"
-        else -> when (state.snapshot.playbackState) {
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Buffering -> "缓冲中"
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Ready -> "已暂停"
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Ended -> "已结束"
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Idle -> "未开始"
-        }
-    }
-}
-
-private fun playbackErrorText(err: PlaybackError): String {
-    return when (err) {
-        is PlaybackError.NoPlayableStream -> err.message
-        is PlaybackError.RequestFailed -> err.message
-    }
-}

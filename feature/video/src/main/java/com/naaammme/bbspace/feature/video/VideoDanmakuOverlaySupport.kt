@@ -3,6 +3,7 @@ package com.naaammme.bbspace.feature.video
 import android.graphics.Color
 import androidx.media3.common.Player
 import com.naaammme.bbspace.core.model.DanmakuElem
+import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import master.flame.danmaku.api.DanmakuItemMapper
 import master.flame.danmaku.api.DanmakuItemUtils
 import master.flame.danmaku.api.PlayerTimeProvider
@@ -13,29 +14,10 @@ import master.flame.danmaku.danmaku.model.android.DanmakuContext
 internal fun createDanmakuContext(): DanmakuContext {
     return DanmakuContext.create()
         .setDanmakuStyle(IDisplayer.DANMAKU_STYLE_STROKEN, 3f)
-        .setDuplicateMergingEnabled(false)
-        .setScrollSpeedFactor(1.1f)
-        .setScaleTextSize(1f)
-        .setMaximumLines(
-            hashMapOf(
-                BaseDanmaku.TYPE_SCROLL_RL to 6,
-                BaseDanmaku.TYPE_SCROLL_LR to 6
-            )
-        )
-        .preventOverlapping(
-            hashMapOf(
-                BaseDanmaku.TYPE_SCROLL_RL to true,
-                BaseDanmaku.TYPE_SCROLL_LR to true,
-                BaseDanmaku.TYPE_FIX_TOP to true,
-                BaseDanmaku.TYPE_FIX_BOTTOM to true
-            )
-        )
         .setDanmakuMargin(24)
 }
 
-internal class BbspaceDanmakuMapper(
-    private val density: Float
-) : DanmakuItemMapper<DanmakuElem> {
+internal class BbspaceDanmakuMapper : DanmakuItemMapper<DanmakuElem> {
 
     override fun map(
         item: DanmakuElem,
@@ -55,7 +37,7 @@ internal class BbspaceDanmakuMapper(
 
         danmaku.textColor = normalizeDanmakuColor(item.color)
         danmaku.textShadowColor = Color.BLACK
-        danmaku.textSize = resolveDanmakuTextSize(item.fontSize, density)
+        danmaku.textSize = resolveDanmakuTextSize(item.fontSize)
         danmaku.priority = if (item.pool != 0) 1 else 0
         return danmaku
     }
@@ -96,11 +78,61 @@ private fun normalizeDanmakuColor(color: Int): Int {
 }
 
 private fun resolveDanmakuTextSize(
-    fontSize: Int,
-    density: Float
+    fontSize: Int
 ): Float {
-    val baseSize = fontSize.coerceIn(18, 36).toFloat()
-    return baseSize * (density - 0.6f).coerceAtLeast(1f)
+    return fontSize.coerceIn(18, 36).toFloat()
 }
 
-private const val DANMAKU_SEEK_SYNC_THRESHOLD_MS = 2_000L
+internal fun DanmakuContext.applyConfig(config: VideoDanmakuConfig) {
+    setDanmakuTransparency(config.opacity)
+    setScaleTextSize(config.textScale)
+    setScrollSpeedFactor((1f / config.speed.coerceIn(0.5f, 2f)).coerceIn(0.5f, 2f))
+    setDuplicateMergingEnabled(config.mergeDuplicates)
+    setMaximumVisibleSizeInScreen(config.maximumVisibleSize)
+    setMaximumLines(config.maximumLines)
+    preventOverlapping(config.overlappingRules)
+    setR2LDanmakuVisibility(config.showScrollRl)
+    setL2RDanmakuVisibility(true)
+    setFTDanmakuVisibility(config.showTop)
+    setFBDanmakuVisibility(config.showBottom)
+}
+
+private val VideoDanmakuConfig.maximumVisibleSize: Int
+    get() = when (densityLevel) {
+        0 -> 20
+        2 -> 0
+        else -> -1
+    }
+
+private val VideoDanmakuConfig.maximumLines: Map<Int, Int>
+    get() {
+        val lines = when (areaPercent) {
+            25 -> 3
+            50 -> 6
+            75 -> 9
+            else -> 12
+        }
+        return hashMapOf(
+            BaseDanmaku.TYPE_SCROLL_RL to lines,
+            BaseDanmaku.TYPE_SCROLL_LR to lines
+        )
+    }
+
+private val VideoDanmakuConfig.overlappingRules: Map<Int, Boolean>?
+    get() = when (densityLevel) {
+        0 -> hashMapOf(
+            BaseDanmaku.TYPE_SCROLL_RL to true,
+            BaseDanmaku.TYPE_SCROLL_LR to true,
+            BaseDanmaku.TYPE_FIX_TOP to true,
+            BaseDanmaku.TYPE_FIX_BOTTOM to true
+        )
+
+        1 -> hashMapOf(
+            BaseDanmaku.TYPE_FIX_TOP to true,
+            BaseDanmaku.TYPE_FIX_BOTTOM to true
+        )
+
+        else -> null
+    }
+
+internal const val DANMAKU_SEEK_SYNC_THRESHOLD_MS = 1_000L
