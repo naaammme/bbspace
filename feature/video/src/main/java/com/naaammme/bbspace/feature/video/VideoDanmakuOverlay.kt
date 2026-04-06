@@ -4,11 +4,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -17,14 +15,15 @@ import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
 import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
-import kotlinx.coroutines.delay
 import master.flame.danmaku.api.SegmentDanmakuSession
 import master.flame.danmaku.ui.widget.DanmakuView
 
 @Composable
 internal fun rememberVideoDanmakuOverlayState(
     viewModel: VideoViewModel,
-    initialConfig: VideoDanmakuConfig
+    initialConfig: VideoDanmakuConfig,
+    initialPositionMs: Long,
+    initialIsPlaying: Boolean
 ): VideoDanmakuOverlayState {
     val context = LocalContext.current
     val state = remember(viewModel, context) {
@@ -38,24 +37,22 @@ internal fun rememberVideoDanmakuOverlayState(
         val danmakuContext = createDanmakuContext().apply {
             applyConfig(initialConfig)
         }
+        val timeProvider = PlayerSessionTimeProvider(
+            positionMs = initialPositionMs,
+            isPlaying = initialIsPlaying
+        )
         VideoDanmakuOverlayState(
             danmakuView = danmakuView,
             danmakuContext = danmakuContext,
+            timeProvider = timeProvider,
             session = SegmentDanmakuSession(
                 danmakuView,
                 danmakuContext,
                 BbspaceDanmakuMapper(),
-                PlayerSessionTimeProvider { viewModel.getPlayerForView() }
+                timeProvider
             )
         )
     }
-
-    DisposableEffect(state) {
-        onDispose {
-            state.release()
-        }
-    }
-
     return state
 }
 
@@ -67,30 +64,21 @@ internal fun VideoDanmakuLayer(
     danmakuConfig: VideoDanmakuConfig
 ) {
     val videoId = playerState.playbackSource?.videoId
-    var showLayer by remember(videoId, danmakuConfig.enabled) { mutableStateOf(false) }
-
-    LaunchedEffect(videoId, danmakuConfig.enabled) {
-        showLayer = false
-        if (videoId == null || !danmakuConfig.enabled) return@LaunchedEffect
-        delay(DANMAKU_LAYER_DELAY_MS)
-        showLayer = true
-    }
-
-    if (!showLayer) return
+    if (videoId == null) return
 
     val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val overlayState = rememberVideoDanmakuOverlayState(
         viewModel = viewModel,
-        initialConfig = danmakuConfig
+        initialConfig = danmakuConfig,
+        initialPositionMs = playerState.snapshot.positionMs,
+        initialIsPlaying = playerState.snapshot.isPlaying
     )
     VideoDanmakuOverlay(
         modifier = modifier,
         overlayState = overlayState,
         playerState = playerState,
         danmakuState = danmakuState,
-        danmakuConfig = danmakuConfig,
-        positionMs = playerState.snapshot.positionMs,
-        enabled = danmakuConfig.enabled
+        danmakuConfig = danmakuConfig
     )
 }
 
@@ -100,10 +88,15 @@ internal fun VideoDanmakuOverlay(
     overlayState: VideoDanmakuOverlayState,
     playerState: VideoPlayerState,
     danmakuState: VideoDanmakuState,
-    danmakuConfig: VideoDanmakuConfig,
-    positionMs: Long,
-    enabled: Boolean
+    danmakuConfig: VideoDanmakuConfig
 ) {
+    DisposableEffect(overlayState) {
+        overlayState.prepare()
+        onDispose {
+            overlayState.release()
+        }
+    }
+
     AndroidView(
         factory = {
             overlayState.danmakuView.also { view ->
@@ -120,40 +113,13 @@ internal fun VideoDanmakuOverlay(
         modifier = modifier
     )
 
-    LaunchedEffect(overlayState) {
-        overlayState.prepare()
-    }
-
-    LaunchedEffect(overlayState, danmakuConfig) {
-        overlayState.updateConfig(danmakuConfig)
-    }
-
-    LaunchedEffect(overlayState, danmakuState.videoId, danmakuState.loadedSegments, enabled) {
-        overlayState.syncSegments(danmakuState)
-        if (enabled && overlayState.hasPendingResync()) {
-            overlayState.syncPosition(
-                videoId = danmakuState.videoId,
-                positionMs = positionMs,
-                force = true
-            )
-        }
-    }
-
-    LaunchedEffect(overlayState, enabled, playerState.playbackSource, playerState.snapshot.isPlaying) {
-        overlayState.updatePlaybackState(
-            enabled = enabled,
-            hasSource = playerState.playbackSource != null,
-            isPlaying = playerState.snapshot.isPlaying
-        )
-    }
-
-    LaunchedEffect(overlayState, danmakuState.videoId, positionMs, enabled) {
-        overlayState.syncPosition(
-            videoId = danmakuState.videoId,
-            positionMs = positionMs,
-            force = enabled && overlayState.hasPendingResync()
+    SideEffect {
+        overlayState.sync(
+            danmakuState = danmakuState,
+            config = danmakuConfig,
+            positionMs = playerState.snapshot.positionMs,
+            isPlaying = playerState.snapshot.isPlaying,
+            hasSource = playerState.playbackSource != null
         )
     }
 }
-
-private const val DANMAKU_LAYER_DELAY_MS = 600L

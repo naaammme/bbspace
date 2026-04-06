@@ -11,6 +11,8 @@ import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerConfig
 import com.naaammme.bbspace.infra.player.PlayerEngine
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,11 +52,22 @@ class PlayerSessionManager @Inject constructor(
         ownerId.set(who)
         _state.value = _state.value.copy(isPreparing = true, error = null, currentRequest = request)
         try {
-            prepareEngine()
-            val source = repository.fetchPlaybackSource(request)
+            val (source, preferredQuality, preferredAudioId) = coroutineScope {
+                val prepJob = async { prepareEngine() }
+                val srcJob = async { repository.fetchPlaybackSource(request) }
+                val qualityJob = async {
+                    request.preferredQuality ?: appSettings.defaultVideoQuality.first()
+                }
+                val audioJob = async { appSettings.defaultAudioQuality.first() }
+
+                prepJob.await()
+                Triple(
+                    srcJob.await(),
+                    qualityJob.await(),
+                    audioJob.await()
+                )
+            }
             if (!isOwner(who)) return
-            val preferredQuality = request.preferredQuality ?: appSettings.defaultVideoQuality.first()
-            val preferredAudioId = appSettings.defaultAudioQuality.first()
 
             val stream = source.streams.firstOrNull { it.quality == preferredQuality }
                 ?: source.streams.firstOrNull()

@@ -4,7 +4,6 @@ import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.model.DanmakuRequest
 import com.naaammme.bbspace.core.model.DanmakuSegment
 import com.naaammme.bbspace.core.model.PlaybackSource
-import com.naaammme.bbspace.core.model.VIDEO_DANMAKU_SEGMENT_DURATION_MS
 import com.naaammme.bbspace.core.model.VideoPlaybackId
 import com.naaammme.bbspace.infra.player.PlaybackSnapshot
 import kotlin.math.abs
@@ -16,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal data class VideoDanmakuState(
@@ -31,8 +31,7 @@ internal class VideoDanmakuController(
     private val _state = MutableStateFlow(VideoDanmakuState())
     val state: StateFlow<VideoDanmakuState> = _state.asStateFlow()
 
-    private val loadedSegments = linkedMapOf<Long, DanmakuSegment>()
-    private val loadingSegments = linkedSetOf<Long>()
+    private val loadingJobs = mutableMapOf<Long, Job>()
     private var currentVideoId: VideoPlaybackId? = null
     private var currentSegmentIndex: Long? = null
     private var lastPositionMs: Long? = null
@@ -43,7 +42,7 @@ internal class VideoDanmakuController(
         snapshotFlow: Flow<PlaybackSnapshot>,
         enabledFlow: Flow<Boolean>
     ) {
-        if (observerJob != null) return
+        if (observerJob?.isActive == true) return
         observerJob = scope.launch {
             combine(playbackSourceFlow, snapshotFlow, enabledFlow) { source, snapshot, enabled ->
                 Triple(source, snapshot, enabled)
@@ -79,7 +78,7 @@ internal class VideoDanmakuController(
         if (currentVideoId != source.videoId) {
             reset(source.videoId)
         }
-        if (loadedSegments.isEmpty() && positionMs < START_DELAY_MS) {
+        if (_state.value.loadedSegments.isEmpty() && positionMs < START_DELAY_MS) {
             lastPositionMs = positionMs
             return
         }
@@ -89,20 +88,15 @@ internal class VideoDanmakuController(
             positionMs = positionMs,
             durationMs = durationMs
         )
-        val nextSegmentIndex = request.segmentIndex
+        val segmentIndex = request.segmentIndex
 
-        currentSegmentIndex = nextSegmentIndex
-        if (shouldTrimForSeek(positionMs) && trimCacheAround(nextSegmentIndex)) {
-            publishState()
+        currentSegmentIndex = segmentIndex
+        if (shouldTrimForSeek(positionMs)) {
+            trimCacheAround(segmentIndex)
         }
 
         ensureSegmentLoaded(request)
-        maybePrefetchNextSegment(
-            videoId = source.videoId,
-            durationMs = durationMs,
-            positionMs = positionMs,
-            currentSegmentIndex = nextSegmentIndex
-        )
+        maybePrefetchNextSegment(request)
 
         lastPositionMs = positionMs
     }
@@ -112,93 +106,72 @@ internal class VideoDanmakuController(
         return positionMs < last || abs(positionMs - last) >= SEEK_RESET_THRESHOLD_MS
     }
 
-    private fun maybePrefetchNextSegment(
-        videoId: VideoPlaybackId,
-        durationMs: Long,
-        positionMs: Long,
-        currentSegmentIndex: Long
-    ) {
-        val nextSegmentStartMs = currentSegmentIndex * VIDEO_DANMAKU_SEGMENT_DURATION_MS
-        if (nextSegmentStartMs >= durationMs) return
-        if (nextSegmentStartMs - positionMs > PREFETCH_WINDOW_MS) return
+    private fun maybePrefetchNextSegment(request: DanmakuRequest) {
+        val nextSegmentStartMs = request.segmentEndMsExclusive
+        if (nextSegmentStartMs >= request.durationMs) return
+        if (nextSegmentStartMs - request.positionMs > PREFETCH_WINDOW_MS) return
 
         ensureSegmentLoaded(
-            DanmakuRequest(
-                videoId = videoId,
-                positionMs = nextSegmentStartMs,
-                durationMs = durationMs
-            )
+            request.copy(positionMs = nextSegmentStartMs)
         )
     }
 
     private fun ensureSegmentLoaded(request: DanmakuRequest) {
         val segmentIndex = request.segmentIndex
-        if (loadedSegments.containsKey(segmentIndex) || !loadingSegments.add(segmentIndex)) {
-            return
-        }
+        if (_state.value.loadedSegments.containsKey(segmentIndex)) return
+        if (loadingJobs.containsKey(segmentIndex)) return
         clearError()
 
-        scope.launch {
+        loadingJobs[segmentIndex] = scope.launch {
             runCatching {
                 repository.fetchSegment(request)
             }.onSuccess { segment ->
-                loadingSegments.remove(segmentIndex)
+                loadingJobs.remove(segmentIndex)
                 if (segment.request.videoId != currentVideoId) return@onSuccess
-                loadedSegments[segmentIndex] = segment
-                trimCacheAround(currentSegmentIndex)
-                publishState(lastError = null)
+                _state.update { state ->
+                    val updated = state.loadedSegments.toMutableMap()
+                    updated[segmentIndex] = segment
+                    trimSegments(updated, currentSegmentIndex)
+                    state.copy(loadedSegments = updated, lastError = null)
+                }
             }.onFailure { error ->
-                loadingSegments.remove(segmentIndex)
+                loadingJobs.remove(segmentIndex)
                 if (request.videoId != currentVideoId) return@onFailure
-                publishState(lastError = error.message ?: "Failed to load danmaku segment")
+                _state.update { it.copy(lastError = error.message ?: "Failed to load danmaku segment") }
             }
         }
     }
 
-    private fun trimCacheAround(centerSegmentIndex: Long?): Boolean {
-        if (centerSegmentIndex == null) return false
-        val keep = setOf(
-            centerSegmentIndex - 1L,
-            centerSegmentIndex,
-            centerSegmentIndex + 1L
-        )
-        val changed = loadedSegments.keys.any { it !in keep }
-        if (!changed) return false
-
-        loadedSegments.entries.removeAll { (segmentIndex, _) -> segmentIndex !in keep }
-        return true
+    private fun trimCacheAround(centerSegmentIndex: Long) {
+        _state.update { state ->
+            val keep = setOf(
+                centerSegmentIndex - 1L,
+                centerSegmentIndex,
+                centerSegmentIndex + 1L
+            )
+            val trimmed = state.loadedSegments.filterKeys { it in keep }
+            if (trimmed.size == state.loadedSegments.size) return@update state
+            state.copy(loadedSegments = trimmed)
+        }
     }
 
-    private fun publishState(
-        videoId: VideoPlaybackId? = _state.value.videoId,
-        lastError: String? = _state.value.lastError
-    ) {
-        val nextState = VideoDanmakuState(
-            videoId = videoId,
-            loadedSegments = loadedSegments.toMap(),
-            lastError = lastError
-        )
-        if (nextState == _state.value) return
-
-        _state.value = nextState
+    private fun trimSegments(segments: MutableMap<Long, DanmakuSegment>, centerIndex: Long?) {
+        if (centerIndex == null) return
+        val keep = setOf(centerIndex - 1L, centerIndex, centerIndex + 1L)
+        segments.keys.removeAll { it !in keep }
     }
 
     private fun clearError() {
-        if (_state.value.lastError != null) {
-            publishState(lastError = null)
-        }
+        _state.update { if (it.lastError != null) it.copy(lastError = null) else it }
     }
 
     private fun reset(videoId: VideoPlaybackId? = null) {
         currentVideoId = videoId
         currentSegmentIndex = null
         lastPositionMs = null
-        loadedSegments.clear()
-        loadingSegments.clear()
-        publishState(
-            videoId = videoId,
-            lastError = null
-        )
+        loadingJobs.values.forEach { it.cancel() }
+        loadingJobs.clear()
+        _state.update { VideoDanmakuState(videoId = videoId) }
     }
 
     private companion object {

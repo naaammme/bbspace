@@ -9,6 +9,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -98,21 +99,23 @@ fun VideoScreen(
         }
     }
 
-    val pane: @Composable (androidx.compose.ui.Modifier) -> Unit = { mod ->
-        VideoPlayerPane(
-            modifier = mod,
-            playerView = pv,
-            viewModel = viewModel,
-            isFull = isFull,
-            onToggleFull = { isFull = !isFull },
-            onBackClick = {
-                if (isFull) {
-                    isFull = false
-                } else {
-                    onBack()
+    val pane = remember(pv, viewModel, onBack) {
+        movableContentOf<androidx.compose.ui.Modifier> { mod ->
+            VideoPlayerPane(
+                modifier = mod,
+                playerView = pv,
+                viewModel = viewModel,
+                isFull = isFull,
+                onToggleFull = { isFull = !isFull },
+                onBackClick = {
+                    if (isFull) {
+                        isFull = false
+                    } else {
+                        onBack()
+                    }
                 }
-            }
-        )
+            )
+        }
     }
 
     if (isFull) {

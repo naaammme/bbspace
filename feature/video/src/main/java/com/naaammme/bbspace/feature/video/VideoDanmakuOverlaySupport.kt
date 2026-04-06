@@ -1,7 +1,6 @@
 package com.naaammme.bbspace.feature.video
 
 import android.graphics.Color
-import androidx.media3.common.Player
 import com.naaammme.bbspace.core.model.DanmakuElem
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import master.flame.danmaku.api.DanmakuItemMapper
@@ -37,22 +36,39 @@ internal class BbspaceDanmakuMapper : DanmakuItemMapper<DanmakuElem> {
 
         danmaku.textColor = normalizeDanmakuColor(item.color)
         danmaku.textShadowColor = Color.BLACK
-        danmaku.textSize = resolveDanmakuTextSize(item.fontSize)
+        danmaku.textSize = resolveDanmakuTextSize(
+            fontSize = item.fontSize,
+            density = danmakuContext.displayer.density
+        )
         danmaku.priority = if (item.pool != 0) 1 else 0
         return danmaku
     }
 }
 
 internal class PlayerSessionTimeProvider(
-    private val playerProvider: () -> Player?
+    positionMs: Long = 0L,
+    isPlaying: Boolean = false
 ) : PlayerTimeProvider {
+    @Volatile
+    private var posMs = positionMs.coerceAtLeast(0L)
+
+    @Volatile
+    private var playing = isPlaying
+
+    fun update(
+        positionMs: Long,
+        isPlaying: Boolean
+    ) {
+        posMs = positionMs.coerceAtLeast(0L)
+        playing = isPlaying
+    }
 
     override fun getCurrentTimeMs(): Long {
-        return playerProvider()?.currentPosition?.coerceAtLeast(0L) ?: 0L
+        return posMs
     }
 
     override fun isPlaying(): Boolean {
-        return playerProvider()?.isPlaying == true
+        return playing
     }
 
     override fun getSyncThresholdTimeMs(): Long {
@@ -78,15 +94,16 @@ private fun normalizeDanmakuColor(color: Int): Int {
 }
 
 private fun resolveDanmakuTextSize(
-    fontSize: Int
+    fontSize: Int,
+    density: Float
 ): Float {
-    return fontSize.coerceIn(18, 36).toFloat()
+    return fontSize.coerceIn(18, 36).toFloat() * (density - 0.6f).coerceAtLeast(1f)
 }
 
 internal fun DanmakuContext.applyConfig(config: VideoDanmakuConfig) {
     setDanmakuTransparency(config.opacity)
-    setScaleTextSize(config.textScale)
-    setScrollSpeedFactor((1f / config.speed.coerceIn(0.5f, 2f)).coerceIn(0.5f, 2f))
+    setScaleTextSize(config.textScale.coerceIn(0.5f, 2f) * 0.6f)
+    setScrollSpeedFactor(2f / config.speed.coerceIn(0.5f, 2f))
     setDuplicateMergingEnabled(config.mergeDuplicates)
     setMaximumVisibleSizeInScreen(config.maximumVisibleSize)
     setMaximumLines(config.maximumLines)
