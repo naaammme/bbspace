@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.feature.video
 
+import android.os.SystemClock
 import android.graphics.Color
 import com.naaammme.bbspace.core.model.DanmakuElem
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
@@ -47,7 +48,8 @@ internal class BbspaceDanmakuMapper : DanmakuItemMapper<DanmakuElem> {
 
 internal class PlayerSessionTimeProvider(
     positionMs: Long = 0L,
-    isPlaying: Boolean = false
+    isPlaying: Boolean = false,
+    speed: Float = 1f
 ) : PlayerTimeProvider {
     @Volatile
     private var posMs = positionMs.coerceAtLeast(0L)
@@ -55,16 +57,27 @@ internal class PlayerSessionTimeProvider(
     @Volatile
     private var playing = isPlaying
 
+    @Volatile
+    private var playSpd = speed.coerceAtLeast(0f)
+
+    @Volatile
+    private var updateAtMs = SystemClock.elapsedRealtime()
+
     fun update(
         positionMs: Long,
-        isPlaying: Boolean
+        isPlaying: Boolean,
+        speed: Float
     ) {
         posMs = positionMs.coerceAtLeast(0L)
         playing = isPlaying
+        playSpd = speed.coerceAtLeast(0f)
+        updateAtMs = SystemClock.elapsedRealtime()
     }
 
     override fun getCurrentTimeMs(): Long {
-        return posMs
+        if (!playing) return posMs
+        val deltaMs = (SystemClock.elapsedRealtime() - updateAtMs).coerceAtLeast(0L)
+        return posMs + (deltaMs * playSpd).toLong()
     }
 
     override fun isPlaying(): Boolean {
@@ -100,10 +113,14 @@ private fun resolveDanmakuTextSize(
     return fontSize.coerceIn(18, 36).toFloat() * (density - 0.6f).coerceAtLeast(1f)
 }
 
-internal fun DanmakuContext.applyConfig(config: VideoDanmakuConfig) {
+internal fun DanmakuContext.applyConfig(
+    config: VideoDanmakuConfig,
+    playbackSpeed: Float
+) {
+    val spd = playbackSpeed.coerceIn(0.25f, 3f)
     setDanmakuTransparency(config.opacity)
     setScaleTextSize(config.textScale.coerceIn(0.5f, 2f) * 0.6f)
-    setScrollSpeedFactor(2f / config.speed.coerceIn(0.5f, 2f))
+    setScrollSpeedFactor(2f / (config.speed.coerceIn(0.5f, 2f) * spd))
     setDuplicateMergingEnabled(config.mergeDuplicates)
     setMaximumVisibleSizeInScreen(config.maximumVisibleSize)
     setMaximumLines(config.maximumLines)

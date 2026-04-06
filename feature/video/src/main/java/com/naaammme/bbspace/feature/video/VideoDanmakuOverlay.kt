@@ -23,7 +23,8 @@ internal fun rememberVideoDanmakuOverlayState(
     viewModel: VideoViewModel,
     initialConfig: VideoDanmakuConfig,
     initialPositionMs: Long,
-    initialIsPlaying: Boolean
+    initialIsPlaying: Boolean,
+    initialSpeed: Float
 ): VideoDanmakuOverlayState {
     val context = LocalContext.current
     val state = remember(viewModel, context) {
@@ -35,11 +36,12 @@ internal fun rememberVideoDanmakuOverlayState(
             isFocusableInTouchMode = false
         }
         val danmakuContext = createDanmakuContext().apply {
-            applyConfig(initialConfig)
+            applyConfig(initialConfig, initialSpeed)
         }
         val timeProvider = PlayerSessionTimeProvider(
             positionMs = initialPositionMs,
-            isPlaying = initialIsPlaying
+            isPlaying = initialIsPlaying,
+            speed = initialSpeed
         )
         VideoDanmakuOverlayState(
             danmakuView = danmakuView,
@@ -71,7 +73,8 @@ internal fun VideoDanmakuLayer(
         viewModel = viewModel,
         initialConfig = danmakuConfig,
         initialPositionMs = playerState.snapshot.positionMs,
-        initialIsPlaying = playerState.snapshot.isPlaying
+        initialIsPlaying = playerState.snapshot.isPlaying,
+        initialSpeed = playerState.snapshot.speed
     )
     VideoDanmakuOverlay(
         modifier = modifier,
@@ -119,7 +122,8 @@ internal fun VideoDanmakuOverlay(
             config = danmakuConfig,
             positionMs = playerState.snapshot.positionMs,
             isPlaying = playerState.snapshot.isPlaying,
-            hasSource = playerState.playbackSource != null
+            hasSource = playerState.playbackSource != null,
+            playbackSpeed = playerState.snapshot.speed
         )
     }
 }

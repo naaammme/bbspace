@@ -78,11 +78,6 @@ internal class VideoDanmakuController(
         if (currentVideoId != source.videoId) {
             reset(source.videoId)
         }
-        if (_state.value.loadedSegments.isEmpty() && positionMs < START_DELAY_MS) {
-            lastPositionMs = positionMs
-            return
-        }
-
         val request = DanmakuRequest(
             videoId = source.videoId,
             positionMs = positionMs,
@@ -175,7 +170,6 @@ internal class VideoDanmakuController(
     }
 
     private companion object {
-        const val START_DELAY_MS = 800L
         const val PREFETCH_WINDOW_MS = 30_000L
         const val SEEK_RESET_THRESHOLD_MS = 10_000L
     }

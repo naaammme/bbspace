@@ -2,6 +2,7 @@ package com.naaammme.bbspace.feature.video
 
 import com.naaammme.bbspace.core.model.DanmakuElem
 import com.naaammme.bbspace.core.model.DanmakuSegment
+import com.naaammme.bbspace.core.model.VIDEO_DANMAKU_SEGMENT_DURATION_MS
 import com.naaammme.bbspace.core.model.VideoPlaybackId
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
@@ -19,8 +20,9 @@ internal class VideoDanmakuOverlayState(
 ) {
     private var lastVideoId: VideoPlaybackId? = null
     private var lastObservedPositionMs: Long? = null
-    private var pendingResync = true
+    private var pendingSeek = true
     private var lastAppliedConfig: VideoDanmakuConfig? = null
+    private var lastAppliedPlaySpd: Float? = null
     private var lastPlaybackEnabled: Boolean? = null
     private var lastPlaybackSource: Boolean? = null
     private var lastPlayingState: Boolean? = null
@@ -35,19 +37,32 @@ internal class VideoDanmakuOverlayState(
         config: VideoDanmakuConfig,
         positionMs: Long,
         isPlaying: Boolean,
-        hasSource: Boolean
+        hasSource: Boolean,
+        playbackSpeed: Float
     ) {
-        timeProvider.update(positionMs, isPlaying)
+        val clampedPositionMs = positionMs.coerceAtLeast(0L)
+        val currentSegmentIndex = clampedPositionMs.toDanmakuSegmentIndex()
+        val hasDiscontinuity = hasPositionDiscontinuity(clampedPositionMs)
+        timeProvider.update(clampedPositionMs, isPlaying, playbackSpeed)
         syncVideo(danmakuState.videoId)
-        applyConfig(config)
-        syncSegments(danmakuState.loadedSegments)
+        applyConfig(config, playbackSpeed)
+        syncSegments(
+            loadedSegments = danmakuState.loadedSegments,
+            currentSegmentIndex = currentSegmentIndex,
+            requireCurrentSegment = pendingSeek || hasDiscontinuity
+        )
+        val curReady = currentSegmentIndex in appliedSegmentIndices
         syncPlayback(
             enabled = config.enabled,
             hasSource = hasSource,
             isPlaying = isPlaying
         )
         if (config.enabled && hasSource) {
-            syncPosition(positionMs)
+            syncPosition(
+                positionMs = clampedPositionMs,
+                hasDiscontinuity = hasDiscontinuity,
+                curReady = curReady
+            )
         }
     }
 
@@ -72,7 +87,7 @@ internal class VideoDanmakuOverlayState(
             session.pause()
             danmakuView.clearDanmakusOnScreen()
             lastObservedPositionMs = null
-            pendingResync = true
+            pendingSeek = true
             return
         }
 
@@ -84,15 +99,21 @@ internal class VideoDanmakuOverlayState(
         }
     }
 
-    private fun syncPosition(positionMs: Long) {
-        val clampedPositionMs = positionMs.coerceAtLeast(0L)
-        val shouldSeek = pendingResync || hasPositionDiscontinuity(clampedPositionMs)
-        lastObservedPositionMs = clampedPositionMs
+    private fun syncPosition(
+        positionMs: Long,
+        hasDiscontinuity: Boolean,
+        curReady: Boolean
+    ) {
+        val shouldSeek = pendingSeek || hasDiscontinuity
+        lastObservedPositionMs = positionMs
         if (!shouldSeek) return
 
-        if (appliedSegmentIndices.isEmpty()) return
-        session.seekTo(clampedPositionMs)
-        pendingResync = false
+        if (!curReady) {
+            pendingSeek = true
+            return
+        }
+        session.seekTo(positionMs)
+        pendingSeek = false
     }
 
     fun release() {
@@ -105,28 +126,44 @@ internal class VideoDanmakuOverlayState(
 
         lastVideoId = videoId
         lastObservedPositionMs = null
-        pendingResync = true
+        pendingSeek = true
         appliedSegmentIndices.clear()
         session.clearSegments()
     }
 
-    private fun applyConfig(config: VideoDanmakuConfig) {
-        if (config == lastAppliedConfig) return
+    private fun applyConfig(
+        config: VideoDanmakuConfig,
+        playbackSpeed: Float
+    ) {
+        val spd = playbackSpeed.coerceIn(0.25f, 3f)
+        if (config == lastAppliedConfig && lastAppliedPlaySpd == spd) return
 
-        danmakuContext.applyConfig(config)
+        danmakuContext.applyConfig(config, spd)
         lastAppliedConfig = config
-        pendingResync = true
+        lastAppliedPlaySpd = spd
         danmakuView.forceRender()
     }
 
-    private fun syncSegments(loadedSegments: Map<Long, DanmakuSegment>) {
+    private fun syncSegments(
+        loadedSegments: Map<Long, DanmakuSegment>,
+        currentSegmentIndex: Long,
+        requireCurrentSegment: Boolean
+    ) {
         val nextSegments = loadedSegments.entries.sortedBy { it.key }
         if (nextSegments.isEmpty()) {
             if (appliedSegmentIndices.isEmpty()) return
 
             appliedSegmentIndices.clear()
-            pendingResync = true
             session.clearSegments()
+            return
+        }
+
+        val curReady = nextSegments.any { it.key == currentSegmentIndex }
+        if (requireCurrentSegment && !curReady) {
+            if (appliedSegmentIndices.isNotEmpty()) {
+                appliedSegmentIndices.clear()
+                session.clearSegments()
+            }
             return
         }
 
@@ -139,7 +176,6 @@ internal class VideoDanmakuOverlayState(
                     DanmakuSegmentData(segmentIndex, segment.elems)
                 }
             )
-            pendingResync = true
             appliedSegmentIndices.clear()
             appliedSegmentIndices.addAll(nextSegmentIndices)
             return
@@ -148,7 +184,6 @@ internal class VideoDanmakuOverlayState(
         nextSegments.forEach { (segmentIndex, segment) ->
             if (appliedSegmentIndices.add(segmentIndex)) {
                 session.appendSegment(DanmakuSegmentData(segmentIndex, segment.elems))
-                pendingResync = true
             }
         }
     }
@@ -163,3 +198,7 @@ internal class VideoDanmakuOverlayState(
 }
 
 private const val DANMAKU_POSITION_DISCONTINUITY_MS = 1_500L
+
+private fun Long.toDanmakuSegmentIndex(): Long {
+    return (coerceAtLeast(0L) / VIDEO_DANMAKU_SEGMENT_DURATION_MS) + 1L
+}
