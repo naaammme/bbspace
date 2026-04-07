@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -33,7 +34,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,8 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.window.core.layout.WindowWidthSizeClass
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -68,7 +68,9 @@ import com.naaammme.bbspace.feature.video.model.VideoPageState
 @Composable
 internal fun VideoDetailPage(
     pageState: VideoPageState,
-    playerPane: @Composable (Modifier) -> Unit,
+    isExpanded: Boolean,
+    playerSpaceWidth: Dp,
+    playerSpaceHeight: Dp,
     onOpenVideo: (VideoJump) -> Unit,
     onOpenEpisode: (Long, Long) -> Unit,
     onSwitchPage: (Long) -> Unit
@@ -77,9 +79,8 @@ internal fun VideoDetailPage(
     var descOn by rememberSaveable(detail?.aid) { mutableStateOf(false) }
     var tagOn by rememberSaveable(detail?.aid) { mutableStateOf(false) }
     var sheetTp by rememberSaveable(detail?.aid) { mutableStateOf<String?>(null) }
-    val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
 
-    if (widthClass == WindowWidthSizeClass.EXPANDED) {
+    if (isExpanded) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -91,18 +92,14 @@ internal fun VideoDetailPage(
         ) {
             Box(
                 modifier = Modifier
-                    .weight(1.08f)
-                    .fillMaxHeight()
+                    .width(playerSpaceWidth)
+                    .height(playerSpaceHeight)
                     .clip(MaterialTheme.shapes.extraLarge)
                     .background(Color.Black)
-            ) {
-                playerPane(Modifier.fillMaxSize())
-            }
+            )
 
             LazyColumn(
-                modifier = Modifier
-                    .weight(0.92f)
-                    .fillMaxHeight(),
+                modifier = Modifier.fillMaxHeight().weight(1f),
                 contentPadding = PaddingValues(bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -123,23 +120,11 @@ internal fun VideoDetailPage(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface),
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(top = playerSpaceHeight),
             contentPadding = PaddingValues(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item(
-                key = "player",
-                contentType = "player"
-            ) {
-                playerPane(
-                    Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .aspectRatio(16f / 9f)
-                        .background(Color.Black)
-                )
-            }
-
             detailItems(
                 pageState = pageState,
                 itemMod = Modifier.padding(horizontal = 16.dp),
@@ -991,18 +976,6 @@ private fun StateCard(
 }
 
 @Composable
-private fun SectionTitle(
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = modifier
-    )
-}
-
-@Composable
 private fun CurBadge(text: String) {
     Surface(
         color = MaterialTheme.colorScheme.primary,
@@ -1013,30 +986,6 @@ private fun CurBadge(text: String) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
-    }
-}
-
-@Composable
-private fun InfoRow(
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.36f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(0.64f)
         )
     }
 }

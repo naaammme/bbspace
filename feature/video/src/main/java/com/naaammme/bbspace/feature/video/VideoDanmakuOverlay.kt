@@ -1,7 +1,6 @@
 package com.naaammme.bbspace.feature.video
 
 import android.view.View
-import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
@@ -101,11 +100,7 @@ internal fun VideoDanmakuOverlay(
     }
 
     AndroidView(
-        factory = {
-            overlayState.danmakuView.also { view ->
-                (view.parent as? ViewGroup)?.removeView(view)
-            }
-        },
+        factory = { overlayState.danmakuView },
         update = { view ->
             view.visibility = if (playerState.playbackSource != null) {
                 View.VISIBLE

@@ -1,6 +1,5 @@
 package com.naaammme.bbspace.feature.video
 
-import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -54,7 +53,6 @@ import kotlinx.coroutines.delay
 @Composable
 internal fun VideoPlayerPane(
     modifier: Modifier,
-    playerView: PlayerView,
     viewModel: VideoViewModel,
     isFull: Boolean,
     onToggleFull: () -> Unit,
@@ -102,11 +100,11 @@ internal fun VideoPlayerPane(
         modifier = modifier.background(Color.Black)
     ) {
         AndroidView(
-            factory = {
-                (playerView.parent as? ViewGroup)?.removeView(playerView)
-                playerView.apply {
+            factory = { ctx ->
+                PlayerView(ctx).apply {
                     useController = false
                     setKeepContentOnPlayerReset(true)
+                    setEnableComposeSurfaceSyncWorkaround(true)
                 }
             },
             update = { view ->

@@ -4,16 +4,31 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,8 +36,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.PlayerView
+import androidx.window.core.layout.WindowWidthSizeClass
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.VideoJump
@@ -44,12 +61,7 @@ fun VideoScreen(
     val owner = LocalLifecycleOwner.current
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
-    val pv = remember(ctx) {
-        PlayerView(ctx).apply {
-            useController = false
-            setKeepContentOnPlayerReset(true)
-        }
-    }
+    val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
     var isFull by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(viewModel) {
@@ -60,9 +72,17 @@ fun VideoScreen(
         isFull = false
     }
 
-    DisposableEffect(viewModel, pv) {
+    val toggleFull = { isFull = !isFull }
+    val handleBack = {
+        if (isFull) {
+            isFull = false
+        } else {
+            onBack()
+        }
+    }
+
+    DisposableEffect(viewModel) {
         onDispose {
-            pv.player = null
             viewModel.close()
         }
     }
@@ -99,37 +119,66 @@ fun VideoScreen(
         }
     }
 
-    val pane = remember(pv, viewModel, onBack) {
-        movableContentOf<androidx.compose.ui.Modifier> { mod ->
-            VideoPlayerPane(
-                modifier = mod,
-                playerView = pv,
-                viewModel = viewModel,
-                isFull = isFull,
-                onToggleFull = { isFull = !isFull },
-                onBackClick = {
-                    if (isFull) {
-                        isFull = false
-                    } else {
-                        onBack()
-                    }
-                }
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val isExpanded = widthClass == WindowWidthSizeClass.EXPANDED
+        val playerTopPad = 16.dp
+        val playerGap = 16.dp
+        val compactVideoH = maxWidth * (9f / 16f)
+        val compactPlayerSpaceH = statusTop + compactVideoH
+        val expandedContentW = (maxWidth - (playerTopPad * 2) - playerGap).coerceAtLeast(0.dp)
+        val expandedPlayerW = expandedContentW * 0.54f
+        val expandedPlayerH = (maxHeight - statusTop - (playerTopPad * 2)).coerceAtLeast(0.dp)
+
+        if (!isFull) {
+            VideoDetailPage(
+                pageState = pageState,
+                isExpanded = isExpanded,
+                playerSpaceWidth = expandedPlayerW,
+                playerSpaceHeight = if (isExpanded) expandedPlayerH else compactPlayerSpaceH,
+                onOpenVideo = onOpenVideo,
+                onOpenEpisode = { aid, cid ->
+                    onOpenVideo(viewModel.buildJump(aid, cid))
+                },
+                onSwitchPage = viewModel::switchPage
             )
         }
-    }
 
-    if (isFull) {
-        VideoFullPage(playerPane = pane)
-    } else {
-        VideoDetailPage(
-            pageState = pageState,
-            playerPane = pane,
-            onOpenVideo = onOpenVideo,
-            onOpenEpisode = { aid, cid ->
-                onOpenVideo(viewModel.buildJump(aid, cid))
-            },
-            onSwitchPage = viewModel::switchPage
-        )
+        val playerHostMod = when {
+            isFull -> Modifier.fillMaxSize()
+            isExpanded -> Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(playerTopPad)
+            else -> Modifier
+                .fillMaxWidth()
+                .height(compactPlayerSpaceH)
+                .background(Color.Black)
+        }
+
+        val playerPaneMod = when {
+            isFull -> Modifier.fillMaxSize()
+            isExpanded -> Modifier
+                .width(expandedPlayerW)
+                .height(expandedPlayerH)
+                .clip(MaterialTheme.shapes.extraLarge)
+            else -> Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .height(compactVideoH)
+        }
+
+        Box(modifier = playerHostMod) {
+            VideoPlayerPane(
+                modifier = playerPaneMod,
+                viewModel = viewModel,
+                isFull = isFull,
+                onToggleFull = toggleFull,
+                onBackClick = handleBack
+            )
+        }
     }
 }
 
