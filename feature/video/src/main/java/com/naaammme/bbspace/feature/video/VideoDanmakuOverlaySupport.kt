@@ -10,6 +10,7 @@ import master.flame.danmaku.api.PlayerTimeProvider
 import master.flame.danmaku.danmaku.model.BaseDanmaku
 import master.flame.danmaku.danmaku.model.IDisplayer
 import master.flame.danmaku.danmaku.model.android.DanmakuContext
+import kotlin.math.abs
 
 internal fun createDanmakuContext(): DanmakuContext {
     return DanmakuContext.create()
@@ -68,10 +69,29 @@ internal class PlayerSessionTimeProvider(
         isPlaying: Boolean,
         speed: Float
     ) {
-        posMs = positionMs.coerceAtLeast(0L)
+        val nowMs = SystemClock.elapsedRealtime()
+        val nextPosMs = positionMs.coerceAtLeast(0L)
+        val nextPlaySpd = speed.coerceAtLeast(0f)
+        val curPosMs = if (playing) {
+            posMs + ((nowMs - updateAtMs).coerceAtLeast(0L) * playSpd).toLong()
+        } else {
+            posMs
+        }
+        val driftMs = nextPosMs - curPosMs
+        posMs = if (
+            !playing ||
+            !isPlaying ||
+            abs(playSpd - nextPlaySpd) >= DANMAKU_CLOCK_SPEED_EPSILON ||
+            driftMs <= -DANMAKU_CLOCK_BACK_TOL_MS ||
+            abs(driftMs) >= DANMAKU_CLOCK_RESET_TOL_MS
+        ) {
+            nextPosMs
+        } else {
+            maxOf(curPosMs, nextPosMs)
+        }
         playing = isPlaying
-        playSpd = speed.coerceAtLeast(0f)
-        updateAtMs = SystemClock.elapsedRealtime()
+        playSpd = nextPlaySpd
+        updateAtMs = nowMs
     }
 
     override fun getCurrentTimeMs(): Long {
@@ -170,3 +190,6 @@ private val VideoDanmakuConfig.overlappingRules: Map<Int, Boolean>?
     }
 
 internal const val DANMAKU_SEEK_SYNC_THRESHOLD_MS = 1_000L
+private const val DANMAKU_CLOCK_BACK_TOL_MS = 120L
+private const val DANMAKU_CLOCK_RESET_TOL_MS = 240L
+private const val DANMAKU_CLOCK_SPEED_EPSILON = 0.001f
