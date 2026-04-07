@@ -14,8 +14,9 @@ import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
 import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
+import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.api.SegmentDanmakuSession
-import master.flame.danmaku.ui.widget.DanmakuView
+import master.flame.danmaku.ui.widget.DanmakuSurfaceView
 
 @Composable
 internal fun rememberVideoDanmakuOverlayState(
@@ -27,9 +28,10 @@ internal fun rememberVideoDanmakuOverlayState(
 ): VideoDanmakuOverlayState {
     val context = LocalContext.current
     val state = remember(viewModel, context) {
-        val danmakuView = DanmakuView(context).apply {
+        val danmakuView = DanmakuSurfaceView(context).apply {
             enableDanmakuDrawingCache(true)
             showFPS(false)
+            setDrawingThreadType(IDanmakuView.THREAD_TYPE_HIGH_PRIORITY)
             isClickable = false
             isFocusable = false
             isFocusableInTouchMode = false
@@ -44,6 +46,7 @@ internal fun rememberVideoDanmakuOverlayState(
         )
         VideoDanmakuOverlayState(
             danmakuView = danmakuView,
+            danmakuCtrl = danmakuView,
             danmakuContext = danmakuContext,
             timeProvider = timeProvider,
             session = SegmentDanmakuSession(

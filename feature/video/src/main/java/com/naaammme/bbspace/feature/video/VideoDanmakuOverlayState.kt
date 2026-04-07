@@ -1,4 +1,6 @@
 package com.naaammme.bbspace.feature.video
+
+import android.view.View
 import com.naaammme.bbspace.core.model.DanmakuElem
 import com.naaammme.bbspace.core.model.DanmakuSegment
 import com.naaammme.bbspace.core.model.VIDEO_DANMAKU_SEGMENT_DURATION_MS
@@ -7,14 +9,15 @@ import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
 import com.naaammme.bbspace.infra.player.EngineDiscontinuityReason
 import com.naaammme.bbspace.infra.player.PlaybackSnapshot
+import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.api.DanmakuSegmentData
 import master.flame.danmaku.api.SegmentDanmakuSession
 import master.flame.danmaku.danmaku.model.android.DanmakuContext
-import master.flame.danmaku.ui.widget.DanmakuView
 import kotlin.math.abs
 
 internal class VideoDanmakuOverlayState(
-    internal val danmakuView: DanmakuView,
+    internal val danmakuView: View,
+    private val danmakuCtrl: IDanmakuView,
     private val danmakuContext: DanmakuContext,
     private val timeProvider: PlayerSessionTimeProvider,
     private val session: SegmentDanmakuSession<DanmakuElem>
@@ -91,7 +94,7 @@ internal class VideoDanmakuOverlayState(
         if (!enabled || !hasSource) {
             session.hide()
             session.pause()
-            danmakuView.clearDanmakusOnScreen()
+            danmakuCtrl.clearDanmakusOnScreen()
             lastObservedPositionMs = null
             pendingSeek = true
             return
@@ -151,7 +154,7 @@ internal class VideoDanmakuOverlayState(
 
         danmakuContext.applyConfig(config, playbackSpeed)
         lastCfgState = nextState
-        danmakuView.forceRender()
+        danmakuCtrl.forceRender()
     }
 
     private fun syncSegments(
