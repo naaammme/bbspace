@@ -51,8 +51,9 @@
 ## 截图
 
 <p align="center">
-  <img src="images/shot.png" alt="BBSpace screenshot 1" width="240" />
-  <img src="images/shot2.png" alt="BBSpace screenshot 2" width="240" />
+  <img src="images/shot.jpg" alt="BBSpace screenshot 1" width="240" />
+  <img src="images/shot2.jpg" alt="BBSpace screenshot 2" width="240" />
+  <img src="images/shot3.png" alt="BBSpace screenshot 2" width="240" />
 </p>
 
 ## 说明

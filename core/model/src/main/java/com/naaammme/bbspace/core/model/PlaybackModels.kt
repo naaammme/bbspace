@@ -120,6 +120,13 @@ data class PlaybackSource(
     val supportProject: Boolean
 )
 
+@Immutable
+data class PlaybackCdn(
+    val label: String,
+    val videoUrl: String,
+    val audioUrl: String?
+)
+
 sealed interface PlaybackError {
     data class RequestFailed(val message: String, val cause: Throwable? = null) : PlaybackError
     data class NoPlayableStream(val message: String) : PlaybackError
@@ -131,6 +138,61 @@ data class PlayerSessionState(
     val playbackSource: PlaybackSource? = null,
     val currentStream: PlaybackStream? = null,
     val currentAudio: PlaybackAudio? = null,
+    val cdnIndex: Int = 0,
     val isPreparing: Boolean = false,
     val error: PlaybackError? = null
 )
+
+fun buildPlaybackCdns(
+    stream: PlaybackStream?,
+    audio: PlaybackAudio?
+): List<PlaybackCdn> {
+    val dash = stream as? PlaybackStream.Dash ?: return emptyList()
+
+    fun urls(primaryUrl: String?, backupUrls: List<String>): List<String> {
+        return buildList {
+            addAll(backupUrls.filter(String::isNotBlank))
+            primaryUrl?.takeIf(String::isNotBlank)?.let(::add)
+        }.distinct()
+    }
+
+    fun host(url: String): String {
+        val value = url
+            .substringAfter("://", "")
+            .substringBefore("/")
+            .substringBefore("?")
+            .substringBefore(":")
+        if (value.isBlank()) return ""
+        return value
+            .removePrefix("upos-sz-")
+            .removePrefix("upos-hz-")
+            .substringBefore('.')
+    }
+
+    val videoUrls = urls(dash.videoUrl, dash.videoBackupUrls)
+    if (videoUrls.isEmpty()) return emptyList()
+    val audioUrls = urls(audio?.url, audio?.backupUrls ?: emptyList())
+    val backupCount = maxOf(
+        dash.videoBackupUrls.filter(String::isNotBlank).distinct().size,
+        audio?.backupUrls?.filter(String::isNotBlank)?.distinct()?.size ?: 0
+    )
+
+    return List(maxOf(videoUrls.size, audioUrls.size)) { index ->
+        val videoUrl = videoUrls[index.coerceAtMost(videoUrls.lastIndex)]
+        val audioUrl = if (audioUrls.isEmpty()) {
+            null
+        } else {
+            audioUrls[index.coerceAtMost(audioUrls.lastIndex)]
+        }
+        val hosts = listOf(host(videoUrl), audioUrl?.let(::host).orEmpty())
+            .filter(String::isNotBlank)
+            .distinct()
+            .joinToString(" + ")
+        val prefix = if (index < backupCount) "Backup ${index + 1}" else "Base"
+        PlaybackCdn(
+            label = if (hosts.isBlank()) prefix else "$prefix $hosts",
+            videoUrl = videoUrl,
+            audioUrl = audioUrl
+        )
+    }
+}

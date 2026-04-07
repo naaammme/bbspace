@@ -127,6 +127,7 @@ class AppSettings @Inject constructor(
     private val playerPlayBufMsKey = intPreferencesKey("player_play_buf_ms")
     private val playerRebufMsKey = intPreferencesKey("player_rebuf_ms")
     private val playerBackBufMsKey = intPreferencesKey("player_back_buf_ms")
+    private val playerCdnIdxKey = intPreferencesKey("player_cdn_idx")
     private val preferSoftDecKey = booleanPreferencesKey("prefer_soft_dec")
     private val decFallbackKey = booleanPreferencesKey("dec_fallback")
     private val bgPlayKey = booleanPreferencesKey("bg_play")
@@ -152,6 +153,7 @@ class AppSettings @Inject constructor(
     val playerPlaybackBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerPlayBufMsKey] ?: 250 }
     val playerRebufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerRebufMsKey] ?: 500 }
     val playerBackBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerBackBufMsKey] ?: 5_000 }
+    val playerCdnIndex: Flow<Int> = context.appSettingsStore.data.map { it[playerCdnIdxKey] ?: 0 }
     val preferSoftwareDecode: Flow<Boolean> = context.appSettingsStore.data.map { it[preferSoftDecKey] ?: false }
     val decoderFallback: Flow<Boolean> = context.appSettingsStore.data.map { it[decFallbackKey] ?: true }
     val backgroundPlayback: Flow<Boolean> = context.appSettingsStore.data.map { it[bgPlayKey] ?: false }
@@ -211,6 +213,10 @@ class AppSettings @Inject constructor(
 
     suspend fun updatePlayerBackBufferMs(value: Int) {
         context.appSettingsStore.edit { it[playerBackBufMsKey] = value }
+    }
+
+    suspend fun updatePlayerCdnIndex(value: Int) {
+        context.appSettingsStore.edit { it[playerCdnIdxKey] = value }
     }
 
     suspend fun updatePreferSoftwareDecode(enabled: Boolean) {

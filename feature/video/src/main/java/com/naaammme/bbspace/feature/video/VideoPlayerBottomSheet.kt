@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.PlaybackError
+import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.feature.video.model.VideoPlayerMenuState
 import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
@@ -117,6 +118,7 @@ internal fun VideoPlayerBottomSheet(
             when (section) {
                 PlayerSheetSection.Info -> PlayerInfoSection(state)
                 PlayerSheetSection.Playback -> PlaybackSettingsSection(
+                    state = state,
                     menuState = menuState,
                     viewModel = viewModel
                 )
@@ -132,10 +134,23 @@ internal fun VideoPlayerBottomSheet(
 
 @Composable
 private fun PlaybackSettingsSection(
+    state: VideoPlayerState,
     menuState: VideoPlayerMenuState,
     viewModel: VideoViewModel
 ) {
     SheetSectionTitle("播放设置")
+
+    val cdnOps = buildCdnOps(state.currentStream, state.currentAudio)
+    if (cdnOps.size > 1) {
+        SheetChoiceCard(
+            title = "CDN 选择",
+            subtitle = "默认备用1, 点击切换",
+            currentValue = state.cdnIndex.coerceIn(0, cdnOps.lastIndex),
+            options = cdnOps.indices.toList(),
+            label = { cdnOps[it] },
+            onSelect = viewModel::switchCdn
+        )
+    }
 
     SheetChoiceCard(
         title = "最小缓冲时长",
@@ -600,4 +615,11 @@ private fun playbackErrorText(err: PlaybackError): String {
         is PlaybackError.NoPlayableStream -> err.message
         is PlaybackError.RequestFailed -> err.message
     }
+}
+
+private fun buildCdnOps(
+    stream: com.naaammme.bbspace.core.model.PlaybackStream?,
+    audio: com.naaammme.bbspace.core.model.PlaybackAudio?
+): List<String> {
+    return buildPlaybackCdns(stream, audio).map { it.label }
 }

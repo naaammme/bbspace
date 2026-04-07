@@ -19,6 +19,7 @@ data class VideoPlayerState(
     val playbackSource: PlaybackSource? = null,
     val currentStream: PlaybackStream? = null,
     val currentAudio: PlaybackAudio? = null,
+    val cdnIndex: Int = 0,
     val snapshot: PlaybackSnapshot = PlaybackSnapshot(),
     val error: PlaybackError? = null
 )

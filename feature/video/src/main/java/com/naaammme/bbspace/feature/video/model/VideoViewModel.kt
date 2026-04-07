@@ -92,6 +92,7 @@ class VideoViewModel @Inject constructor(
             playbackSource = session.playbackSource,
             currentStream = session.currentStream,
             currentAudio = session.currentAudio,
+            cdnIndex = session.cdnIndex,
             snapshot = snapshot,
             error = session.error
         )
@@ -156,6 +157,13 @@ class VideoViewModel @Inject constructor(
 
     fun switchAudio(audioId: Int) {
         sessionManager.switchAudio(ownerId, audioId)
+    }
+
+    fun switchCdn(cdnIndex: Int) {
+        viewModelScope.launch {
+            appSettings.updatePlayerCdnIndex(cdnIndex)
+            sessionManager.switchCdn(ownerId, cdnIndex)
+        }
     }
 
     fun pause() {

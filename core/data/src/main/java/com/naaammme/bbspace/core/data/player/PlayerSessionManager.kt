@@ -3,6 +3,7 @@ package com.naaammme.bbspace.core.data.player
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
 import com.naaammme.bbspace.core.model.PlaybackAudio
+import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackStream
@@ -72,11 +73,11 @@ class PlayerSessionManager @Inject constructor(
             val stream = source.streams.firstOrNull { it.quality == preferredQuality }
                 ?: source.streams.firstOrNull()
             val audio = selectAudio(stream, source.audios, preferredAudioId)
-
-            val eng = buildEngineSource(stream, audio) ?: error("No playable stream")
+            val eng = buildEngineSource(stream, audio, appSettings.playerCdnIndex.first())
+                ?: error("No playable stream")
             if (!isOwner(who)) return
             playerEngine.setSource(
-                eng,
+                eng.first,
                 request.seekToMs ?: source.resumePositionMs
             )
             if (!isOwner(who)) return
@@ -86,6 +87,7 @@ class PlayerSessionManager @Inject constructor(
                 playbackSource = source,
                 currentStream = stream,
                 currentAudio = audio,
+                cdnIndex = eng.second,
                 isPreparing = false
             )
         } catch (t: Throwable) {
@@ -132,8 +134,9 @@ class PlayerSessionManager @Inject constructor(
         val source = s.playbackSource ?: return
         val stream = source.streams.firstOrNull { it.quality == quality } ?: return
         val audio = selectAudio(stream, source.audios, s.currentAudio?.id ?: 0)
-        playerEngine.setSource(buildEngineSource(stream, audio) ?: return, playerEngine.snapshot.value.positionMs)
-        _state.value = s.copy(currentStream = stream, currentAudio = audio)
+        val eng = buildEngineSource(stream, audio, s.cdnIndex) ?: return
+        playerEngine.setSource(eng.first, playerEngine.snapshot.value.positionMs)
+        _state.value = s.copy(currentStream = stream, currentAudio = audio, cdnIndex = eng.second)
     }
 
     fun switchAudio(
@@ -144,8 +147,20 @@ class PlayerSessionManager @Inject constructor(
         val s = _state.value
         val source = s.playbackSource ?: return
         val audio = source.audios.firstOrNull { it.id == audioId } ?: return
-        playerEngine.setSource(buildEngineSource(s.currentStream, audio) ?: return, playerEngine.snapshot.value.positionMs)
-        _state.value = s.copy(currentAudio = audio)
+        val eng = buildEngineSource(s.currentStream, audio, s.cdnIndex) ?: return
+        playerEngine.setSource(eng.first, playerEngine.snapshot.value.positionMs)
+        _state.value = s.copy(currentAudio = audio, cdnIndex = eng.second)
+    }
+
+    fun switchCdn(
+        who: Long,
+        cdnIndex: Int
+    ) {
+        if (!isOwner(who)) return
+        val s = _state.value
+        val eng = buildEngineSource(s.currentStream, s.currentAudio, cdnIndex) ?: return
+        playerEngine.setSource(eng.first, playerEngine.snapshot.value.positionMs)
+        _state.value = s.copy(cdnIndex = eng.second)
     }
 
     fun closeCurrentSession(who: Long) {
@@ -177,12 +192,21 @@ class PlayerSessionManager @Inject constructor(
             ?: audios.firstOrNull()
     }
 
-    private fun buildEngineSource(stream: PlaybackStream?, audio: PlaybackAudio?): EngineSource? {
+    private fun buildEngineSource(
+        stream: PlaybackStream?,
+        audio: PlaybackAudio?,
+        cdnIndex: Int
+    ): Pair<EngineSource, Int>? {
         return when (stream) {
-            is PlaybackStream.Dash -> EngineSource.Dash(stream.videoUrl, audio?.url)
+            is PlaybackStream.Dash -> {
+                val cdns = buildPlaybackCdns(stream, audio)
+                if (cdns.isEmpty()) return null
+                val index = cdnIndex.coerceIn(0, cdns.lastIndex)
+                EngineSource.Dash(cdns[index].videoUrl, cdns[index].audioUrl) to index
+            }
             is PlaybackStream.Progressive -> EngineSource.Progressive(
                 stream.segments.map { EngineSource.ProgressiveSegment(it.url, it.durationMs) }
-            )
+            ) to 0
             null -> null
         }
     }
