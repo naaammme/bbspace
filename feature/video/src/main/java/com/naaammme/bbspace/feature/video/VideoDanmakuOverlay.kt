@@ -115,10 +115,8 @@ internal fun VideoDanmakuOverlay(
         overlayState.sync(
             danmakuState = danmakuState,
             config = danmakuConfig,
-            positionMs = playerState.snapshot.positionMs,
-            isPlaying = playerState.snapshot.isPlaying,
+            snapshot = playerState.snapshot,
             hasSource = playerState.playbackSource != null,
-            playbackSpeed = playerState.snapshot.speed
         )
     }
 }

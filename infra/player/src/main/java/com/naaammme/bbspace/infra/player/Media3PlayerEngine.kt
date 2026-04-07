@@ -59,18 +59,19 @@ class Media3PlayerEngine @Inject constructor(
         }
     }
     private val playerListener = object : Player.Listener {
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            updateSnapshot(playbackState = playbackState)
-            syncProgressUpdates()
-        }
-
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            updateSnapshot(isPlaying = isPlaying)
-            syncProgressUpdates()
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
+        ) {
+            updateSnapshot(
+                discontinuitySeq = _snapshot.value.discontinuitySeq + 1L,
+                discontinuityReason = reason.toEngineDiscontinuityReason()
+            )
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            _snapshot.value = _snapshot.value.copy(errorMessage = error.message)
+            updateSnapshot(errorMessage = error.message)
             syncProgressUpdates()
         }
 
@@ -140,16 +141,21 @@ class Media3PlayerEngine @Inject constructor(
         syncProgressUpdates()
     }
 
-    override fun setSource(source: EngineSource, startPositionMs: Long?) {
+    override fun setSource(
+        source: EngineSource,
+        startPositionMs: Long?,
+        playWhenReady: Boolean
+    ) {
         val player = checkNotNull(exoPlayer) { "Player not prepared" }
         player.stop()
         player.clearMediaItems()
         player.setMediaSource(buildMediaSource(source))
-        player.prepare()
         if (startPositionMs != null && startPositionMs > 0) {
-            player.seekTo(startPositionMs)
+            player.seekTo(startPositionMs.coerceAtLeast(0L))
         }
-        player.playWhenReady = true
+        player.playWhenReady = playWhenReady
+        player.prepare()
+        updateSnapshot(errorMessage = null)
         syncProgressUpdates()
     }
 
@@ -173,7 +179,7 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun seekTo(positionMs: Long) {
         val player = exoPlayer ?: return
-        player.seekTo(positionMs)
+        player.seekTo(positionMs.coerceAtLeast(0L))
         updateSnapshot()
         syncProgressUpdates()
     }
@@ -303,12 +309,17 @@ class Media3PlayerEngine @Inject constructor(
 
     private fun updateSnapshot(
         playbackState: Int = exoPlayer?.playbackState ?: Player.STATE_IDLE,
-        isPlaying: Boolean = exoPlayer?.isPlaying ?: false
+        isPlaying: Boolean = exoPlayer?.isPlaying ?: false,
+        playWhenReady: Boolean = exoPlayer?.playWhenReady ?: false,
+        discontinuitySeq: Long = _snapshot.value.discontinuitySeq,
+        discontinuityReason: EngineDiscontinuityReason? = _snapshot.value.discontinuityReason,
+        errorMessage: String? = _snapshot.value.errorMessage
     ) {
         val player = exoPlayer
         _snapshot.value = _snapshot.value.copy(
             playerInstanceId = player?.let(System::identityHashCode) ?: 0,
             isPlaying = isPlaying,
+            playWhenReady = playWhenReady,
             playbackState = playbackState.toEngineState(),
             positionMs = player?.currentPosition?.coerceAtLeast(0L) ?: 0L,
             bufferedPositionMs = player?.bufferedPosition?.coerceAtLeast(0L) ?: 0L,
@@ -319,7 +330,9 @@ class Media3PlayerEngine @Inject constructor(
             videoHeight = player?.videoSize?.height ?: 0,
             videoDecoderName = videoDecoderName,
             audioDecoderName = audioDecoderName,
-            errorMessage = null
+            discontinuitySeq = discontinuitySeq,
+            discontinuityReason = discontinuityReason,
+            errorMessage = errorMessage
         )
     }
 
@@ -346,6 +359,17 @@ class Media3PlayerEngine @Inject constructor(
             Player.STATE_READY -> EnginePlaybackState.Ready
             Player.STATE_ENDED -> EnginePlaybackState.Ended
             else -> EnginePlaybackState.Idle
+        }
+    }
+
+    private fun Int.toEngineDiscontinuityReason(): EngineDiscontinuityReason {
+        return when (this) {
+            Player.DISCONTINUITY_REASON_AUTO_TRANSITION -> EngineDiscontinuityReason.AutoTransition
+            Player.DISCONTINUITY_REASON_SEEK -> EngineDiscontinuityReason.Seek
+            Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> EngineDiscontinuityReason.SeekAdjustment
+            Player.DISCONTINUITY_REASON_SKIP -> EngineDiscontinuityReason.Skip
+            Player.DISCONTINUITY_REASON_REMOVE -> EngineDiscontinuityReason.Remove
+            else -> EngineDiscontinuityReason.Internal
         }
     }
 

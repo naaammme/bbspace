@@ -131,11 +131,12 @@ class PlayerSessionManager @Inject constructor(
     ) {
         if (!isOwner(who)) return
         val s = _state.value
+        val snap = playerEngine.snapshot.value
         val source = s.playbackSource ?: return
         val stream = source.streams.firstOrNull { it.quality == quality } ?: return
         val audio = selectAudio(stream, source.audios, s.currentAudio?.id ?: 0)
         val eng = buildEngineSource(stream, audio, s.cdnIndex) ?: return
-        playerEngine.setSource(eng.first, playerEngine.snapshot.value.positionMs)
+        playerEngine.setSource(eng.first, snap.positionMs, snap.playWhenReady)
         _state.value = s.copy(currentStream = stream, currentAudio = audio, cdnIndex = eng.second)
     }
 
@@ -145,10 +146,11 @@ class PlayerSessionManager @Inject constructor(
     ) {
         if (!isOwner(who)) return
         val s = _state.value
+        val snap = playerEngine.snapshot.value
         val source = s.playbackSource ?: return
         val audio = source.audios.firstOrNull { it.id == audioId } ?: return
         val eng = buildEngineSource(s.currentStream, audio, s.cdnIndex) ?: return
-        playerEngine.setSource(eng.first, playerEngine.snapshot.value.positionMs)
+        playerEngine.setSource(eng.first, snap.positionMs, snap.playWhenReady)
         _state.value = s.copy(currentAudio = audio, cdnIndex = eng.second)
     }
 
@@ -158,8 +160,9 @@ class PlayerSessionManager @Inject constructor(
     ) {
         if (!isOwner(who)) return
         val s = _state.value
+        val snap = playerEngine.snapshot.value
         val eng = buildEngineSource(s.currentStream, s.currentAudio, cdnIndex) ?: return
-        playerEngine.setSource(eng.first, playerEngine.snapshot.value.positionMs)
+        playerEngine.setSource(eng.first, snap.positionMs, snap.playWhenReady)
         _state.value = s.copy(cdnIndex = eng.second)
     }
 

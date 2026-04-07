@@ -111,6 +111,7 @@ internal fun VideoPlayerPane(
                 if (view.player !== player) {
                     view.player = player
                 }
+                view.keepScreenOn = state.snapshot.playWhenReady
             },
             modifier = Modifier.fillMaxSize()
         )

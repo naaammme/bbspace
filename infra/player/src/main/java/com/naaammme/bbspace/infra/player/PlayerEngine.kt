@@ -24,7 +24,11 @@ interface PlayerEngine {
     fun getPlayerForView(): Player?
 
     fun updateConfig(config: PlayerConfig)
-    fun setSource(source: EngineSource, startPositionMs: Long? = null)
+    fun setSource(
+        source: EngineSource,
+        startPositionMs: Long? = null,
+        playWhenReady: Boolean = true
+    )
     fun play()
     fun pause()
     fun setSpeed(speed: Float)

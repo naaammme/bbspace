@@ -1,11 +1,12 @@
 package com.naaammme.bbspace.feature.video
-
 import com.naaammme.bbspace.core.model.DanmakuElem
 import com.naaammme.bbspace.core.model.DanmakuSegment
 import com.naaammme.bbspace.core.model.VIDEO_DANMAKU_SEGMENT_DURATION_MS
 import com.naaammme.bbspace.core.model.VideoPlaybackId
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
+import com.naaammme.bbspace.infra.player.EngineDiscontinuityReason
+import com.naaammme.bbspace.infra.player.PlaybackSnapshot
 import master.flame.danmaku.api.DanmakuSegmentData
 import master.flame.danmaku.api.SegmentDanmakuSession
 import master.flame.danmaku.danmaku.model.android.DanmakuContext
@@ -21,11 +22,9 @@ internal class VideoDanmakuOverlayState(
     private var lastVideoId: VideoPlaybackId? = null
     private var lastObservedPositionMs: Long? = null
     private var pendingSeek = true
-    private var lastAppliedConfig: VideoDanmakuConfig? = null
-    private var lastAppliedPlaySpd: Float? = null
-    private var lastPlaybackEnabled: Boolean? = null
-    private var lastPlaybackSource: Boolean? = null
-    private var lastPlayingState: Boolean? = null
+    private var lastCfgState: DanmakuCfgState? = null
+    private var lastPlayState: DanmakuPlayState? = null
+    private var lastDiscSeq = 0L
     private val appliedSegmentIndices = linkedSetOf<Long>()
 
     fun prepare() {
@@ -35,28 +34,26 @@ internal class VideoDanmakuOverlayState(
     fun sync(
         danmakuState: VideoDanmakuState,
         config: VideoDanmakuConfig,
-        positionMs: Long,
-        isPlaying: Boolean,
+        snapshot: PlaybackSnapshot,
         hasSource: Boolean,
-        playbackSpeed: Float
     ) {
-        val clampedPositionMs = positionMs.coerceAtLeast(0L)
+        val clampedPositionMs = snapshot.positionMs.coerceAtLeast(0L)
+        val clampedSpeed = snapshot.speed.coerceIn(0.25f, 3f)
         val currentSegmentIndex = clampedPositionMs.toDanmakuSegmentIndex()
-        val hasDiscontinuity = hasPositionDiscontinuity(clampedPositionMs)
-        timeProvider.update(clampedPositionMs, isPlaying, playbackSpeed)
-        syncVideo(danmakuState.videoId)
-        applyConfig(config, playbackSpeed)
+        syncVideo(danmakuState.videoId, snapshot.discontinuitySeq)
+        val hasSeek = consumeSeekDiscontinuity(snapshot)
+        val hasDiscontinuity = hasSeek || hasPositionDiscontinuity(clampedPositionMs)
+        val hasSpeedChange = lastCfgState?.speed != clampedSpeed
+        if (hasSeek) {
+            pendingSeek = true
+        }
+        applyConfig(config, clampedSpeed)
         syncSegments(
             loadedSegments = danmakuState.loadedSegments,
             currentSegmentIndex = currentSegmentIndex,
             requireCurrentSegment = pendingSeek || hasDiscontinuity
         )
         val curReady = currentSegmentIndex in appliedSegmentIndices
-        syncPlayback(
-            enabled = config.enabled,
-            hasSource = hasSource,
-            isPlaying = isPlaying
-        )
         if (config.enabled && hasSource) {
             syncPosition(
                 positionMs = clampedPositionMs,
@@ -64,6 +61,20 @@ internal class VideoDanmakuOverlayState(
                 curReady = curReady
             )
         }
+        val canPlay = snapshot.isPlaying && !pendingSeek
+        val needStateOverride = hasSeek ||
+                hasSpeedChange ||
+                !canPlay ||
+                !hasSource ||
+                (canPlay && lastPlayState?.isPlaying != true)
+        if (needStateOverride) {
+            timeProvider.overrideState(clampedPositionMs, canPlay, clampedSpeed)
+        }
+        syncPlayback(
+            enabled = config.enabled,
+            hasSource = hasSource,
+            isPlaying = canPlay
+        )
     }
 
     private fun syncPlayback(
@@ -71,16 +82,11 @@ internal class VideoDanmakuOverlayState(
         hasSource: Boolean,
         isPlaying: Boolean
     ) {
-        if (
-            lastPlaybackEnabled == enabled &&
-            lastPlaybackSource == hasSource &&
-            lastPlayingState == isPlaying
-        ) {
+        val nextState = DanmakuPlayState(enabled, hasSource, isPlaying)
+        if (lastPlayState == nextState) {
             return
         }
-        lastPlaybackEnabled = enabled
-        lastPlaybackSource = hasSource
-        lastPlayingState = isPlaying
+        lastPlayState = nextState
 
         if (!enabled || !hasSource) {
             session.hide()
@@ -118,14 +124,19 @@ internal class VideoDanmakuOverlayState(
 
     fun release() {
         appliedSegmentIndices.clear()
+        timeProvider.release()
         session.release()
     }
 
-    private fun syncVideo(videoId: VideoPlaybackId?) {
+    private fun syncVideo(
+        videoId: VideoPlaybackId?,
+        discontinuitySeq: Long
+    ) {
         if (lastVideoId == videoId) return
 
         lastVideoId = videoId
         lastObservedPositionMs = null
+        lastDiscSeq = discontinuitySeq
         pendingSeek = true
         appliedSegmentIndices.clear()
         session.clearSegments()
@@ -135,12 +146,11 @@ internal class VideoDanmakuOverlayState(
         config: VideoDanmakuConfig,
         playbackSpeed: Float
     ) {
-        val spd = playbackSpeed.coerceIn(0.25f, 3f)
-        if (config == lastAppliedConfig && lastAppliedPlaySpd == spd) return
+        val nextState = DanmakuCfgState(config, playbackSpeed)
+        if (lastCfgState == nextState) return
 
-        danmakuContext.applyConfig(config, spd)
-        lastAppliedConfig = config
-        lastAppliedPlaySpd = spd
+        danmakuContext.applyConfig(config, playbackSpeed)
+        lastCfgState = nextState
         danmakuView.forceRender()
     }
 
@@ -195,7 +205,28 @@ internal class VideoDanmakuOverlayState(
         }
         return abs(positionMs - lastPositionMs) >= DANMAKU_POSITION_DISCONTINUITY_MS
     }
+
+    private fun consumeSeekDiscontinuity(snapshot: PlaybackSnapshot): Boolean {
+        val seq = snapshot.discontinuitySeq
+        if (seq == 0L || seq == lastDiscSeq) {
+            return false
+        }
+        lastDiscSeq = seq
+        return snapshot.discontinuityReason == EngineDiscontinuityReason.Seek ||
+                snapshot.discontinuityReason == EngineDiscontinuityReason.SeekAdjustment
+    }
 }
+
+private data class DanmakuCfgState(
+    val config: VideoDanmakuConfig,
+    val speed: Float
+)
+
+private data class DanmakuPlayState(
+    val enabled: Boolean,
+    val hasSource: Boolean,
+    val isPlaying: Boolean
+)
 
 private const val DANMAKU_POSITION_DISCONTINUITY_MS = 1_500L
 
