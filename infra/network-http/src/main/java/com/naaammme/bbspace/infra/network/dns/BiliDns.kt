@@ -2,6 +2,7 @@ package com.naaammme.bbspace.infra.network.dns
 
 import com.naaammme.bbspace.core.common.log.Logger
 import okhttp3.Dns
+import java.net.Inet4Address
 import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
@@ -98,7 +99,7 @@ class BiliDns : Dns {
      * API / 图片域名：腾讯 → 阿里 → 系统 DNS
      */
     private fun lookupApi(hostname: String): List<InetAddress> {
-        cachedOrNull(hostname)?.let { return it }
+        cachedOrNull(hostname)?.let { return preferIpv4(it) }
 
         TencentHttpDns.resolve(hostname)?.let { result ->
             Logger.d(TAG) { "Tencent resolved $hostname: ${result.addresses} (ttl=${result.ttlSeconds}s)" }
@@ -123,14 +124,14 @@ class BiliDns : Dns {
         cachedOrNull(hostname)?.let { return it } // 缓存
 
         AlibabaHttpDns.resolve(hostname)?.let { result ->
-            val first = listOf(result.addresses.first())
-            Logger.d(TAG) { "Alibaba resolved video CDN $hostname: $first (ttl=${result.ttlSeconds}s)" }
-            cacheResult(hostname, first, result.ttlSeconds)
-            return first
+            val addresses = preferIpv4(result.addresses)
+            Logger.d(TAG) { "Alibaba resolved video CDN $hostname: $addresses (ttl=${result.ttlSeconds}s)" }
+            cacheResult(hostname, addresses, result.ttlSeconds)
+            return addresses
         }
 
         Logger.d(TAG) { "Falling back to system DNS for video CDN $hostname" }
-        return Dns.SYSTEM.lookup(hostname)
+        return preferIpv4(Dns.SYSTEM.lookup(hostname))
     }
 
     private fun classifyDomain(hostname: String): DomainType {
@@ -156,8 +157,14 @@ class BiliDns : Dns {
         if (!refreshing.add(hostname)) return // 已在刷新中
         refreshExecutor.execute {
             try {
-                val result = TencentHttpDns.resolve(hostname)
-                    ?: AlibabaHttpDns.resolve(hostname)
+                val result = when (classifyDomain(hostname)) {
+                    DomainType.API -> TencentHttpDns.resolve(hostname)
+                        ?: AlibabaHttpDns.resolve(hostname)
+                    DomainType.VIDEO_CDN -> AlibabaHttpDns.resolve(hostname)?.let { dns ->
+                        dns.copy(addresses = preferIpv4(dns.addresses))
+                    }
+                    DomainType.OTHER -> null
+                }
                 if (result != null) {
                     cacheResult(hostname, result.addresses, result.ttlSeconds)
                     Logger.d(TAG) { "Async refresh done for $hostname: ${result.addresses}" }
@@ -178,5 +185,11 @@ class BiliDns : Dns {
             addresses = addresses,
             expireAt = System.currentTimeMillis() + ttlMs
         )
+    }
+
+    private fun preferIpv4(addresses: List<InetAddress>): List<InetAddress> {
+        val ipv4 = addresses.filterIsInstance<Inet4Address>()
+        val other = addresses.filterNot { it is Inet4Address }
+        return (ipv4 + other).distinct()
     }
 }

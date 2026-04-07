@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.URL
 
@@ -23,17 +24,33 @@ import java.net.URL
  */
 object AlibabaHttpDns {
     private const val TAG = "AlibabaHttpDns"
-    private const val SERVER = "203.107.1.65"
     private const val ACCOUNT_ID = "191607"
     private const val TIMEOUT_MS = 2000
+    private val SERVERS = listOf(
+        "203.107.1.65",
+        "203.107.1.34",
+        "203.107.1.66",
+        "203.107.1.33"
+    )
 
     /**
      * 通过阿里 HTTPDNS 解析域名
      * @return DnsResult 包含 IP 列表和 TTL，失败返回 null
      */
     fun resolve(hostname: String): DnsResult? {
+        for (server in SERVERS) {
+            resolveByServer(server, hostname)?.let { return it }
+        }
+        Logger.w(TAG) { "Alibaba HTTPDNS resolve failed for $hostname" }
+        return null
+    }
+
+    private fun resolveByServer(
+        server: String,
+        hostname: String
+    ): DnsResult? {
         return try {
-            val url = URL("http://$SERVER/$ACCOUNT_ID/resolve?host=$hostname&query=4,6")
+            val url = URL("http://$server/$ACCOUNT_ID/resolve?host=$hostname&query=4,6")
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 connectTimeout = TIMEOUT_MS
                 readTimeout = TIMEOUT_MS
@@ -48,7 +65,7 @@ object AlibabaHttpDns {
 
             parseResponse(responseText)
         } catch (e: Exception) {
-            Logger.w(TAG) { "Alibaba HTTPDNS resolve failed for $hostname: ${e.message}" }
+            Logger.d(TAG) { "Alibaba HTTPDNS server $server failed for $hostname: ${e.message}" }
             null
         }
     }
@@ -57,8 +74,9 @@ object AlibabaHttpDns {
         val json = JSONObject(response)
         val dnsArray = json.optJSONArray("dns") ?: return null
 
-        val addresses = mutableListOf<InetAddress>()
-        var minTtl = 60L
+        val ipv4 = mutableListOf<InetAddress>()
+        val ipv6 = mutableListOf<InetAddress>()
+        var minTtl = Long.MAX_VALUE
 
         for (i in 0 until dnsArray.length()) {
             val entry = dnsArray.getJSONObject(i)
@@ -66,14 +84,21 @@ object AlibabaHttpDns {
             if (ttl < minTtl) minTtl = ttl
 
             val ips = entry.optJSONArray("ips") ?: continue
+            val type = entry.optInt("type", 0)
             for (j in 0 until ips.length()) {
                 try {
-                    addresses.add(InetAddress.getByName(ips.getString(j)))
+                    val address = InetAddress.getByName(ips.getString(j))
+                    when {
+                        type == 1 || address is Inet4Address -> ipv4.add(address)
+                        else -> ipv6.add(address)
+                    }
                 } catch (_: Exception) {}
             }
         }
 
+        val addresses = (ipv4 + ipv6).distinct()
         if (addresses.isEmpty()) return null
-        return DnsResult(addresses, minTtl)
+        val ttl = if (minTtl == Long.MAX_VALUE) 60L else minTtl
+        return DnsResult(addresses, ttl)
     }
 }
