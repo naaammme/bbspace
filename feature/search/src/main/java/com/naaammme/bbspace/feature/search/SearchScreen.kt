@@ -87,7 +87,7 @@ import com.naaammme.bbspace.core.model.SearchTime
 import com.naaammme.bbspace.core.model.SearchVideo
 import com.naaammme.bbspace.core.model.VideoJump
 import java.util.Calendar
-import kotlinx.coroutines.delay
+
 
 @Composable
 fun SearchScreen(
@@ -792,14 +792,12 @@ private fun SearchTopBar(
     onBack: () -> Unit,
     onSearch: () -> Unit
 ) {
-    val anim = LocalAnimations.current
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(autoFocus) {
         if (autoFocus) {
-            delay(anim.long.toLong())
             focusRequester.requestFocus()
             keyboard?.show()
         }

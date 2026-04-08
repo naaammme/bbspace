@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package bilibili.app.dynamic.common;
+
+option java_multiple_files = true;
+option java_package = "com.bapis.bilibili.app.dynamic.common";
+option optimize_for = LITE_RUNTIME;
+
+enum TranslateState {
+  STATE_ORIGINAL = 0;
+  STATE_TRANSLATED = 1;
+}
+
+enum TranslateSwitch {
+  TRANS_UNKNOWN = 0;
+  TRANS_SEE_ORIGINAL = 1;
+  TRANS_TRANSLATE = 2;
+}
+
+enum TribeeRefresh {
+  REFRESH_NEW = 0;
+  REFRESH_HISTORY = 1;
+}
+
+enum WHRatio {
+  W_H_RATIO_1_1 = 0;
+  W_H_RATIO_16_9 = 1;
+  W_H_RATIO_3_4 = 2;
+  W_H_RATIO_CUSTOM = 3;
+}
+
+message ItemWHRatio {
+  WHRatio ratio = 1;
+  int32 width = 2;
+  int32 height = 3;
+}

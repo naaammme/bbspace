@@ -25,3 +25,12 @@ message Device {
     int64 fts = 15;             // 时间戳 (可能是 first time seen)
     string guest_id = 16;       // 游客ID
 }
+
+message DeviceType {
+}
+
+message MobiApp {
+}
+
+message Platform {
+}
