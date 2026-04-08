@@ -1,15 +1,17 @@
 package com.naaammme.bbspace.feature.video
 
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.ui.PlayerView
+import androidx.media3.ui.R as Media3UiR
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
 import com.naaammme.bbspace.feature.video.model.VideoPlayerState
@@ -62,7 +64,7 @@ internal fun rememberVideoDanmakuOverlayState(
 
 @Composable
 internal fun VideoDanmakuLayer(
-    modifier: Modifier,
+    playerView: PlayerView,
     viewModel: VideoViewModel,
     playerState: VideoPlayerState,
     danmakuConfig: VideoDanmakuConfig
@@ -79,7 +81,7 @@ internal fun VideoDanmakuLayer(
         initialSpeed = playerState.snapshot.speed
     )
     VideoDanmakuOverlay(
-        modifier = modifier,
+        playerView = playerView,
         overlayState = overlayState,
         playerState = playerState,
         danmakuState = danmakuState,
@@ -89,7 +91,7 @@ internal fun VideoDanmakuLayer(
 
 @Composable
 internal fun VideoDanmakuOverlay(
-    modifier: Modifier,
+    playerView: PlayerView,
     overlayState: VideoDanmakuOverlayState,
     playerState: VideoPlayerState,
     danmakuState: VideoDanmakuState,
@@ -102,19 +104,34 @@ internal fun VideoDanmakuOverlay(
         }
     }
 
-    AndroidView(
-        factory = { overlayState.danmakuView },
-        update = { view ->
-            view.visibility = if (playerState.playbackSource != null) {
-                View.VISIBLE
-            } else {
-                View.INVISIBLE
+    DisposableEffect(playerView, overlayState) {
+        val view = overlayState.danmakuView
+        val host = playerView.findViewById<ViewGroup>(Media3UiR.id.exo_content_frame)
+        if (host != null) {
+            val parent = view.parent as? ViewGroup
+            if (parent !== host) {
+                parent?.removeView(view)
+                host.addView(
+                    view,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
             }
-        },
-        modifier = modifier
-    )
+        }
+        onDispose {
+            val parent = view.parent as? ViewGroup
+            parent?.removeView(view)
+        }
+    }
 
     SideEffect {
+        overlayState.danmakuView.visibility = if (playerState.playbackSource != null) {
+            View.VISIBLE
+        } else {
+            View.INVISIBLE
+        }
         overlayState.sync(
             danmakuState = danmakuState,
             config = danmakuConfig,

@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,14 +38,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.ui.R as Media3UiR
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.QualityOption
+import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import kotlinx.coroutines.delay
 
@@ -58,6 +63,7 @@ internal fun VideoPlayerPane(
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val state by viewModel.playerState.collectAsStateWithLifecycle()
     val menuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
     val tapSrc = remember { MutableInteractionSource() }
@@ -95,19 +101,33 @@ internal fun VideoPlayerPane(
         0f
     }
     val player = viewModel.getPlayerForView()
+    val playerView = remember(context) {
+        PlayerView(context).apply {
+            useController = false
+            setKeepContentOnPlayerReset(true)
+            setEnableComposeSurfaceSyncWorkaround(true)
+        }
+    }
+    var lastWarmAspect by remember(playerView) { mutableStateOf<Float?>(null) }
+
+    DisposableEffect(playerView) {
+        onDispose {
+            playerView.player = null
+        }
+    }
 
     Box(
         modifier = modifier.background(Color.Black)
     ) {
         AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    setKeepContentOnPlayerReset(true)
-                    setEnableComposeSurfaceSyncWorkaround(true)
-                }
-            },
+            factory = { playerView },
             update = { view ->
+                val content = view.findViewById<AspectRatioFrameLayout>(Media3UiR.id.exo_content_frame)
+                val nextWarmAspect = state.expectedVideoAspect()
+                if (content != null && lastWarmAspect != nextWarmAspect) {
+                    content.setAspectRatio(nextWarmAspect ?: 0f)
+                    lastWarmAspect = nextWarmAspect
+                }
                 if (view.player !== player) {
                     view.player = player
                 }
@@ -117,7 +137,7 @@ internal fun VideoPlayerPane(
         )
 
         VideoDanmakuLayer(
-            modifier = Modifier.fillMaxSize(),
+            playerView = playerView,
             viewModel = viewModel,
             playerState = state,
             danmakuConfig = menuState.danmaku
@@ -281,6 +301,15 @@ internal fun VideoPlayerPane(
             onDismiss = { showSettingsSheet = false }
         )
     }
+}
+
+private fun VideoPlayerState.expectedVideoAspect(): Float? {
+    val width = snapshot.videoWidth.takeIf { it > 0 }
+        ?: currentStream?.width?.takeIf { it > 0 }
+    val height = snapshot.videoHeight.takeIf { it > 0 }
+        ?: currentStream?.height?.takeIf { it > 0 }
+    if (width == null || height == null || width <= 0 || height <= 0) return null
+    return width.toFloat() / height.toFloat()
 }
 
 @Composable
