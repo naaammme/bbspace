@@ -31,6 +31,7 @@ internal fun rememberVideoDanmakuOverlayState(
     val context = LocalContext.current
     val state = remember(viewModel, context) {
         val danmakuView = DanmakuSurfaceView(context).apply {
+            // 绘制缓存 内存换cpu占用
             enableDanmakuDrawingCache(true)
             showFPS(false)
             setDrawingThreadType(IDanmakuView.THREAD_TYPE_HIGH_PRIORITY)

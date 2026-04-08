@@ -28,6 +28,7 @@ data class PlaybackSnapshot(
     val speed: Float = 1f,
     val videoWidth: Int = 0,
     val videoHeight: Int = 0,
+    val firstFrameSeq: Long = 0,
     val videoDecoderName: String? = null,
     val audioDecoderName: String? = null,
     val discontinuitySeq: Long = 0,

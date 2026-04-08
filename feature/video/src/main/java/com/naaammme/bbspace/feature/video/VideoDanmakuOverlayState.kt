@@ -127,6 +127,9 @@ internal class VideoDanmakuOverlayState(
 
     fun release() {
         appliedSegmentIndices.clear()
+        session.clearSegments()
+        session.setCallback(null)
+        session.setPlayerTimeProvider(null)
         timeProvider.release()
         session.release()
     }

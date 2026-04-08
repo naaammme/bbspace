@@ -90,6 +90,11 @@ internal class VideoDanmakuController(
             trimCacheAround(segmentIndex)
         }
 
+        if (snapshot.firstFrameSeq == 0L && _state.value.loadedSegments.isEmpty()) {
+            lastPositionMs = positionMs
+            return
+        }
+
         ensureSegmentLoaded(request)
         maybePrefetchNextSegment(request)
 

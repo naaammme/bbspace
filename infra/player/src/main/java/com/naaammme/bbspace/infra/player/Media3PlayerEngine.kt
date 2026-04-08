@@ -52,6 +52,7 @@ class Media3PlayerEngine @Inject constructor(
     private var playerConfig = PlayerConfig()
     private var videoDecoderName: String? = null
     private var audioDecoderName: String? = null
+    private var firstFrameSeq = 0L
     private val progressUpdateRunnable = object : Runnable {
         override fun run() {
             updateSnapshot()
@@ -73,6 +74,11 @@ class Media3PlayerEngine @Inject constructor(
         override fun onPlayerError(error: PlaybackException) {
             updateSnapshot(errorMessage = error.message)
             syncProgressUpdates()
+        }
+
+        override fun onRenderedFirstFrame() {
+            firstFrameSeq += 1L
+            updateSnapshot()
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
@@ -132,6 +138,7 @@ class Media3PlayerEngine @Inject constructor(
         progressHandler.removeCallbacks(progressUpdateRunnable)
         val prev = exoPlayer
         playerConfig = next
+        firstFrameSeq = 0L
         videoDecoderName = null
         audioDecoderName = null
         val nextPlayer = buildPlayer(appContext, next)
@@ -147,6 +154,7 @@ class Media3PlayerEngine @Inject constructor(
         playWhenReady: Boolean
     ) {
         val player = checkNotNull(exoPlayer) { "Player not prepared" }
+        firstFrameSeq = 0L
         player.stop()
         player.clearMediaItems()
         player.setMediaSource(buildMediaSource(source))
@@ -189,6 +197,7 @@ class Media3PlayerEngine @Inject constructor(
             _snapshot.value = PlaybackSnapshot()
             return
         }
+        firstFrameSeq = 0L
         videoDecoderName = null
         audioDecoderName = null
         player.playWhenReady = false
@@ -203,6 +212,7 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun release() {
         val player = exoPlayer ?: return
+        firstFrameSeq = 0L
         videoDecoderName = null
         audioDecoderName = null
         progressHandler.removeCallbacks(progressUpdateRunnable)
@@ -328,6 +338,7 @@ class Media3PlayerEngine @Inject constructor(
             speed = player?.playbackParameters?.speed ?: 1f,
             videoWidth = player?.videoSize?.width ?: 0,
             videoHeight = player?.videoSize?.height ?: 0,
+            firstFrameSeq = firstFrameSeq,
             videoDecoderName = videoDecoderName,
             audioDecoderName = audioDecoderName,
             discontinuitySeq = discontinuitySeq,
