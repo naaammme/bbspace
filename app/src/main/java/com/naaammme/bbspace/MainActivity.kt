@@ -5,6 +5,7 @@ import android.view.Display
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -32,9 +33,11 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(themeConfig.preferredFrameRate) {
                 applyFrameRate(themeConfig.preferredFrameRate)
             }
-
+            // 全局文本选择
             BiliTheme(config = themeConfig) {
-                AppNavHost(themeConfig = themeConfig)
+                SelectionContainer {
+                    AppNavHost(themeConfig = themeConfig)
+                }
             }
         }
     }

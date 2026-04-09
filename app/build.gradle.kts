@@ -116,6 +116,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.navigation.compose)
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
     implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.junit)

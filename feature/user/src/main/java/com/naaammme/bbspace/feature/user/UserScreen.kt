@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.User
 import com.naaammme.bbspace.feature.user.model.UserViewModel
 
@@ -143,7 +144,7 @@ private fun UserInfoSection(user: User?) {
     ) {
         if (user?.avatar?.isNotEmpty() == true) {
             AsyncImage(
-                model = user.avatar,
+                model = thumbnailUrl(user.avatar),
                 contentDescription = null,
                 modifier = Modifier
                     .size(72.dp)

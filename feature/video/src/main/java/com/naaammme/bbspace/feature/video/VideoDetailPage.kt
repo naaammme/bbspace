@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.VideoDetail
@@ -402,7 +403,7 @@ private fun OwnerCapsule(
                 val context = LocalContext.current
                 val imgReq = remember(face) {
                     ImageRequest.Builder(context)
-                        .data(face)
+                        .data(thumbnailUrl(face))
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .build()
@@ -860,7 +861,7 @@ private fun SeasonEpisodeRow(
             val context = LocalContext.current
             val imgReq = remember(cover) {
                 ImageRequest.Builder(context)
-                    .data(cover)
+                    .data(thumbnailUrl(cover))
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .build()
@@ -959,7 +960,7 @@ private fun RelateRow(
     val context = LocalContext.current
     val imageReq = remember(relate.cover) {
         ImageRequest.Builder(context)
-            .data(relate.cover)
+            .data(thumbnailUrl(relate.cover))
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()

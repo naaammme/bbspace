@@ -61,6 +61,7 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.common.media.ImageSaver
+import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.CommentPicture
 import com.naaammme.bbspace.core.model.CommentReply
 import kotlinx.coroutines.Dispatchers
@@ -345,7 +346,7 @@ private fun PictureItem(
     val context = LocalContext.current
     val req = remember(picture.url) {
         ImageRequest.Builder(context)
-            .data(picture.url)
+            .data(thumbnailUrl(picture.url))
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()
@@ -402,7 +403,7 @@ private fun CommentPicturePreview(
                     val picture = pictures[page]
                     val req = remember(picture.url) {
                         ImageRequest.Builder(context)
-                            .data(picture.url)
+                            .data(thumbnailUrl(picture.url))
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .diskCachePolicy(CachePolicy.ENABLED)
                             .build()
@@ -503,7 +504,7 @@ private fun UserAvatar(
         val context = LocalContext.current
         val req = remember(face) {
             ImageRequest.Builder(context)
-                .data(face)
+                .data(thumbnailUrl(face))
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
                 .build()

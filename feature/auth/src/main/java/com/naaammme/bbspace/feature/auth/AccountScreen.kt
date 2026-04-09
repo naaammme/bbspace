@@ -49,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.naaammme.bbspace.feature.auth.model.AccountViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.LoginCredential
 import com.naaammme.bbspace.core.model.User
 
@@ -270,7 +271,7 @@ private fun AccountCard(
             ) {
                 if (userInfo?.avatar?.isNotEmpty() == true) {
                     AsyncImage(
-                        model = userInfo.avatar,
+                        model = thumbnailUrl(userInfo.avatar),
                         contentDescription = null,
                         modifier = Modifier
                             .size(56.dp)

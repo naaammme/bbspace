@@ -22,7 +22,8 @@ object ImageSaver {
         album: String = "BBSpace",
         prefix: String = "bbspace"
     ): Uri {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+        val rawUrl = originImageUrl(url) ?: url
+        val conn = (URL(rawUrl).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
             readTimeout = 30_000
             instanceFollowRedirects = true
@@ -34,8 +35,8 @@ object ImageSaver {
             if (code !in 200..299) {
                 error("下载图片失败 $code")
             }
-            val mime = resolveMimeType(url, conn.contentType)
-            val ext = resolveExt(url, mime)
+            val mime = resolveMimeType(rawUrl, conn.contentType)
+            val ext = resolveExt(rawUrl, mime)
             val name = "${prefix}_${System.currentTimeMillis()}.$ext"
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)

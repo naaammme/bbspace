@@ -77,6 +77,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.theme.LocalAnimations
+import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -531,7 +532,7 @@ private fun SearchCard(
     val context = LocalContext.current
     val imageRequest = remember(video.cover) {
         ImageRequest.Builder(context)
-            .data(optimizeCoverUrl(video.cover))
+            .data(thumbnailUrl(video.cover))
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()
@@ -940,11 +941,6 @@ private fun endOfDay(timeS: Long): Long {
         set(Calendar.SECOND, 59)
         set(Calendar.MILLISECOND, 999)
     }.timeInMillis / 1000
-}
-
-private fun optimizeCoverUrl(url: String, useWebp: Boolean = true): String {
-    if (!useWebp || url.isEmpty()) return url
-    return "$url@720w_405h_85q.webp"
 }
 
 private const val INIT_SKELETON_COUNT = 8

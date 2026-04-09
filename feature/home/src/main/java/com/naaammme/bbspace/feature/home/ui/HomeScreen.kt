@@ -54,6 +54,7 @@ import androidx.window.core.layout.WindowWidthSizeClass
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.FeedItem
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.VideoJump
@@ -199,7 +200,7 @@ private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
     val context = LocalContext.current
     val imageRequest = remember(item.cover) {
         ImageRequest.Builder(context)
-            .data(optimizeCoverUrl(item.cover))
+            .data(thumbnailUrl(item.cover))
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()
@@ -353,11 +354,6 @@ private fun MoreMenu(items: List<ThreePointItem>) {
             }
         )
     }
-}
-
-private fun optimizeCoverUrl(url: String, useWebp: Boolean = true): String {
-    if (!useWebp || url.isEmpty()) return url
-    return "$url@720w_405h_85q.webp"
 }
 
 @Composable
