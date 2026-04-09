@@ -1,6 +1,7 @@
 ﻿package com.naaammme.bbspace.feature.video
 
 import android.text.format.DateFormat
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
@@ -53,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoJump
@@ -62,12 +66,14 @@ import com.naaammme.bbspace.core.model.VideoRelate
 import com.naaammme.bbspace.core.model.VideoSeason
 import com.naaammme.bbspace.core.model.VideoSeasonEpisode
 import com.naaammme.bbspace.core.model.VideoStat
+import com.naaammme.bbspace.feature.comment.CommentPanel
 import com.naaammme.bbspace.feature.video.model.VideoPageState
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun VideoDetailPage(
     pageState: VideoPageState,
+    commentSubject: CommentSubject?,
     isExpanded: Boolean,
     playerSpaceWidth: Dp,
     playerSpaceHeight: Dp,
@@ -98,36 +104,13 @@ internal fun VideoDetailPage(
                     .background(Color.Black)
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxHeight().weight(1f),
-                contentPadding = PaddingValues(bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                detailItems(
-                    pageState = pageState,
-                    itemMod = Modifier,
-                    descOn = descOn,
-                    tagOn = tagOn,
-                    onToggleDesc = { descOn = !descOn },
-                    onToggleTag = { tagOn = !tagOn },
-                    onSeasonClick = { sheetTp = SHEET_SEASON },
-                    onPageClick = { sheetTp = SHEET_PAGE },
-                    onOpenVideo = onOpenVideo
-                )
-            }
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(top = playerSpaceHeight),
-            contentPadding = PaddingValues(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            detailItems(
+            DetailPager(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(1f),
                 pageState = pageState,
-                itemMod = Modifier.padding(horizontal = 16.dp),
+                commentSubject = commentSubject,
+                horizontalPad = 0.dp,
                 descOn = descOn,
                 tagOn = tagOn,
                 onToggleDesc = { descOn = !descOn },
@@ -137,6 +120,23 @@ internal fun VideoDetailPage(
                 onOpenVideo = onOpenVideo
             )
         }
+    } else {
+        DetailPager(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(top = playerSpaceHeight),
+            pageState = pageState,
+            commentSubject = commentSubject,
+            horizontalPad = 16.dp,
+            descOn = descOn,
+            tagOn = tagOn,
+            onToggleDesc = { descOn = !descOn },
+            onToggleTag = { tagOn = !tagOn },
+            onSeasonClick = { sheetTp = SHEET_SEASON },
+            onPageClick = { sheetTp = SHEET_PAGE },
+            onOpenVideo = onOpenVideo
+        )
     }
 
     if (sheetTp == SHEET_SEASON && detail?.season != null) {
@@ -160,6 +160,90 @@ internal fun VideoDetailPage(
                 sheetTp = null
                 onSwitchPage(cid)
             }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun DetailPager(
+    modifier: Modifier,
+    pageState: VideoPageState,
+    commentSubject: CommentSubject?,
+    horizontalPad: Dp,
+    descOn: Boolean,
+    tagOn: Boolean,
+    onToggleDesc: () -> Unit,
+    onToggleTag: () -> Unit,
+    onSeasonClick: () -> Unit,
+    onPageClick: () -> Unit,
+    onOpenVideo: (VideoJump) -> Unit
+) {
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val itemMod = if (horizontalPad > 0.dp) {
+        Modifier.padding(horizontal = horizontalPad)
+    } else {
+        Modifier
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        modifier = modifier.fillMaxSize()
+    ) { page ->
+        when (page) {
+            0 -> VideoInfoList(
+                pageState = pageState,
+                itemMod = itemMod,
+                descOn = descOn,
+                tagOn = tagOn,
+                onToggleDesc = onToggleDesc,
+                onToggleTag = onToggleTag,
+                onSeasonClick = onSeasonClick,
+                onPageClick = onPageClick,
+                onOpenVideo = onOpenVideo
+            )
+
+            else -> CommentPanel(
+                subject = commentSubject,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = horizontalPad,
+                    top = 12.dp,
+                    end = horizontalPad,
+                    bottom = 20.dp
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoInfoList(
+    pageState: VideoPageState,
+    itemMod: Modifier,
+    descOn: Boolean,
+    tagOn: Boolean,
+    onToggleDesc: () -> Unit,
+    onToggleTag: () -> Unit,
+    onSeasonClick: () -> Unit,
+    onPageClick: () -> Unit,
+    onOpenVideo: (VideoJump) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        detailItems(
+            pageState = pageState,
+            itemMod = itemMod,
+            descOn = descOn,
+            tagOn = tagOn,
+            onToggleDesc = onToggleDesc,
+            onToggleTag = onToggleTag,
+            onSeasonClick = onSeasonClick,
+            onPageClick = onPageClick,
+            onOpenVideo = onOpenVideo
         )
     }
 }

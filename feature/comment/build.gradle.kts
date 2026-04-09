@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.naaammme.bbspace.feature.video"
+    namespace = "com.naaammme.bbspace.feature.comment"
     compileSdk = 36
 
     defaultConfig {
@@ -26,15 +26,10 @@ android {
 }
 
 dependencies {
-    implementation(project(":feature:comment"))
+    implementation(project(":core:domain"))
     implementation(project(":core:model"))
-    implementation(project(":core:data"))
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
-    implementation(project(":core:navigation"))
-    implementation(project(":infra:player"))
-    implementation(libs.media3.ui)
-    implementation(libs.danmakuFlameMaster)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
@@ -44,13 +39,12 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material3.adaptive)
+    implementation(libs.androidx.activity.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.hilt.navigation.compose)
-    implementation(libs.navigation.compose)
 
     implementation(libs.coil.compose)
 }

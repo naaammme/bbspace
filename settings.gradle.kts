@@ -16,12 +16,12 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-includeBuild("../DanmakuFlameMaster") {
-    dependencySubstitution {
-        substitute(module("com.github.naaammme:DanmakuFlameMaster"))
-            .using(project(":DanmakuFlameMaster"))
-    }
-}
+//includeBuild("../DanmakuFlameMaster") {
+//    dependencySubstitution {
+//        substitute(module("com.github.naaammme:DanmakuFlameMaster"))
+//            .using(project(":DanmakuFlameMaster"))
+//    }
+//}
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
@@ -58,6 +58,7 @@ include(":core:navigation")
 // Feature 层
 include(":feature:home")
 include(":feature:video")
+include(":feature:comment")
 include(":feature:dynamic")
 include(":feature:search")
 include(":feature:user")

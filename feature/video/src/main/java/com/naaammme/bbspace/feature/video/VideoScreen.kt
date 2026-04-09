@@ -135,6 +135,7 @@ fun VideoScreen(
         if (!isFull) {
             VideoDetailPage(
                 pageState = pageState,
+                commentSubject = viewModel.commentSubject,
                 isExpanded = isExpanded,
                 playerSpaceWidth = expandedPlayerW,
                 playerSpaceHeight = if (isExpanded) expandedPlayerH else compactPlayerSpaceH,

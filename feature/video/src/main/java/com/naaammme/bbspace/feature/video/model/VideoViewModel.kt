@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.player.PlayerSessionManager
+import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.PlaybackRequest
@@ -40,6 +41,9 @@ class VideoViewModel @Inject constructor(
         trackId = savedStateHandle.get<String>("trackId"),
         reportFlowData = savedStateHandle.get<String>("report")
     )
+    val commentSubject = aid.takeIf { it > 0L }?.let {
+        CommentSubjectTool.video(it, src)
+    }
     private val _detail = MutableStateFlow<VideoDetail?>(null)
     private val _detailLoading = MutableStateFlow(aid > 0L)
     private val _detailError = MutableStateFlow<String?>(null)
