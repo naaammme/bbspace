@@ -65,7 +65,7 @@ class BuvidFetcher(
             .addHeader("content-type", "application/x-www-form-urlencoded; charset=utf-8")
             .addHeader("env", BiliConstants.ENV)
             .addHeader("fp_local", deviceIdentity.fp)
-            .addHeader("session_id", genSessionId())
+            .addHeader("session_id", BiliSessionId.header())
             .addHeader("user-agent", "Mozilla/5.0 BiliDroid/${BiliConstants.VERSION} (bbcallen@gmail.com) os/android model/${deviceIdentity.model} mobi_app/${BiliConstants.MOBI_APP} build/${BiliConstants.BUILD_STR} channel/${BiliConstants.CHANNEL} innerVer/${BiliConstants.BUILD_STR} osVer/${deviceIdentity.osVer} network/2")
             .addHeader("x-bili-locale-bin", Base64.encodeToString(localeBytes, Base64.NO_WRAP or Base64.NO_PADDING))
             .addHeader("x-bili-redirect", "1")
@@ -115,9 +115,4 @@ class BuvidFetcher(
         }.build().toByteArray()
     }
 
-    private fun genSessionId(): String {
-        val bytes = ByteArray(4)
-        kotlin.random.Random.nextBytes(bytes)
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
 }

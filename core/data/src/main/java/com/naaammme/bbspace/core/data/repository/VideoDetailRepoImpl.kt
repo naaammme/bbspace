@@ -25,13 +25,12 @@ import com.naaammme.bbspace.core.model.VideoStaff
 import com.naaammme.bbspace.core.model.VideoStat
 import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.core.model.VideoJumpTool
+import com.naaammme.bbspace.infra.crypto.BiliSessionId
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
-import java.security.MessageDigest
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -76,7 +75,7 @@ class VideoDetailRepoImpl @Inject constructor(
             .setFrom(src.from)
             .setSpmid(VideoJumpTool.SPMID)
             .setFromSpmid(src.fromSpmid)
-            .setSessionId(genViewSessionId())
+            .setSessionId(BiliSessionId.view(deviceIdentity.buvid))
             .setPlayerArgs(playerArgs)
             .putAllExtraContent(EXTRA_CONTENT)
             .setRelate(
@@ -274,26 +273,6 @@ class VideoDetailRepoImpl @Inject constructor(
         }
     }
 
-    private fun genViewSessionId(): String {
-        val raw = buildString {
-            append(deviceIdentity.buvid)
-            append(System.currentTimeMillis())
-            append(Random.nextInt(1_000_000))
-        }
-        val digest = MessageDigest.getInstance("SHA-1").digest(raw.toByteArray())
-        return digest.toHex()
-    }
-
-    private fun ByteArray.toHex(): String {
-        val out = CharArray(size * 2)
-        forEachIndexed { idx, byte ->
-            val value = byte.toInt() and 0xff
-            out[idx * 2] = HEX[value ushr 4]
-            out[idx * 2 + 1] = HEX[value and 0x0f]
-        }
-        return String(out)
-    }
-
     private fun formatCount(count: Long): String {
         return when {
             count >= 100_000_000L -> formatDecimal(count / 100_000_000f, "亿")
@@ -339,10 +318,6 @@ class VideoDetailRepoImpl @Inject constructor(
             "nature_ad" to "",
             "is_from_ugc_season" to "false",
             "reply_down_style" to "0"
-        )
-        val HEX = charArrayOf(
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
         )
     }
 }

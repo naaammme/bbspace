@@ -289,7 +289,7 @@ class GuestIdGenerator(
                 .post(requestBody)
                 .addHeader("fp_local", deviceIdentity.fp)
                 .addHeader("fp_remote", deviceIdentity.fp)
-                .addHeader("session_id", generateSessionId())
+                .addHeader("session_id", BiliSessionId.header())
                 .addHeader("buvid", deviceIdentity.buvid)
                 .addHeader("env", BiliConstants.ENV)
                 .addHeader("app-key", BiliConstants.MOBI_APP)
@@ -393,7 +393,7 @@ class GuestIdGenerator(
     }
 
     fun generateNewSessionId(): String {
-        return generateSessionId()
+        return BiliSessionId.header()
     }
 
     fun generateNewLoginSessionId(): String {

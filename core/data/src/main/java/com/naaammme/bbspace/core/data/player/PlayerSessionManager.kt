@@ -12,13 +12,18 @@ import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerConfig
 import com.naaammme.bbspace.infra.player.PlayerEngine
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -30,12 +35,33 @@ import javax.inject.Singleton
 class PlayerSessionManager @Inject constructor(
     private val repository: VideoPlayerRepository,
     private val appSettings: AppSettings,
+    private val reporter: PlaybackReporter,
     val playerEngine: PlayerEngine
 ) {
     private val _state = MutableStateFlow(PlayerSessionState())
     val state: StateFlow<PlayerSessionState> = _state.asStateFlow()
     private val ownerId = AtomicLong(0L)
     private val prepMu = Mutex()
+    private var reportJob: Job? = null
+    private var reportOwnerId = 0L
+
+    fun bindReporter(
+        who: Long,
+        scope: CoroutineScope
+    ) {
+        if (reportOwnerId == who && reportJob?.isActive == true) return
+        reportJob?.cancel()
+        reportOwnerId = who
+        reporter.bindOwner(who)
+        reportJob = scope.launch {
+            combine(state, playerEngine.snapshot) { session, snapshot ->
+                session to snapshot
+            }.collect { (session, snapshot) ->
+                if (!isOwner(who)) return@collect
+                reporter.onPlaybackState(session, snapshot)
+            }
+        }
+    }
 
     suspend fun prepareEngine() {
         prepMu.withLock {
@@ -50,7 +76,11 @@ class PlayerSessionManager @Inject constructor(
         who: Long,
         request: PlaybackRequest
     ) {
+        if (_state.value.playbackSource != null) {
+            reporter.finishSession(playerEngine.snapshot.value)
+        }
         ownerId.set(who)
+        reporter.bindOwner(who)
         _state.value = _state.value.copy(isPreparing = true, error = null, currentRequest = request)
         try {
             val (source, preferredQuality, preferredAudioId) = coroutineScope {
@@ -89,6 +119,11 @@ class PlayerSessionManager @Inject constructor(
                 currentAudio = audio,
                 cdnIndex = eng.second,
                 isPreparing = false
+            )
+            reporter.startSession(
+                request = request,
+                state = _state.value,
+                startPositionMs = request.seekToMs ?: source.resumePositionMs ?: 0L
             )
         } catch (t: Throwable) {
             if (!isOwner(who)) return
@@ -166,8 +201,9 @@ class PlayerSessionManager @Inject constructor(
         _state.value = s.copy(cdnIndex = eng.second)
     }
 
-    fun closeCurrentSession(who: Long) {
+    suspend fun closeCurrentSession(who: Long) {
         if (!ownerId.compareAndSet(who, 0L)) return
+        reporter.finishSession(playerEngine.snapshot.value)
         playerEngine.stopForReuse(resetPosition = true)
         _state.value = PlayerSessionState()
     }

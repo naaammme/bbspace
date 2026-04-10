@@ -129,6 +129,8 @@ class VideoViewModel @Inject constructor(
     internal val danmakuState = danmakuController.state
 
     init {
+        sessionManager.bindReporter(ownerId, viewModelScope)
+
         danmakuController.bind(
             playbackSourceFlow = sessionManager.state.map { it.playbackSource },
             snapshotFlow = sessionManager.playerEngine.snapshot,
@@ -328,7 +330,9 @@ class VideoViewModel @Inject constructor(
     }
 
     fun close() {
-        sessionManager.closeCurrentSession(ownerId)
+        viewModelScope.launch {
+            sessionManager.closeCurrentSession(ownerId)
+        }
     }
 
     override fun onCleared() {
