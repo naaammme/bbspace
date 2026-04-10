@@ -2,6 +2,48 @@ package com.naaammme.bbspace.core.model
 
 import androidx.compose.runtime.Immutable
 
+enum class PlayBiz(
+    val reportType: Int
+) {
+    UGC(3),
+    PGC(4),
+    PUGV(10);
+
+    companion object {
+        fun from(raw: String?): PlayBiz {
+            return values().firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: UGC
+        }
+    }
+}
+
+@Immutable
+data class PlayBizInfo(
+    val biz: PlayBiz = PlayBiz.UGC,
+    val type: Int? = null,
+    val playType: Int? = null,
+    val subType: Int? = null,
+    val seasonId: Long? = null,
+    val epId: Long? = null,
+    val roomId: Long? = null,
+    val inlineScene: String? = null,
+    val materialNo: String? = null,
+    val securityLevel: String? = null
+)
+
+@Immutable
+data class PlayReportParams(
+    val biz: PlayBiz,
+    val aid: Long,
+    val cid: Long,
+    val bvid: String? = null,
+    val seasonId: Long? = null,
+    val epId: Long? = null,
+    val subType: Int? = null
+) {
+    val type: Int
+        get() = biz.reportType
+}
+
 @Immutable
 data class VideoPlaybackId(
     val aid: Long,
@@ -15,16 +57,87 @@ enum class PlaybackControlMode {
 }
 
 @Immutable
-data class PlaybackRequest(
+data class PlayableParams(
     val videoId: VideoPlaybackId,
-    val fromSpmid: String? = null,
-    val trackId: String? = null,
-    val reportFlowData: String? = null,
-    val extraContent: Map<String, String> = emptyMap(),
+    val src: VideoSrc = VideoJumpTool.feed(),
+    val biz: PlayBizInfo = PlayBizInfo(),
+    val fromScene: String = DEFAULT_FROM_SCENE,
+    val adExtra: String? = null,
+    val extraResolve: Map<String, String> = emptyMap()
+) {
+    fun getResolveParams(
+        seekToMs: Long? = null,
+        preferredQuality: Int? = null,
+        controlMode: PlaybackControlMode = PlaybackControlMode.Default
+    ): PlaybackRequest {
+        return PlaybackRequest(
+            playable = this,
+            seekToMs = seekToMs,
+            preferredQuality = preferredQuality,
+            controlMode = controlMode
+        )
+    }
+
+    fun getResolveExtraContent(): Map<String, String> {
+        return buildMap {
+            src.trackId?.takeIf(String::isNotBlank)?.let { put("track_id", it) }
+            src.reportFlowData?.takeIf(String::isNotBlank)?.let { put("report_flow_data", it) }
+            when (biz.biz) {
+                PlayBiz.UGC -> Unit
+                PlayBiz.PGC -> {
+                    biz.epId?.let { put("ep_id", it.toString()) }
+                    biz.seasonId?.let { put("season_id", it.toString()) }
+                    biz.roomId?.let { put("room_id", it.toString()) }
+                    biz.inlineScene?.takeIf(String::isNotBlank)?.let { put("inline_scene", it) }
+                    biz.materialNo?.takeIf(String::isNotBlank)?.let { put("material_no", it) }
+                    biz.securityLevel?.takeIf(String::isNotBlank)?.let { put("security_level", it) }
+                }
+                PlayBiz.PUGV -> {
+                    biz.seasonId?.let { put("season_id", it.toString()) }
+                }
+            }
+            putAll(extraResolve)
+        }
+    }
+
+    fun getReportCommonParams(): PlayReportParams {
+        return PlayReportParams(
+            biz = biz.biz,
+            aid = videoId.aid,
+            cid = videoId.cid,
+            bvid = videoId.bvid,
+            seasonId = biz.seasonId,
+            epId = biz.epId,
+            subType = biz.subType
+        )
+    }
+
+    fun getDanmakuResolveParams(
+        positionMs: Long,
+        durationMs: Long
+    ): DanmakuRequest {
+        return DanmakuRequest(
+            videoId = videoId,
+            positionMs = positionMs,
+            durationMs = durationMs
+        )
+    }
+
+    private companion object {
+        const val DEFAULT_FROM_SCENE = "normal"
+    }
+}
+
+@Immutable
+data class PlaybackRequest(
+    val playable: PlayableParams,
     val seekToMs: Long? = null,
     val preferredQuality: Int? = null,
     val controlMode: PlaybackControlMode = PlaybackControlMode.Default
-)
+) {
+    val videoId: VideoPlaybackId
+        get() = playable.videoId
+}
 
 @Immutable
 data class StreamLimitInfo(
@@ -111,13 +224,16 @@ data class PlaybackAudio(
 @Immutable
 data class PlaybackSource(
     val videoId: VideoPlaybackId,
+    val biz: PlayBiz,
+    val report: PlayReportParams,
     val durationMs: Long,
     val streams: List<PlaybackStream>,
     val audios: List<PlaybackAudio>,
     val qualityOptions: List<QualityOption>,
     val resumePositionMs: Long?,
     val isPreview: Boolean,
-    val supportProject: Boolean
+    val supportProject: Boolean,
+    val supplementType: String?
 )
 
 @Immutable

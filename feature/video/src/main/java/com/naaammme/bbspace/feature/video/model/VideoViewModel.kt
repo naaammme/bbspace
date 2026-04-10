@@ -6,13 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.player.PlayerSessionManager
 import com.naaammme.bbspace.core.model.CommentSubjectTool
+import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
-import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.core.model.VideoJumpTool
-import com.naaammme.bbspace.core.model.VideoPlaybackId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -41,25 +40,27 @@ class VideoViewModel @Inject constructor(
         trackId = savedStateHandle.get<String>("trackId"),
         reportFlowData = savedStateHandle.get<String>("report")
     )
+    private val jump = VideoJump(
+        aid = aid,
+        cid = savedStateHandle.get<Long>("cid") ?: 0L,
+        bvid = savedStateHandle.get<String>("bvid")?.takeIf(String::isNotBlank),
+        biz = PlayBiz.from(savedStateHandle.get<String>("biz")),
+        seasonId = savedStateHandle.optLong("seasonId"),
+        epId = savedStateHandle.optLong("epId"),
+        type = savedStateHandle.optInt("type"),
+        playType = savedStateHandle.optInt("playType"),
+        subType = savedStateHandle.optInt("subType"),
+        src = src
+    )
     val commentSubject = aid.takeIf { it > 0L }?.let {
         CommentSubjectTool.video(it, src)
     }
     private val _detail = MutableStateFlow<VideoDetail?>(null)
     private val _detailLoading = MutableStateFlow(aid > 0L)
     private val _detailError = MutableStateFlow<String?>(null)
-    private val initReq = run {
-        val cid = savedStateHandle.get<Long>("cid") ?: 0L
-        if (aid > 0 && cid > 0) {
-            PlaybackRequest(
-                videoId = VideoPlaybackId(aid = aid, cid = cid),
-                fromSpmid = src.fromSpmid,
-                trackId = src.trackId,
-                reportFlowData = src.reportFlowData
-            )
-        } else {
-            null
-        }
-    }
+    private val initReq = jump.takeIf { it.aid > 0L || it.cid > 0L || it.epId != null }
+        ?.toPlayableParams()
+        ?.getResolveParams()
     private val _req = MutableStateFlow(initReq)
     private val danmakuController = VideoDanmakuController(
         scope = viewModelScope,
@@ -294,7 +295,9 @@ class VideoViewModel @Inject constructor(
         val request = _req.value ?: return
         if (request.videoId.cid == cid) return
         val next = request.copy(
-            videoId = request.videoId.copy(cid = cid),
+            playable = request.playable.copy(
+                videoId = request.videoId.copy(cid = cid)
+            ),
             seekToMs = null
         )
         _req.value = next
@@ -308,7 +311,12 @@ class VideoViewModel @Inject constructor(
         aid: Long,
         cid: Long
     ): VideoJump {
-        return VideoJump(aid = aid, cid = cid, src = src)
+        val bvid = if (aid == this.aid) {
+            _detail.value?.bvid ?: _req.value?.videoId?.bvid
+        } else {
+            null
+        }
+        return VideoJump(aid = aid, cid = cid, bvid = bvid, src = src)
     }
 
     fun close() {
@@ -324,6 +332,14 @@ class VideoViewModel @Inject constructor(
     private companion object {
         val nextOwnerId = AtomicLong(1L)
     }
+}
+
+private fun SavedStateHandle.optLong(key: String): Long? {
+    return get<Long>(key)?.takeIf { it > 0L }
+}
+
+private fun SavedStateHandle.optInt(key: String): Int? {
+    return get<Int>(key)?.takeIf { it >= 0 }
 }
 
 private fun AppSettings.playerMenuStateFlow(): Flow<VideoPlayerMenuState> {

@@ -2,6 +2,7 @@ package com.naaammme.bbspace.core.data.repository
 
 import com.bapis.bilibili.app.playerunite.v1.PlayViewUniteReply
 import com.bapis.bilibili.app.playerunite.v1.PlayViewUniteReq
+import com.bapis.bilibili.playershared.BizType
 import com.bapis.bilibili.playershared.CodeType
 import com.bapis.bilibili.playershared.DashItem
 import com.bapis.bilibili.playershared.DolbyItem
@@ -14,6 +15,7 @@ import com.bapis.bilibili.playershared.VideoVod
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
+import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlaybackControlMode
 import com.naaammme.bbspace.core.model.PlaybackRequest
@@ -49,6 +51,8 @@ class VideoPlayerRepoImpl @Inject constructor(
     }
 
     private suspend fun buildRequest(request: PlaybackRequest): PlayViewUniteReq {
+        val playable = request.playable
+        val videoId = playable.videoId
         val enableHdrAnd8k = appSettings.enableHdrAnd8k.first()
         val needTrial = appSettings.needTrial.first()
         val preferredCodec = appSettings.preferredCodec.first()
@@ -61,8 +65,8 @@ class VideoPlayerRepoImpl @Inject constructor(
         }
 
         val vod = VideoVod.newBuilder()
-            .setAid(request.videoId.aid)
-            .setCid(request.videoId.cid)
+            .setAid(videoId.aid)
+            .setCid(videoId.cid)
             .setQn(80)
             .setFnval(fnval)
             .setFnver(0)
@@ -70,12 +74,6 @@ class VideoPlayerRepoImpl @Inject constructor(
             .setPreferCodecType(codecType)
             .setIsNeedTrial(needTrial)
             .build()
-
-        val extra = buildMap {
-            if (!request.trackId.isNullOrBlank()) put("track_id", request.trackId)
-            if (!request.reportFlowData.isNullOrBlank()) put("report_flow_data", request.reportFlowData)
-            putAll(request.extraContent)
-        }
 
         val playCtrl = when (request.controlMode) {
             PlaybackControlMode.Simple -> PlayCtrl.PLAY_CTRL_SIMPLE
@@ -85,12 +83,16 @@ class VideoPlayerRepoImpl @Inject constructor(
         val builder = PlayViewUniteReq.newBuilder()
             .setVod(vod)
             .setSpmid(VideoJumpTool.SPMID)
-            .setFromSpmid(request.fromSpmid ?: "")
-            .setFromScene(FROM_SCENE)
+            .setFromSpmid(playable.src.fromSpmid)
+            .setFromScene(playable.fromScene)
             .setPlayCtrl(playCtrl)
-            .putAllExtraContent(extra)
+            .putAllExtraContent(playable.getResolveExtraContent())
 
-        request.videoId.bvid
+        playable.adExtra
+            ?.takeIf(String::isNotBlank)
+            ?.let(builder::setAdExtra)
+
+        videoId.bvid
             ?.takeIf(String::isNotBlank)
             ?.let(builder::setBvid)
 
@@ -99,6 +101,19 @@ class VideoPlayerRepoImpl @Inject constructor(
 
     private fun mapReply(request: PlaybackRequest, reply: PlayViewUniteReply): PlaybackSource {
         val vodInfo = reply.vodInfo
+        val resolvedId = if (reply.hasPlayArc()) {
+            request.videoId.copy(
+                aid = reply.playArc.aid.takeIf { it > 0L } ?: request.videoId.aid,
+                cid = reply.playArc.cid.takeIf { it > 0L } ?: request.videoId.cid
+            )
+        } else {
+            request.videoId
+        }
+        val report = request.playable.getReportCommonParams().copy(
+            aid = resolvedId.aid,
+            cid = resolvedId.cid
+        )
+        val biz = if (reply.hasPlayArc()) mapBiz(reply.playArc.videoType) else report.biz
         val audios = buildList {
             addAll(vodInfo.dashAudioList.map(::mapAudio))
             if (vodInfo.hasDolby() && vodInfo.dolby.type != DolbyItem.Type.NONE) {
@@ -120,7 +135,7 @@ class VideoPlayerRepoImpl @Inject constructor(
         }
 
         // 打印完整响应体用于调试
-        Logger.d(TAG) { "Response - Videos: ${streams.size}, Audios: ${audios.size}" }
+        Logger.d(TAG) { "Response biz=$biz videos=${streams.size} audios=${audios.size} supplement=${reply.supplement.typeUrl}" }
         streams.forEach { stream ->
             Logger.d(TAG) { "Stream - Q: ${stream.quality}, Format: ${stream.format}, Desc: ${stream.description}, W: ${stream.width}, H: ${stream.height}" }
         }
@@ -129,7 +144,9 @@ class VideoPlayerRepoImpl @Inject constructor(
         }
 
         return PlaybackSource(
-            videoId = request.videoId,
+            videoId = resolvedId,
+            biz = biz,
+            report = report,
             durationMs = if (reply.hasPlayArc() && reply.playArc.durationMs > 0) {
                 reply.playArc.durationMs
             } else {
@@ -144,7 +161,8 @@ class VideoPlayerRepoImpl @Inject constructor(
                 request.seekToMs
             },
             isPreview = reply.hasPlayArc() && reply.playArc.isPreview,
-            supportProject = vodInfo.supportProject
+            supportProject = vodInfo.supportProject,
+            supplementType = reply.supplement.typeUrl.takeIf { reply.hasSupplement() && it.isNotBlank() }
         )
     }
 
@@ -248,9 +266,16 @@ class VideoPlayerRepoImpl @Inject constructor(
         )
     }
 
+    private fun mapBiz(type: BizType): PlayBiz {
+        return when (type) {
+            BizType.BIZ_TYPE_PGC -> PlayBiz.PGC
+            BizType.BIZ_TYPE_PUGV -> PlayBiz.PUGV
+            else -> PlayBiz.UGC
+        }
+    }
+
     private companion object {
         const val TAG = "PlayViewUnite"
         const val ENDPOINT = "bilibili.app.playerunite.v1.Player/PlayViewUnite"
-        const val FROM_SCENE = "normal"
     }
 }

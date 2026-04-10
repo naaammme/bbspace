@@ -14,6 +14,7 @@ import com.naaammme.bbspace.core.model.InterestChoose
 import com.naaammme.bbspace.core.model.InterestGender
 import com.naaammme.bbspace.core.model.InterestItem
 import com.naaammme.bbspace.core.model.InterestSubItem
+import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.RcmdReason
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.ThreePointReason
@@ -178,21 +179,40 @@ class FeedRepoImpl @Inject constructor(
         val reportFlowData = obj.optString("report_flow_data")
             .takeIf { it.isNotEmpty() }
             ?: VideoJumpTool.arg(uri, "report_flow_data")
-        val jump = player?.let {
-            val aid = it.optLong("aid")
-            val cid = it.optLong("cid")
-            if (aid <= 0L || cid <= 0L) {
-                null
-            } else {
-                VideoJump(
-                    aid = aid,
-                    cid = cid,
-                    src = VideoJumpTool.feed(
-                        trackId = obj.optString("track_id").takeIf { value -> value.isNotEmpty() },
-                        reportFlowData = reportFlowData
-                    )
+        val aid = player?.optLong("aid")?.takeIf { it > 0L }
+            ?: args?.optLong("aid")?.takeIf { it > 0L }
+            ?: VideoJumpTool.aid(uri)
+        val cid = player?.optLong("cid")?.takeIf { it > 0L }
+            ?: VideoJumpTool.cid(uri)
+        val biz = when {
+            obj.optString("card_goto") == "ketang" || obj.optString("goto") == "ketang" ||
+                    uri.contains("/cheese/play/") -> PlayBiz.PUGV
+            obj.optString("card_goto") == "bangumi" || obj.optString("goto") == "bangumi" ||
+                    obj.optString("card_goto") == "ad_ogv" || obj.optString("goto") == "ad_ogv" ||
+                    uri.contains("/bangumi/play/") -> PlayBiz.PGC
+            else -> PlayBiz.UGC
+        }
+        val epId = when (biz) {
+            PlayBiz.PGC -> obj.optString("param").toLongOrNull()
+                ?: VideoJumpTool.epId(uri)
+            PlayBiz.PUGV -> VideoJumpTool.epId(uri)
+            PlayBiz.UGC -> null
+        }
+        val jump = if (aid != null || cid != null || epId != null) {
+            VideoJump(
+                aid = aid ?: 0L,
+                cid = cid ?: 0L,
+                bvid = player?.optString("bvid")?.takeIf { value -> value.isNotEmpty() }
+                    ?: VideoJumpTool.bvid(uri),
+                biz = biz,
+                epId = epId,
+                src = VideoJumpTool.feed(
+                    trackId = obj.optString("track_id").takeIf { value -> value.isNotEmpty() },
+                    reportFlowData = reportFlowData
                 )
-            }
+            )
+        } else {
+            null
         }
 
         return FeedItem(

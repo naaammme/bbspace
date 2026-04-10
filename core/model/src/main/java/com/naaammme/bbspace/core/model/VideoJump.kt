@@ -8,8 +8,34 @@ import java.net.URLDecoder
 data class VideoJump(
     val aid: Long,
     val cid: Long,
+    val bvid: String? = null,
+    val biz: PlayBiz = PlayBiz.UGC,
+    val seasonId: Long? = null,
+    val epId: Long? = null,
+    val type: Int? = null,
+    val playType: Int? = null,
+    val subType: Int? = null,
     val src: VideoSrc = VideoJumpTool.feed()
-)
+) {
+    fun toPlayableParams(): PlayableParams {
+        return PlayableParams(
+            videoId = VideoPlaybackId(
+                aid = aid,
+                cid = cid,
+                bvid = bvid
+            ),
+            src = src,
+            biz = PlayBizInfo(
+                biz = biz,
+                type = type,
+                playType = playType,
+                subType = subType,
+                seasonId = seasonId,
+                epId = epId
+            )
+        )
+    }
+}
 
 @Immutable
 data class VideoSrc(
@@ -94,8 +120,30 @@ object VideoJumpTool {
             ?.toLongOrNull()
     }
 
+    fun bvid(uri: String): String? {
+        val path = runCatching { URI(uri).path }
+            .getOrNull()
+            .orEmpty()
+        val bv = BV_REGEX.find(path)?.value
+            ?: arg(uri, "bvid")
+            ?: arg(uri, "BVID")
+        return bv.blankToNull()
+    }
+
     fun cid(uri: String): Long? {
         return arg(uri, "cid")?.toLongOrNull()
+    }
+
+    fun epId(uri: String): Long? {
+        val path = runCatching { URI(uri).path }
+            .getOrNull()
+            .orEmpty()
+            .trimEnd('/')
+        val last = path.substringAfterLast('/')
+        return when {
+            last.startsWith("ep") -> last.removePrefix("ep").toLongOrNull()
+            else -> arg(uri, "ep_id")?.toLongOrNull()
+        }
     }
 
     fun arg(
@@ -123,4 +171,5 @@ object VideoJumpTool {
     }
 
     private const val UTF_8 = "UTF-8"
+    private val BV_REGEX = Regex("BV[0-9A-Za-z]+")
 }

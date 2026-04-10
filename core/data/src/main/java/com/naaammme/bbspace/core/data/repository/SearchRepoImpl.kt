@@ -100,6 +100,7 @@ class SearchRepoImpl @Inject constructor(
         val jump = VideoJump(
             aid = aid,
             cid = cid,
+            bvid = VideoJumpTool.bvid(item.uri),
             src = VideoJumpTool.search(
                 uri = item.uri,
                 fallbackTrackId = pageTrackId

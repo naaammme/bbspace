@@ -250,6 +250,7 @@ class VideoDetailRepoImpl @Inject constructor(
                 jump = VideoJump(
                     aid = aid,
                     cid = cid,
+                    bvid = VideoJumpTool.bvid(basic.uri),
                     src = VideoJumpTool.relate(
                         trackId = basic.trackId,
                         reportFlowData = basic.reportFlowData,
