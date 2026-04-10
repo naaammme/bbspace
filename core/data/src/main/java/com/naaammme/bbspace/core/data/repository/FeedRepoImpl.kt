@@ -171,34 +171,45 @@ class FeedRepoImpl @Inject constructor(
     }
 
     private fun parseFeedItem(obj: JSONObject): FeedItem {
-        val args = obj.optJSONObject("args")
-        val descBtn = obj.optJSONObject("desc_button")
-        val rcmd = obj.optJSONObject("rcmd_reason_style")
-        val player = obj.optJSONObject("player_args")
-        val uri = obj.optString("uri")
-        val reportFlowData = obj.optString("report_flow_data")
+        val item = obj.optJSONObject("item")
+        val inline = item?.optJSONObject("inline_pgc")
+        val card = inline ?: obj
+        val args = card.optJSONObject("args") ?: obj.optJSONObject("args")
+        val descBtn = card.optJSONObject("desc_button") ?: obj.optJSONObject("desc_button")
+        val rcmd = card.optJSONObject("rcmd_reason_style") ?: obj.optJSONObject("rcmd_reason_style")
+        val player = card.optJSONObject("player_args") ?: obj.optJSONObject("player_args")
+        val uri = card.optString("uri").ifBlank { obj.optString("uri") }
+        val reportFlowData = card.optString("report_flow_data")
+            .takeIf { it.isNotEmpty() }
+            ?: obj.optString("report_flow_data")
             .takeIf { it.isNotEmpty() }
             ?: VideoJumpTool.arg(uri, "report_flow_data")
-        val aid = player?.optLong("aid")?.takeIf { it > 0L }
-            ?: args?.optLong("aid")?.takeIf { it > 0L }
-            ?: VideoJumpTool.aid(uri)
-        val cid = player?.optLong("cid")?.takeIf { it > 0L }
-            ?: VideoJumpTool.cid(uri)
+        val cardGoto = card.optString("card_goto").ifBlank { obj.optString("card_goto") }
+        val goto = card.optString("goto").ifBlank { obj.optString("goto") }
+        val param = card.optString("param").ifBlank { obj.optString("param") }
         val biz = when {
-            obj.optString("card_goto") == "ketang" || obj.optString("goto") == "ketang" ||
+            cardGoto == "ketang" || goto == "ketang" ||
                     uri.contains("/cheese/play/") -> PlayBiz.PUGV
-            obj.optString("card_goto") == "bangumi" || obj.optString("goto") == "bangumi" ||
-                    obj.optString("card_goto") == "ad_ogv" || obj.optString("goto") == "ad_ogv" ||
+            cardGoto == "bangumi" || goto == "bangumi" ||
+                    cardGoto == "ad_ogv" || goto == "ad_ogv" ||
                     uri.contains("/bangumi/play/") -> PlayBiz.PGC
             else -> PlayBiz.UGC
         }
+        val aid = if (biz == PlayBiz.UGC) {
+            param.toLongOrNull() ?: VideoJumpTool.aid(uri)
+        } else {
+            VideoJumpTool.aid(uri)
+        }
+        val cid = VideoJumpTool.cid(uri)
         val epId = when (biz) {
-            PlayBiz.PGC -> obj.optString("param").toLongOrNull()
+            PlayBiz.PGC -> param.toLongOrNull()
                 ?: VideoJumpTool.epId(uri)
             PlayBiz.PUGV -> VideoJumpTool.epId(uri)
             PlayBiz.UGC -> null
         }
-        val jump = if (aid != null || cid != null || epId != null) {
+        val jump = if (isLiveCard(cardGoto, goto, uri, player)) {
+            null
+        } else if (aid != null || cid != null || epId != null) {
             VideoJump(
                 aid = aid ?: 0L,
                 cid = cid ?: 0L,
@@ -207,7 +218,9 @@ class FeedRepoImpl @Inject constructor(
                 biz = biz,
                 epId = epId,
                 src = VideoJumpTool.feed(
-                    trackId = obj.optString("track_id").takeIf { value -> value.isNotEmpty() },
+                    trackId = card.optString("track_id")
+                        .takeIf { value -> value.isNotEmpty() }
+                        ?: obj.optString("track_id").takeIf { value -> value.isNotEmpty() },
                     reportFlowData = reportFlowData
                 )
             )
@@ -216,16 +229,27 @@ class FeedRepoImpl @Inject constructor(
         }
 
         return FeedItem(
-            cardType = obj.optString("card_type"),
-            cardGoto = obj.optString("card_goto"),
-            goto = obj.optString("goto"),
-            param = obj.optString("param"),
+            cardType = card.optString("card_type").ifBlank { obj.optString("card_type") },
+            cardGoto = cardGoto,
+            goto = goto,
+            param = param,
             uri = uri,
-            title = obj.optString("title"),
-            cover = obj.optString("cover").replace("http://", "https://"),
-            coverLeftText1 = obj.optString("cover_left_text_1").takeIf { it.isNotEmpty() },
-            coverLeftText2 = obj.optString("cover_left_text_2").takeIf { it.isNotEmpty() },
-            coverRightText = obj.optString("cover_right_text").takeIf { it.isNotEmpty() },
+            title = card.optString("title")
+                .ifBlank { item?.optString("subtitle").orEmpty() }
+                .ifBlank { obj.optString("title") },
+            cover = card.optString("cover")
+                .ifBlank { item?.optString("large_cover").orEmpty() }
+                .ifBlank { obj.optString("cover") }
+                .replace("http://", "https://"),
+            coverLeftText1 = card.optString("cover_left_text_1")
+                .takeIf { it.isNotEmpty() }
+                ?: obj.optString("cover_left_text_1").takeIf { it.isNotEmpty() },
+            coverLeftText2 = card.optString("cover_left_text_2")
+                .takeIf { it.isNotEmpty() }
+                ?: obj.optString("cover_left_text_2").takeIf { it.isNotEmpty() },
+            coverRightText = card.optString("cover_right_text")
+                .takeIf { it.isNotEmpty() }
+                ?: obj.optString("cover_right_text").takeIf { it.isNotEmpty() },
             idx = obj.optLong("idx"),
             jump = jump,
             descButton = descBtn?.let {
@@ -308,5 +332,19 @@ class FeedRepoImpl @Inject constructor(
             ageTitle = obj.optString("age_title"),
             items = items
         )
+    }
+
+    private fun isLiveCard(
+        cardGoto: String,
+        goto: String,
+        uri: String,
+        player: JSONObject?
+    ): Boolean {
+        return cardGoto == "live" ||
+                goto == "live" ||
+                player?.optInt("is_live") == 1 ||
+                player?.optString("type") == "live" ||
+                player?.optLong("room_id")?.takeIf { it > 0L } != null ||
+                uri.contains("live.bilibili.com")
     }
 }

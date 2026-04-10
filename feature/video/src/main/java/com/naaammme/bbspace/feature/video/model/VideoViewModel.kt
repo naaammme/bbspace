@@ -58,6 +58,14 @@ class VideoViewModel @Inject constructor(
     private val _detail = MutableStateFlow<VideoDetail?>(null)
     private val _detailLoading = MutableStateFlow(aid > 0L)
     private val _detailError = MutableStateFlow<String?>(null)
+    /*
+    TODO:
+    这里先允许只有 epid 就直接发起首播
+    目前这样大部分类型能走通取流
+    如果只传 epid 不再稳定返回
+    要改回先走 View 详情接口
+    再从详情页 arc 补全aid cid
+     */
     private val initReq = jump.takeIf { it.aid > 0L || it.cid > 0L || it.epId != null }
         ?.toPlayableParams()
         ?.getResolveParams()

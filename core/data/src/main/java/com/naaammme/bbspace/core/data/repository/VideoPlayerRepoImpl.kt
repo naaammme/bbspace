@@ -101,6 +101,14 @@ class VideoPlayerRepoImpl @Inject constructor(
 
     private fun mapReply(request: PlaybackRequest, reply: PlayViewUniteReply): PlaybackSource {
         val vodInfo = reply.vodInfo
+        /*
+        TODO:
+        这里先信任 playunite 响应里的 playArc aid cid
+        这样只传 epid 时也能把后续请求要用的 id 补齐
+        如果后面只传 epid 不再稳定返回
+        或 playArc 不再带 aid cid
+        要改回先走 View 详情接口的 arc
+         */
         val resolvedId = if (reply.hasPlayArc()) {
             request.videoId.copy(
                 aid = reply.playArc.aid.takeIf { it > 0L } ?: request.videoId.aid,
