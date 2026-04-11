@@ -64,4 +64,5 @@ include(":feature:search")
 include(":feature:user")
 include(":feature:auth")
 include(":feature:settings")
+include(":feature:bbspace")
 

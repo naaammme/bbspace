@@ -31,6 +31,8 @@ import com.naaammme.bbspace.feature.auth.navigation.SMS_LOGIN_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.accountScreen
 import com.naaammme.bbspace.feature.auth.navigation.loginScreen
 import com.naaammme.bbspace.feature.auth.navigation.smsLoginScreen
+import com.naaammme.bbspace.feature.bbspace.navigation.bbSpaceScreen
+import com.naaammme.bbspace.feature.bbspace.navigation.navigateToBbSpace
 import com.naaammme.bbspace.feature.home.ui.HomeScreen
 import com.naaammme.bbspace.feature.search.navigation.navigateToSearch
 import com.naaammme.bbspace.feature.search.navigation.searchScreen
@@ -64,8 +66,8 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             MainTabsScaffold(
                 onNavigateToSearch = { rootNavController.navigateToSearch() },
                 onNavigateToSettings = { rootNavController.navigate(SETTINGS_ROUTE) },
-                onNavigateToLogin = { rootNavController.navigate(SMS_LOGIN_ROUTE) },
                 onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
+                onNavigateToBbSpace = { rootNavController.navigateToBbSpace() },
                 onNavigateToVideo = rootNavController::navigateToVideo
             )
         }
@@ -96,6 +98,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             onSwitched = { rootNavController.popBackStack() }
         )
 
+        bbSpaceScreen(rootNavController)
         settingsScreen(rootNavController)
         searchScreen(
             onBack = { rootNavController.popBackStack() },
@@ -112,8 +115,8 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
 private fun MainTabsScaffold(
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToLogin: () -> Unit,
     onNavigateToAccount: () -> Unit,
+    onNavigateToBbSpace: () -> Unit,
     onNavigateToVideo: (VideoRoute) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
@@ -147,8 +150,8 @@ private fun MainTabsScaffold(
                             TopLevelRoute.DYNAMIC -> PlaceholderScreen("动态")
                             TopLevelRoute.MESSAGE -> PlaceholderScreen("消息")
                             TopLevelRoute.PROFILE -> UserScreen(
-                                onNavigateToLogin = onNavigateToLogin,
-                                onNavigateToAccount = onNavigateToAccount
+                                onNavigateToAccount = onNavigateToAccount,
+                                onNavigateToBbSpace = onNavigateToBbSpace
                             )
                         }
                     }

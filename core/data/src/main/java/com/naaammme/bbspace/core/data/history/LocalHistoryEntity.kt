@@ -7,14 +7,12 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "local_history",
     indices = [
-        Index(value = ["uid", "kind", "updatedAt"])
+        Index(value = ["uid", "updatedAt"])
     ]
 )
 data class LocalHistoryEntity(
     @PrimaryKey val id: String,
     val uid: Long,
-    val kind: String,
-    val hKey: String,
     val biz: String,
     val aid: Long,
     val cid: Long,
@@ -30,7 +28,6 @@ data class LocalHistoryEntity(
     val durationMs: Long,
     val progressMs: Long,
     val watchMs: Long,
-    val watchAt: Long,
     val updatedAt: Long,
     val finished: Boolean
 )

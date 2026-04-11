@@ -244,7 +244,6 @@ class PlaybackReporter @Inject constructor(
                 durationMs = active.source.durationMs.coerceAtLeast(0L),
                 progressMs = snapshot.positionMs.coerceAtLeast(0L),
                 watchMs = active.actualPlayedTimeMs.coerceAtLeast(0L),
-                watchAt = active.historyStartTs * 1000L,
                 updatedAt = nowMs,
                 finished = isComplete(active, snapshot, allowEndedOnly = false)
             )

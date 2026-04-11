@@ -16,12 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -53,8 +51,8 @@ import com.naaammme.bbspace.feature.user.model.UserViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserScreen(
-    onNavigateToLogin: () -> Unit,
     onNavigateToAccount: () -> Unit,
+    onNavigateToBbSpace: () -> Unit,
     vm: UserViewModel = hiltViewModel()
 ) {
     val user by vm.user.collectAsStateWithLifecycle()
@@ -65,10 +63,10 @@ fun UserScreen(
             TopAppBar(
                 title = { Text("我的") },
                 actions = {
-                    IconButton(onClick = onNavigateToLogin) {
+                    IconButton(onClick = onNavigateToAccount) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = "登录"
+                            Icons.Default.Person,
+                            contentDescription = "账号管理"
                         )
                     }
                 }
@@ -96,7 +94,7 @@ fun UserScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onNavigateToAccount,
+                onClick = onNavigateToBbSpace,
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Row(
@@ -107,12 +105,12 @@ fun UserScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Icon(
-                        Icons.Default.Settings,
+                        Icons.Default.DateRange,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "账号管理",
+                        text = "BB空间",
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }

@@ -22,10 +22,12 @@ data class VideoHistory(
     val durationMs: Long = 0L,
     val progressMs: Long = 0L,
     val watchMs: Long = 0L,
-    val watchAt: Long = 0L,
     val updatedAt: Long = 0L,
     val finished: Boolean = false
-)
+) {
+    val id: String
+        get() = LocalHistoryKey.videoId(uid, key)
+}
 
 @Immutable
 data class VideoHistoryMeta(
@@ -38,21 +40,33 @@ data class VideoHistoryMeta(
 )
 
 object LocalHistoryKey {
-    const val KIND_VIDEO = "video"
-
     fun video(report: PlayReportParams): String {
-        val biz = report.biz.name.lowercase(Locale.ROOT)
+        return video(
+            biz = report.biz.name,
+            aid = report.aid,
+            cid = report.cid,
+            epId = report.epId
+        )
+    }
+
+    fun video(
+        biz: String,
+        aid: Long,
+        cid: Long,
+        epId: Long?
+    ): String {
+        val bizName = biz.lowercase(Locale.ROOT)
         val mainId = when {
-            report.biz == PlayBiz.PGC && (report.epId ?: 0L) > 0L -> report.epId ?: 0L
-            else -> report.aid
+            PlayBiz.PGC.name.equals(biz, ignoreCase = true) && (epId ?: 0L) > 0L -> epId ?: 0L
+            else -> aid
         }
-        return "$biz:$mainId:${report.cid}"
+        return "$bizName:$mainId:$cid"
     }
 
     fun videoId(
         uid: Long,
         key: String
     ): String {
-        return "$uid:$KIND_VIDEO:$key"
+        return "$uid:$key"
     }
 }
