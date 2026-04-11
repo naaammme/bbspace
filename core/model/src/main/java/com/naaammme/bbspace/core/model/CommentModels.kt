@@ -30,7 +30,7 @@ object CommentSubjectTool {
             oid = aid,
             type = TYPE_VIDEO,
             source = CommentSource(
-                spmid = VideoJumpTool.SPMID,
+                spmid = VideoRouteTool.SPMID,
                 fromSpmid = src.fromSpmid,
                 trackId = src.trackId
             )

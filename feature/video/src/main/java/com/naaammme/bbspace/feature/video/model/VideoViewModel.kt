@@ -5,17 +5,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.player.PlayerSessionManager
+import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
+import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
-import com.naaammme.bbspace.core.model.VideoJump
-import com.naaammme.bbspace.core.model.VideoJumpTool
+import com.naaammme.bbspace.core.model.VideoRoute
+import com.naaammme.bbspace.core.model.VideoRouteTool
+import com.naaammme.bbspace.core.model.toPlayableParams
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,47 +39,32 @@ class VideoViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val ownerId = nextOwnerId.getAndIncrement()
-    private val aid = savedStateHandle.get<Long>("aid") ?: 0L
-    private val src = VideoJumpTool.custom(
+    private val src = VideoRouteTool.custom(
         from = savedStateHandle.get<String>("from"),
         fromSpmid = savedStateHandle.get<String>("fromSpmid"),
         trackId = savedStateHandle.get<String>("trackId"),
         reportFlowData = savedStateHandle.get<String>("report")
     )
-    private val jump = VideoJump(
-        aid = aid,
-        cid = savedStateHandle.get<Long>("cid") ?: 0L,
-        bvid = savedStateHandle.get<String>("bvid")?.takeIf(String::isNotBlank),
-        biz = PlayBiz.from(savedStateHandle.get<String>("biz")),
-        seasonId = savedStateHandle.optLong("seasonId"),
-        epId = savedStateHandle.optLong("epId"),
-        type = savedStateHandle.optInt("type"),
-        playType = savedStateHandle.optInt("playType"),
-        subType = savedStateHandle.optInt("subType"),
-        src = src
-    )
-    val commentSubject
+    private val route = savedStateHandle.toVideoRoute(src)
+    private val ugcRoute = route as? VideoRoute.Ugc
+    val commentSubject: CommentSubject?
         get() {
             val targetAid = sessionManager.state.value.playbackSource?.videoId?.aid?.takeIf { it > 0L }
-                ?: aid.takeIf { it > 0L }
+                ?: ugcRoute?.aid
                 ?: return null
             return CommentSubjectTool.video(targetAid, src)
         }
     private val _detail = MutableStateFlow<VideoDetail?>(null)
     private val _detailLoading = MutableStateFlow(
-        aid > 0L || jump.cid > 0L || jump.epId != null || !jump.bvid.isNullOrBlank()
+        route is VideoRoute.Ugc || route is VideoRoute.Pgc || route is VideoRoute.Pugv
     )
-    private val _detailError = MutableStateFlow<String?>(null)
-    /*
-    TODO:
-    这里先允许只有 epid 就直接发起首播
-    目前这样大部分类型能走通取流
-    如果只传 epid 不再稳定返回
-    再回头看入口参数怎么补齐
-     */
-    private val initReq = jump.takeIf {
-        it.aid > 0L || it.cid > 0L || it.epId != null || !it.bvid.isNullOrBlank()
-    }
+    private val _detailError = MutableStateFlow(
+        when (route) {
+            null -> "视频路由无效"
+            else -> null
+        }
+    )
+    private val initReq = route
         ?.toPlayableParams()
         ?.getResolveParams()
     private val _req = MutableStateFlow(initReq)
@@ -83,6 +72,8 @@ class VideoViewModel @Inject constructor(
         scope = viewModelScope,
         repository = danmakuRepository
     )
+    private var metaJob: Job? = null
+    private var pgcDetailJob: Job? = null
 
     fun getPlayerForView() = sessionManager.playerEngine.getPlayerForView()
 
@@ -138,59 +129,83 @@ class VideoViewModel @Inject constructor(
     internal val danmakuState = danmakuController.state
 
     init {
-        sessionManager.bindReporter(ownerId, viewModelScope)
+        when (val route = route) {
+            is VideoRoute.Ugc -> {
+                viewModelScope.launch {
+                    val result = runCatching {
+                        detailRepo.fetchVideoDetail(
+                            aid = route.aid,
+                            bvid = route.bvid,
+                            src = route.src
+                        )
+                    }
+                    _detail.value = result.getOrNull()
+                    _detailError.value = result.exceptionOrNull()?.message
+                        ?: if (result.isFailure) "加载视频详情失败" else null
+                    _detailLoading.value = false
+                }
+            }
 
+            is VideoRoute.Pgc, is VideoRoute.Pugv -> {
+                Unit
+            }
+
+            else -> {
+                _detailLoading.value = false
+            }
+        }
+    }
+
+    fun attach() {
+        sessionManager.bindReporter(ownerId, viewModelScope)
         danmakuController.bind(
             playbackSourceFlow = sessionManager.state.map { it.playbackSource },
             snapshotFlow = sessionManager.playerEngine.snapshot,
             enabledFlow = appSettings.danmakuEnabled
         )
-
-        viewModelScope.launch {
-            combine(_detail, _req, sessionManager.state) { detail, req, session ->
-                detail.toHistoryMeta(session.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
-            }.collect { meta ->
-                sessionManager.updateVideoMeta(ownerId, meta)
+        if (metaJob?.isActive != true) {
+            metaJob = viewModelScope.launch {
+                combine(_detail, _req, sessionManager.state) { detail, req, session ->
+                    detail.toHistoryMeta(session.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
+                }.collect { meta ->
+                    sessionManager.updateVideoMeta(ownerId, meta)
+                }
             }
         }
-
-        if (initReq != null) {
-            viewModelScope.launch {
-                var loadedJump: VideoJump? = null
+        if ((route is VideoRoute.Pgc || route is VideoRoute.Pugv) && pgcDetailJob?.isActive != true) {
+            pgcDetailJob = viewModelScope.launch {
+                var loadedAid = _detail.value?.aid?.takeIf { it > 0L } ?: 0L
+                var loadedBvid = _detail.value?.bvid.orEmpty()
                 sessionManager.state.collect { session ->
-                    val detailJump = when {
-                        jump.aid > 0L || !jump.bvid.isNullOrBlank() -> jump
-                        else -> session.playbackSource?.videoId?.let { videoId ->
-                            if (videoId.aid <= 0L && videoId.bvid.isNullOrBlank()) {
-                                null
-                            } else {
-                                jump.copy(
-                                    aid = videoId.aid.takeIf { it > 0L } ?: jump.aid,
-                                    bvid = videoId.bvid ?: jump.bvid
-                                )
-                            }
-                        }
-                    }
-                    if (detailJump != null) {
-                        if (detailJump == loadedJump) return@collect
-                        loadedJump = detailJump
+                    val videoId = session.playbackSource?.videoId
+                    val aid = videoId?.aid?.takeIf { it > 0L }
+                    if (aid != null) {
+                        val bvid = videoId.bvid.orEmpty()
+                        if (aid == loadedAid && bvid == loadedBvid) return@collect
+                        loadedAid = aid
+                        loadedBvid = bvid
                         _detailError.value = null
                         _detailLoading.value = true
-                        val result = runCatching { detailRepo.fetchVideoDetail(detailJump) }
+                        val result = runCatching {
+                            detailRepo.fetchVideoDetail(
+                                aid = aid,
+                                bvid = videoId.bvid,
+                                src = route.src
+                            )
+                        }
                         _detail.value = result.getOrNull()
                         _detailError.value = result.exceptionOrNull()?.message
                             ?: if (result.isFailure) "加载视频详情失败" else null
                         _detailLoading.value = false
                         return@collect
                     }
-                    if (session.error != null && _detail.value == null) {
-                        _detailError.value = session.error.message
+                    val error = session.error
+                    if (error != null && _detail.value == null) {
+                        _detailError.value = error.toUiMsg()
                         _detailLoading.value = false
                     }
                 }
             }
-        } else {
-            _detailLoading.value = false
         }
     }
 
@@ -361,26 +376,16 @@ class VideoViewModel @Inject constructor(
         }
     }
 
-    fun buildJump(
-        aid: Long,
-        cid: Long
-    ): VideoJump {
-        val bvid = if (aid == this.aid) {
-            _detail.value?.bvid ?: _req.value?.videoId?.bvid
-        } else {
-            null
-        }
-        return VideoJump(aid = aid, cid = cid, bvid = bvid, src = src)
-    }
-
     fun close() {
-        viewModelScope.launch {
-            sessionManager.closeCurrentSession(ownerId)
-        }
+        pgcDetailJob?.cancel()
+        pgcDetailJob = null
+        metaJob?.cancel()
+        metaJob = null
+        danmakuController.clear()
+        sessionManager.closeCurrentSession(ownerId, viewModelScope)
     }
 
     override fun onCleared() {
-        danmakuController.clear()
         close()
         super.onCleared()
     }
@@ -396,6 +401,49 @@ private fun SavedStateHandle.optLong(key: String): Long? {
 
 private fun SavedStateHandle.optInt(key: String): Int? {
     return get<Int>(key)?.takeIf { it >= 0 }
+}
+
+private fun SavedStateHandle.toVideoRoute(src: com.naaammme.bbspace.core.model.VideoSrc): VideoRoute? {
+    return when (PlayBiz.from(get<String>("biz"))) {
+        PlayBiz.UGC -> {
+            val aid = get<Long>("aid")?.takeIf { it > 0L } ?: return null
+            val cid = get<Long>("cid") ?: 0L
+            VideoRoute.Ugc(
+                aid = aid,
+                cid = cid,
+                bvid = get<String>("bvid")?.takeIf(String::isNotBlank),
+                src = src
+            )
+        }
+
+        PlayBiz.PGC -> {
+            optLong("epId")?.let {
+                VideoRoute.Pgc(
+                    epId = it,
+                    seasonId = optLong("seasonId"),
+                    subType = optInt("subType"),
+                    src = src
+                )
+            }
+        }
+
+        PlayBiz.PUGV -> {
+            optLong("epId")?.let {
+                VideoRoute.Pugv(
+                    epId = it,
+                    seasonId = optLong("seasonId"),
+                    src = src
+                )
+            }
+        }
+    }
+}
+
+private fun PlaybackError.toUiMsg(): String {
+    return when (this) {
+        is PlaybackError.RequestFailed -> message
+        is PlaybackError.NoPlayableStream -> message
+    }
 }
 
 private fun VideoDetail?.toHistoryMeta(cid: Long?): VideoHistoryMeta? {

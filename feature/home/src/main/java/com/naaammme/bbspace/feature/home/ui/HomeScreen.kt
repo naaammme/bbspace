@@ -57,14 +57,14 @@ import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.FeedItem
 import com.naaammme.bbspace.core.model.ThreePointItem
-import com.naaammme.bbspace.core.model.VideoJump
+import com.naaammme.bbspace.core.model.VideoRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    onOpenVideo: (VideoJump) -> Unit = {},
+    onOpenVideo: (VideoRoute) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
@@ -142,7 +142,7 @@ fun HomeScreen(
                         FeedCard(
                             item = items[index],
                             onClick = {
-                                items[index].jump?.let(onOpenVideo)
+                                items[index].route?.let(onOpenVideo)
                             }
                         )
                     }
@@ -207,7 +207,7 @@ private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
     }
     Card(
         onClick = onClick,
-        enabled = item.jump != null,
+        enabled = item.route != null,
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {

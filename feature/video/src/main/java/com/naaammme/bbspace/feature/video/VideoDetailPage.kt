@@ -60,10 +60,10 @@ import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.VideoDetail
-import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.core.model.VideoOwner
 import com.naaammme.bbspace.core.model.VideoPagePart
 import com.naaammme.bbspace.core.model.VideoRelate
+import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoSeason
 import com.naaammme.bbspace.core.model.VideoSeasonEpisode
 import com.naaammme.bbspace.core.model.VideoStat
@@ -78,8 +78,8 @@ internal fun VideoDetailPage(
     isExpanded: Boolean,
     playerSpaceWidth: Dp,
     playerSpaceHeight: Dp,
-    onOpenVideo: (VideoJump) -> Unit,
-    onOpenEpisode: (Long, Long) -> Unit,
+    onOpenVideo: (VideoRoute) -> Unit,
+    onOpenEpisode: (VideoRoute.Ugc) -> Unit,
     onSwitchPage: (Long) -> Unit
 ) {
     val detail = pageState.detail
@@ -145,9 +145,9 @@ internal fun VideoDetailPage(
             season = detail.season!!,
             curCid = pageState.curCid,
             onDismiss = { sheetTp = null },
-            onOpenEpisode = { aid, cid ->
+            onOpenEpisode = { route ->
                 sheetTp = null
-                onOpenEpisode(aid, cid)
+                onOpenEpisode(route)
             }
         )
     }
@@ -178,7 +178,7 @@ private fun DetailPager(
     onToggleTag: () -> Unit,
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
-    onOpenVideo: (VideoJump) -> Unit
+    onOpenVideo: (VideoRoute) -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
     val itemMod = if (horizontalPad > 0.dp) {
@@ -228,7 +228,7 @@ private fun VideoInfoList(
     onToggleTag: () -> Unit,
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
-    onOpenVideo: (VideoJump) -> Unit
+    onOpenVideo: (VideoRoute) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -258,7 +258,7 @@ private fun LazyListScope.detailItems(
     onToggleTag: () -> Unit,
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
-    onOpenVideo: (VideoJump) -> Unit
+    onOpenVideo: (VideoRoute) -> Unit
 ) {
     when {
         pageState.detailLoading -> {
@@ -333,7 +333,7 @@ private fun LazyListScope.detailItems(
             if (detail.relates.isNotEmpty()) {
                 items(
                     items = detail.relates,
-                    key = { "${it.jump.aid}_${it.jump.cid}" },
+                    key = { "${it.route.aid}_${it.route.cid}" },
                     contentType = { "relate" }
                 ) { relate ->
                     RelateRow(
@@ -714,7 +714,7 @@ private fun SeasonSheet(
     season: VideoSeason,
     curCid: Long?,
     onDismiss: () -> Unit,
-    onOpenEpisode: (Long, Long) -> Unit
+    onOpenEpisode: (VideoRoute.Ugc) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -767,15 +767,15 @@ private fun SeasonSheet(
 
                 items(
                     items = sec.eps,
-                    key = { "ep_${it.aid}_${it.cid}" },
+                    key = { "ep_${it.route.aid}_${it.route.cid}" },
                     contentType = { "episode" }
                 ) { ep ->
                     SeasonEpisodeRow(
                         ep = ep,
-                        selected = ep.cid == curCid,
+                        selected = ep.route.cid == curCid,
                         onClick = {
-                            if (ep.cid != curCid) {
-                                onOpenEpisode(ep.aid, ep.cid)
+                            if (ep.route.cid != curCid) {
+                                onOpenEpisode(ep.route)
                             }
                         }
                     )
@@ -954,7 +954,7 @@ private fun PageSheetRow(
 @Composable
 private fun RelateRow(
     relate: VideoRelate,
-    onOpenVideo: (VideoJump) -> Unit,
+    onOpenVideo: (VideoRoute) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -972,7 +972,7 @@ private fun RelateRow(
     ).joinToString(" · ")
 
     Card(
-        onClick = { onOpenVideo(relate.jump) },
+        onClick = { onOpenVideo(relate.route) },
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
@@ -1139,7 +1139,7 @@ private fun seasonEntryText(
     val curEp = season.sections
         .asSequence()
         .flatMap { it.eps.asSequence() }
-        .firstOrNull { it.cid == curCid }
+        .firstOrNull { it.route.cid == curCid }
     return Triple(
         curEp?.title ?: season.title,
         curEp?.subTitle.orEmpty().ifBlank { season.subTitle.orEmpty() },

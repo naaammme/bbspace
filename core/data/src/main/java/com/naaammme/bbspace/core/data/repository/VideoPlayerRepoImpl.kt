@@ -24,7 +24,7 @@ import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.ProgressiveSegment
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.StreamLimitInfo
-import com.naaammme.bbspace.core.model.VideoJumpTool
+import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -82,7 +82,7 @@ class VideoPlayerRepoImpl @Inject constructor(
 
         val builder = PlayViewUniteReq.newBuilder()
             .setVod(vod)
-            .setSpmid(VideoJumpTool.SPMID)
+            .setSpmid(VideoRouteTool.SPMID)
             .setFromSpmid(playable.src.fromSpmid)
             .setFromScene(playable.fromScene)
             .setPlayCtrl(playCtrl)

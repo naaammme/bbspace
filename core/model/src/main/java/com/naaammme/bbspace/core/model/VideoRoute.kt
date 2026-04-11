@@ -4,32 +4,66 @@ import androidx.compose.runtime.Immutable
 import java.net.URI
 import java.net.URLDecoder
 
-@Immutable
-data class VideoJump(
-    val aid: Long,
-    val cid: Long,
-    val bvid: String? = null,
-    val biz: PlayBiz = PlayBiz.UGC,
-    val seasonId: Long? = null,
-    val epId: Long? = null,
-    val type: Int? = null,
-    val playType: Int? = null,
-    val subType: Int? = null,
-    val src: VideoSrc = VideoJumpTool.feed()
-) {
-    fun toPlayableParams(): PlayableParams {
-        return PlayableParams(
+sealed interface VideoRoute {
+    val src: VideoSrc
+
+    @Immutable
+    data class Ugc(
+        val aid: Long,
+        val cid: Long,
+        val bvid: String? = null,
+        override val src: VideoSrc = VideoRouteTool.feed()
+    ) : VideoRoute
+
+    @Immutable
+    data class Pgc(
+        val epId: Long,
+        val seasonId: Long? = null,
+        val subType: Int? = null,
+        override val src: VideoSrc = VideoRouteTool.feed()
+    ) : VideoRoute
+
+    @Immutable
+    data class Pugv(
+        val epId: Long,
+        val seasonId: Long? = null,
+        override val src: VideoSrc = VideoRouteTool.feed()
+    ) : VideoRoute
+}
+
+fun VideoRoute.toPlayableParams(): PlayableParams? {
+    return when (this) {
+        is VideoRoute.Ugc -> PlayableParams(
             videoId = VideoPlaybackId(
                 aid = aid,
                 cid = cid,
                 bvid = bvid
             ),
+            src = src
+        )
+
+        is VideoRoute.Pgc -> PlayableParams(
+            videoId = VideoPlaybackId(
+                aid = 0L,
+                cid = 0L
+            ),
             src = src,
             biz = PlayBizInfo(
-                biz = biz,
-                type = type,
-                playType = playType,
+                biz = PlayBiz.PGC,
                 subType = subType,
+                seasonId = seasonId,
+                epId = epId
+            )
+        )
+
+        is VideoRoute.Pugv -> PlayableParams(
+            videoId = VideoPlaybackId(
+                aid = 0L,
+                cid = 0L
+            ),
+            src = src,
+            biz = PlayBizInfo(
+                biz = PlayBiz.PUGV,
                 seasonId = seasonId,
                 epId = epId
             )
@@ -39,13 +73,13 @@ data class VideoJump(
 
 @Immutable
 data class VideoSrc(
-    val from: String = VideoJumpTool.FROM_FEED,
-    val fromSpmid: String = VideoJumpTool.FROM_SPMID_FEED,
+    val from: String = VideoRouteTool.FROM_FEED,
+    val fromSpmid: String = VideoRouteTool.FROM_SPMID_FEED,
     val trackId: String? = null,
     val reportFlowData: String? = null
 )
 
-object VideoJumpTool {
+object VideoRouteTool {
     const val SPMID = "united.player-video-detail.0.0"
     const val FROM_FEED = "7"
     const val FROM_SEARCH = "3"

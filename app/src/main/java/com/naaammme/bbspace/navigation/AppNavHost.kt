@@ -24,7 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
-import com.naaammme.bbspace.core.model.VideoJump
+import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.feature.auth.navigation.ACCOUNT_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.LOGIN_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.SMS_LOGIN_ROUTE
@@ -114,7 +114,7 @@ private fun MainTabsScaffold(
     onNavigateToSettings: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToAccount: () -> Unit,
-    onNavigateToVideo: (VideoJump) -> Unit
+    onNavigateToVideo: (VideoRoute) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()

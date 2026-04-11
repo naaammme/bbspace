@@ -42,7 +42,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.window.core.layout.WindowWidthSizeClass
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
-import com.naaammme.bbspace.core.model.VideoJump
+import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
 
@@ -53,7 +53,7 @@ internal val speedOps = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 @Composable
 fun VideoScreen(
     onBack: () -> Unit,
-    onOpenVideo: (VideoJump) -> Unit,
+    onOpenVideo: (VideoRoute) -> Unit,
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
@@ -65,6 +65,7 @@ fun VideoScreen(
     var isFull by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(viewModel) {
+        viewModel.attach()
         viewModel.ensureStarted()
     }
 
@@ -140,9 +141,7 @@ fun VideoScreen(
                 playerSpaceWidth = expandedPlayerW,
                 playerSpaceHeight = if (isExpanded) expandedPlayerH else compactPlayerSpaceH,
                 onOpenVideo = onOpenVideo,
-                onOpenEpisode = { aid, cid ->
-                    onOpenVideo(viewModel.buildJump(aid, cid))
-                },
+                onOpenEpisode = { onOpenVideo(it) },
                 onSwitchPage = viewModel::switchPage
             )
         }

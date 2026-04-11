@@ -59,7 +59,7 @@ enum class PlaybackControlMode {
 @Immutable
 data class PlayableParams(
     val videoId: VideoPlaybackId,
-    val src: VideoSrc = VideoJumpTool.feed(),
+    val src: VideoSrc = VideoRouteTool.feed(),
     val biz: PlayBizInfo = PlayBizInfo(),
     val fromScene: String = DEFAULT_FROM_SCENE,
     val adExtra: String? = null,

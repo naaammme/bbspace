@@ -24,7 +24,7 @@ enum class SearchOrder {
 data class SearchVideo(
     val aid: Long,
     val cid: Long,
-    val jump: VideoJump,
+    val route: VideoRoute.Ugc,
     val title: String,
     val cover: String,
     val author: String,

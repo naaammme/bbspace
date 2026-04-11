@@ -14,16 +14,17 @@ import com.bapis.bilibili.app.viewunite.v1.ViewReq
 import com.bapis.bilibili.pagination.Pagination
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.VideoDetail
-import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.core.model.VideoOwner
 import com.naaammme.bbspace.core.model.VideoPagePart
 import com.naaammme.bbspace.core.model.VideoRelate
+import com.naaammme.bbspace.core.model.VideoRoute
+import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.core.model.VideoSeason
 import com.naaammme.bbspace.core.model.VideoSeasonEpisode
 import com.naaammme.bbspace.core.model.VideoSeasonSection
+import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoStaff
 import com.naaammme.bbspace.core.model.VideoStat
-import com.naaammme.bbspace.core.model.VideoJumpTool
 import com.naaammme.bbspace.infra.crypto.BiliSessionId
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
@@ -39,18 +40,26 @@ class VideoDetailRepoImpl @Inject constructor(
     private val deviceIdentity: DeviceIdentity
 ) : VideoDetailRepository {
 
-    override suspend fun fetchVideoDetail(jump: VideoJump): VideoDetail {
+    override suspend fun fetchVideoDetail(
+        aid: Long,
+        bvid: String?,
+        src: VideoSrc
+    ): VideoDetail {
         val reply = withContext(Dispatchers.IO) {
             grpcClient.call(
                 endpoint = ENDPOINT,
-                requestBytes = buildRequest(jump).toByteArray(),
+                requestBytes = buildRequest(aid, bvid, src).toByteArray(),
                 parser = ViewReply.parser()
             )
         }
-        return withContext(Dispatchers.Default) { mapReply(jump.aid, reply) }
+        return withContext(Dispatchers.Default) { mapReply(aid, reply) }
     }
 
-    private fun buildRequest(jump: VideoJump): ViewReq {
+    private fun buildRequest(
+        aid: Long,
+        bvid: String?,
+        src: VideoSrc
+    ): ViewReq {
         val playerArgs = PlayerArgs.newBuilder()
             .setQn(DEFAULT_QN)
             .setFnver(DEFAULT_FNVER)
@@ -64,9 +73,9 @@ class VideoDetailRepoImpl @Inject constructor(
             .build()
 
         val builder = ViewReq.newBuilder()
-            .setFrom(jump.src.from)
-            .setSpmid(VideoJumpTool.SPMID)
-            .setFromSpmid(jump.src.fromSpmid)
+            .setFrom(src.from)
+            .setSpmid(VideoRouteTool.SPMID)
+            .setFromSpmid(src.fromSpmid)
             .setSessionId(BiliSessionId.view(deviceIdentity.buvid))
             .setPlayerArgs(playerArgs)
             .putAllExtraContent(EXTRA_CONTENT)
@@ -76,10 +85,10 @@ class VideoDetailRepoImpl @Inject constructor(
                     .build()
             )
             .setFromScene(FROM_SCENE)
-        jump.aid.takeIf { it > 0L }?.let(builder::setAid)
-        jump.bvid?.takeIf(String::isNotBlank)?.let(builder::setBvid)
-        if (!jump.src.trackId.isNullOrBlank()) {
-            builder.trackId = jump.src.trackId
+        aid.takeIf { it > 0L }?.let(builder::setAid)
+        bvid?.takeIf(String::isNotBlank)?.let(builder::setBvid)
+        if (!src.trackId.isNullOrBlank()) {
+            builder.trackId = src.trackId
         }
         return builder.build()
     }
@@ -185,8 +194,10 @@ class VideoDetailRepoImpl @Inject constructor(
             val eps = sec.episodesList.mapNotNull { ep ->
                 val epTitle = ep.title.ifBlank { return@mapNotNull null }
                 VideoSeasonEpisode(
-                    aid = ep.aid,
-                    cid = ep.cid,
+                    route = VideoRoute.Ugc(
+                        aid = ep.aid,
+                        cid = ep.cid
+                    ),
                     title = epTitle,
                     subTitle = ep.coverRightText.ifBlank { null },
                     cover = ep.cover.toHttps().ifBlank { null }
@@ -229,10 +240,10 @@ class VideoDetailRepoImpl @Inject constructor(
             if (card.cardCase != RelateCard.CardCase.AV) return@mapNotNull null
             val basic = card.basicInfo
             val aid = basic.id.takeIf { it > 0L }
-                ?: VideoJumpTool.aid(basic.uri)
+                ?: VideoRouteTool.aid(basic.uri)
                 ?: return@mapNotNull null
             val cid = card.av.cid.takeIf { it > 0L }
-                ?: VideoJumpTool.cid(basic.uri)
+                ?: VideoRouteTool.cid(basic.uri)
                 ?: return@mapNotNull null
             val title = basic.title.ifBlank { return@mapNotNull null }
             val viewText = card.av.stat.vt.text.ifBlank {
@@ -242,11 +253,11 @@ class VideoDetailRepoImpl @Inject constructor(
                 formatCount(card.av.stat.danmaku.value)
             }.takeIf(String::isNotBlank)
             VideoRelate(
-                jump = VideoJump(
+                route = VideoRoute.Ugc(
                     aid = aid,
                     cid = cid,
-                    bvid = VideoJumpTool.bvid(basic.uri),
-                    src = VideoJumpTool.relate(
+                    bvid = VideoRouteTool.bvid(basic.uri),
+                    src = VideoRouteTool.relate(
                         trackId = basic.trackId,
                         reportFlowData = basic.reportFlowData,
                         fromSpmidSuffix = basic.fromSpmidSuffix

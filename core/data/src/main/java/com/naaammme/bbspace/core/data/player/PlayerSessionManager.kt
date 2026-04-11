@@ -17,7 +17,9 @@ import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerConfig
 import com.naaammme.bbspace.infra.player.PlayerEngine
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,11 +93,17 @@ class PlayerSessionManager @Inject constructor(
         request: PlaybackRequest
     ) {
         if (_state.value.playbackSource != null) {
-            reporter.finishSession(playerEngine.snapshot.value)
+            val snapshot = playerEngine.snapshot.value
+            playerEngine.stopForReuse(resetPosition = true)
+            _state.value = PlayerSessionState()
+            reporter.finishSession(snapshot)
         }
         ownerId.set(who)
         reporter.bindOwner(who)
-        _state.value = _state.value.copy(isPreparing = true, error = null, currentRequest = request)
+        _state.value = PlayerSessionState(
+            currentRequest = request,
+            isPreparing = true
+        )
         try {
             val (source, preferredQuality, preferredAudioId) = coroutineScope {
                 val prepJob = async { prepareEngine() }
@@ -216,11 +224,21 @@ class PlayerSessionManager @Inject constructor(
         _state.value = s.copy(cdnIndex = eng.second)
     }
 
-    suspend fun closeCurrentSession(who: Long) {
+    fun closeCurrentSession(
+        who: Long,
+        scope: CoroutineScope
+    ) {
         if (!ownerId.compareAndSet(who, 0L)) return
-        reporter.finishSession(playerEngine.snapshot.value)
+        val snapshot = playerEngine.snapshot.value
+        val hadSession = _state.value.playbackSource != null
         playerEngine.stopForReuse(resetPosition = true)
         _state.value = PlayerSessionState()
+        if (!hadSession) return
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            withContext(Dispatchers.IO + NonCancellable) {
+                reporter.finishSession(snapshot)
+            }
+        }
     }
 
     fun hasSession(
@@ -306,7 +324,7 @@ class PlayerSessionManager @Inject constructor(
         if (progress <= 0L || finished) return false
         if (durationMs <= 0L) return true
         if (durationMs - progress <= COMPLETE_THRESHOLD_MS) return false
-        return progress * 100 < durationMs * COMPLETE_RATIO
+        return true
     }
 
     private fun isOwner(who: Long): Boolean {
@@ -314,7 +332,6 @@ class PlayerSessionManager @Inject constructor(
     }
 
     private companion object {
-        const val COMPLETE_THRESHOLD_MS = 5_000L
-        const val COMPLETE_RATIO = 95L
+        const val COMPLETE_THRESHOLD_MS = 3_000L
     }
 }

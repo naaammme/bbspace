@@ -18,8 +18,8 @@ import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.RcmdReason
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.ThreePointReason
-import com.naaammme.bbspace.core.model.VideoJump
-import com.naaammme.bbspace.core.model.VideoJumpTool
+import com.naaammme.bbspace.core.model.VideoRoute
+import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.crypto.AppSigner
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -177,13 +177,15 @@ class FeedRepoImpl @Inject constructor(
         val args = card.optJSONObject("args") ?: obj.optJSONObject("args")
         val descBtn = card.optJSONObject("desc_button") ?: obj.optJSONObject("desc_button")
         val rcmd = card.optJSONObject("rcmd_reason_style") ?: obj.optJSONObject("rcmd_reason_style")
-        val player = card.optJSONObject("player_args") ?: obj.optJSONObject("player_args")
+        val player = card.optJSONObject("player_args")
+            ?: item?.optJSONObject("player_args")
+            ?: obj.optJSONObject("player_args")
         val uri = card.optString("uri").ifBlank { obj.optString("uri") }
         val reportFlowData = card.optString("report_flow_data")
             .takeIf { it.isNotEmpty() }
             ?: obj.optString("report_flow_data")
             .takeIf { it.isNotEmpty() }
-            ?: VideoJumpTool.arg(uri, "report_flow_data")
+            ?: VideoRouteTool.arg(uri, "report_flow_data")
         val cardGoto = card.optString("card_goto").ifBlank { obj.optString("card_goto") }
         val goto = card.optString("goto").ifBlank { obj.optString("goto") }
         val param = card.optString("param").ifBlank { obj.optString("param") }
@@ -196,36 +198,67 @@ class FeedRepoImpl @Inject constructor(
             else -> PlayBiz.UGC
         }
         val aid = if (biz == PlayBiz.UGC) {
-            param.toLongOrNull() ?: VideoJumpTool.aid(uri)
+            param.toLongOrNull() ?: VideoRouteTool.aid(uri)
         } else {
-            VideoJumpTool.aid(uri)
+            VideoRouteTool.aid(uri)
         }
-        val cid = VideoJumpTool.cid(uri)
+        val cid = player?.optLong("cid")
+            ?.takeIf { it > 0L }
+            ?: VideoRouteTool.cid(uri)
+        val seasonId = player?.optLong("season_id")
+            ?.takeIf { it > 0L }
+            ?: VideoRouteTool.arg(uri, "season_id")?.toLongOrNull()
         val epId = when (biz) {
             PlayBiz.PGC -> param.toLongOrNull()
-                ?: VideoJumpTool.epId(uri)
-            PlayBiz.PUGV -> VideoJumpTool.epId(uri)
+                ?: VideoRouteTool.epId(uri)
+            PlayBiz.PUGV -> VideoRouteTool.epId(uri)
             PlayBiz.UGC -> null
         }
-        val jump = if (isLiveCard(cardGoto, goto, uri, player)) {
+        val route = if (isLiveCard(cardGoto, goto, uri, player)) {
             null
-        } else if (aid != null || cid != null || epId != null) {
-            VideoJump(
-                aid = aid ?: 0L,
-                cid = cid ?: 0L,
-                bvid = player?.optString("bvid")?.takeIf { value -> value.isNotEmpty() }
-                    ?: VideoJumpTool.bvid(uri),
-                biz = biz,
-                epId = epId,
-                src = VideoJumpTool.feed(
-                    trackId = card.optString("track_id")
-                        .takeIf { value -> value.isNotEmpty() }
-                        ?: obj.optString("track_id").takeIf { value -> value.isNotEmpty() },
-                    reportFlowData = reportFlowData
-                )
-            )
         } else {
-            null
+            val src = VideoRouteTool.feed(
+                trackId = card.optString("track_id")
+                    .takeIf { value -> value.isNotEmpty() }
+                    ?: obj.optString("track_id").takeIf { value -> value.isNotEmpty() },
+                reportFlowData = reportFlowData
+            )
+            when (biz) {
+                PlayBiz.UGC -> {
+                    if (aid != null) {
+                        VideoRoute.Ugc(
+                            aid = aid,
+                            cid = cid ?: 0L,
+                            bvid = player?.optString("bvid")?.takeIf { value -> value.isNotEmpty() }
+                                ?: VideoRouteTool.bvid(uri),
+                            src = src
+                        )
+                    } else {
+                        null
+                    }
+                }
+
+                PlayBiz.PGC -> {
+                    epId?.let {
+                        VideoRoute.Pgc(
+                            epId = it,
+                            seasonId = seasonId,
+                            subType = player?.optInt("sub_type")?.takeIf { value -> value >= 0 },
+                            src = src
+                        )
+                    }
+                }
+
+                PlayBiz.PUGV -> {
+                    epId?.let {
+                        VideoRoute.Pugv(
+                            epId = it,
+                            seasonId = seasonId,
+                            src = src
+                        )
+                    }
+                }
+            }
         }
 
         return FeedItem(
@@ -251,7 +284,7 @@ class FeedRepoImpl @Inject constructor(
                 .takeIf { it.isNotEmpty() }
                 ?: obj.optString("cover_right_text").takeIf { it.isNotEmpty() },
             idx = obj.optLong("idx"),
-            jump = jump,
+            route = route,
             descButton = descBtn?.let {
                 DescButton(
                     text = it.optString("text"),

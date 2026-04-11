@@ -13,7 +13,7 @@ import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlayerSessionState
 import com.naaammme.bbspace.core.model.VideoHistory
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
-import com.naaammme.bbspace.core.model.VideoJumpTool
+import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.infra.crypto.BiliSessionId
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.network.BiliRestClient
@@ -313,7 +313,7 @@ class PlaybackReporter @Inject constructor(
         base["network_type"] = NETWORK_TYPE_WIFI
         base["from"] = src.from
         base["from_spmid"] = src.fromSpmid
-        base["spmid"] = VideoJumpTool.SPMID
+        base["spmid"] = VideoRouteTool.SPMID
         base["play_status"] = playStatus(active.request).toString()
         base["user_status"] = USER_STATUS
         base["auto_play"] = ZERO
@@ -513,7 +513,7 @@ class PlaybackReporter @Inject constructor(
         const val USER_STATUS = "0"
         const val NETWORK_TYPE_WIFI = "1"
         const val DEFAULT_PLAY_MODE = "1"
-        const val COMPLETE_THRESHOLD_MS = 5_000L
+        const val COMPLETE_THRESHOLD_MS = 3_000L
         const val HISTORY_INTERVAL_MS = 30_000L
         const val HB_URL = "${BiliConstants.BASE_URL_API}/x/report/heartbeat/mobile"
         const val HISTORY_URL = "${BiliConstants.BASE_URL_API}/x/v2/history/report"
