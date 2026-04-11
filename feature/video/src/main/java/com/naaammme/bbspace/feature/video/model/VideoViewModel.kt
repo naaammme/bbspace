@@ -10,11 +10,13 @@ import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.VideoDetail
+import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.core.model.VideoJumpTool
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -52,21 +54,28 @@ class VideoViewModel @Inject constructor(
         subType = savedStateHandle.optInt("subType"),
         src = src
     )
-    val commentSubject = aid.takeIf { it > 0L }?.let {
-        CommentSubjectTool.video(it, src)
-    }
+    val commentSubject
+        get() {
+            val targetAid = sessionManager.state.value.playbackSource?.videoId?.aid?.takeIf { it > 0L }
+                ?: aid.takeIf { it > 0L }
+                ?: return null
+            return CommentSubjectTool.video(targetAid, src)
+        }
     private val _detail = MutableStateFlow<VideoDetail?>(null)
-    private val _detailLoading = MutableStateFlow(aid > 0L)
+    private val _detailLoading = MutableStateFlow(
+        aid > 0L || jump.cid > 0L || jump.epId != null || !jump.bvid.isNullOrBlank()
+    )
     private val _detailError = MutableStateFlow<String?>(null)
     /*
     TODO:
     这里先允许只有 epid 就直接发起首播
     目前这样大部分类型能走通取流
     如果只传 epid 不再稳定返回
-    要改回先走 View 详情接口
-    再从详情页 arc 补全aid cid
+    再回头看入口参数怎么补齐
      */
-    private val initReq = jump.takeIf { it.aid > 0L || it.cid > 0L || it.epId != null }
+    private val initReq = jump.takeIf {
+        it.aid > 0L || it.cid > 0L || it.epId != null || !it.bvid.isNullOrBlank()
+    }
         ?.toPlayableParams()
         ?.getResolveParams()
     private val _req = MutableStateFlow(initReq)
@@ -137,13 +146,48 @@ class VideoViewModel @Inject constructor(
             enabledFlow = appSettings.danmakuEnabled
         )
 
-        if (aid > 0L) {
+        viewModelScope.launch {
+            combine(_detail, _req, sessionManager.state) { detail, req, session ->
+                detail.toHistoryMeta(session.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
+            }.collect { meta ->
+                sessionManager.updateVideoMeta(ownerId, meta)
+            }
+        }
+
+        if (initReq != null) {
             viewModelScope.launch {
-                val result = runCatching { detailRepo.fetchVideoDetail(aid, src) }
-                _detail.value = result.getOrNull()
-                _detailError.value = result.exceptionOrNull()?.message
-                    ?: if (result.isFailure) "加载视频详情失败" else null
-                _detailLoading.value = false
+                var loadedJump: VideoJump? = null
+                sessionManager.state.collect { session ->
+                    val detailJump = when {
+                        jump.aid > 0L || !jump.bvid.isNullOrBlank() -> jump
+                        else -> session.playbackSource?.videoId?.let { videoId ->
+                            if (videoId.aid <= 0L && videoId.bvid.isNullOrBlank()) {
+                                null
+                            } else {
+                                jump.copy(
+                                    aid = videoId.aid.takeIf { it > 0L } ?: jump.aid,
+                                    bvid = videoId.bvid ?: jump.bvid
+                                )
+                            }
+                        }
+                    }
+                    if (detailJump != null) {
+                        if (detailJump == loadedJump) return@collect
+                        loadedJump = detailJump
+                        _detailError.value = null
+                        _detailLoading.value = true
+                        val result = runCatching { detailRepo.fetchVideoDetail(detailJump) }
+                        _detail.value = result.getOrNull()
+                        _detailError.value = result.exceptionOrNull()?.message
+                            ?: if (result.isFailure) "加载视频详情失败" else null
+                        _detailLoading.value = false
+                        return@collect
+                    }
+                    if (session.error != null && _detail.value == null) {
+                        _detailError.value = session.error.message
+                        _detailLoading.value = false
+                    }
+                }
             }
         } else {
             _detailLoading.value = false
@@ -352,6 +396,20 @@ private fun SavedStateHandle.optLong(key: String): Long? {
 
 private fun SavedStateHandle.optInt(key: String): Int? {
     return get<Int>(key)?.takeIf { it >= 0 }
+}
+
+private fun VideoDetail?.toHistoryMeta(cid: Long?): VideoHistoryMeta? {
+    this ?: return null
+    val idx = cid?.let { target -> pages.indexOfFirst { it.cid == target } } ?: -1
+    val part = if (idx >= 0) pages[idx] else null
+    return VideoHistoryMeta(
+        title = title,
+        cover = cover,
+        ownerUid = owner?.mid?.takeIf { it > 0L },
+        ownerName = owner?.name,
+        part = if (idx >= 0) idx + 1 else null,
+        partTitle = part?.part
+    )
 }
 
 private fun AppSettings.playerMenuStateFlow(): Flow<VideoPlayerMenuState> {

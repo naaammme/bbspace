@@ -1,13 +1,17 @@
 package com.naaammme.bbspace.core.data.player
 
+import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.data.AppSettings
+import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
+import com.naaammme.bbspace.core.model.LocalHistoryKey
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.PlayerSessionState
+import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerConfig
@@ -36,6 +40,8 @@ class PlayerSessionManager @Inject constructor(
     private val repository: VideoPlayerRepository,
     private val appSettings: AppSettings,
     private val reporter: PlaybackReporter,
+    private val authProvider: AuthProvider,
+    private val localHistoryRepo: LocalHistoryRepository,
     val playerEngine: PlayerEngine
 ) {
     private val _state = MutableStateFlow(PlayerSessionState())
@@ -61,6 +67,14 @@ class PlayerSessionManager @Inject constructor(
                 reporter.onPlaybackState(session, snapshot)
             }
         }
+    }
+
+    fun updateVideoMeta(
+        who: Long,
+        meta: VideoHistoryMeta?
+    ) {
+        if (reportOwnerId != who) return
+        reporter.updateVideoMeta(meta)
     }
 
     suspend fun prepareEngine() {
@@ -105,10 +119,11 @@ class PlayerSessionManager @Inject constructor(
             val audio = selectAudio(stream, source.audios, preferredAudioId)
             val eng = buildEngineSource(stream, audio, appSettings.playerCdnIndex.first())
                 ?: error("No playable stream")
+            val startMs = resolveStartMs(request, source)
             if (!isOwner(who)) return
             playerEngine.setSource(
                 eng.first,
-                request.seekToMs ?: source.resumePositionMs
+                startMs
             )
             if (!isOwner(who)) return
 
@@ -123,7 +138,7 @@ class PlayerSessionManager @Inject constructor(
             reporter.startSession(
                 request = request,
                 state = _state.value,
-                startPositionMs = request.seekToMs ?: source.resumePositionMs ?: 0L
+                startPositionMs = startMs ?: 0L
             )
         } catch (t: Throwable) {
             if (!isOwner(who)) return
@@ -266,7 +281,40 @@ class PlayerSessionManager @Inject constructor(
         )
     }
 
+    private suspend fun resolveStartMs(
+        request: PlaybackRequest,
+        source: com.naaammme.bbspace.core.model.PlaybackSource
+    ): Long? {
+        request.seekToMs?.let { return it }
+        val key = LocalHistoryKey.video(source.report)
+        val local = localHistoryRepo.getVideo(authProvider.mid, key)
+        if (local != null) {
+            if (canResume(local.progressMs, local.finished, source.durationMs)) {
+                return local.progressMs
+            }
+            return 0L
+        }
+        return source.resumePositionMs
+    }
+
+    private fun canResume(
+        progressMs: Long?,
+        finished: Boolean,
+        durationMs: Long
+    ): Boolean {
+        val progress = progressMs?.coerceAtLeast(0L) ?: return false
+        if (progress <= 0L || finished) return false
+        if (durationMs <= 0L) return true
+        if (durationMs - progress <= COMPLETE_THRESHOLD_MS) return false
+        return progress * 100 < durationMs * COMPLETE_RATIO
+    }
+
     private fun isOwner(who: Long): Boolean {
         return ownerId.get() == who
+    }
+
+    private companion object {
+        const val COMPLETE_THRESHOLD_MS = 5_000L
+        const val COMPLETE_RATIO = 95L
     }
 }

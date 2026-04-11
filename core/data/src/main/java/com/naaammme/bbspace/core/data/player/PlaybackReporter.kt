@@ -4,17 +4,22 @@ import android.os.SystemClock
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.common.log.Logger
+import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
+import com.naaammme.bbspace.core.model.LocalHistoryKey
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlayReportParams
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlayerSessionState
+import com.naaammme.bbspace.core.model.VideoHistory
+import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import com.naaammme.bbspace.core.model.VideoJumpTool
 import com.naaammme.bbspace.infra.crypto.BiliSessionId
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.player.EnginePlaybackState
 import com.naaammme.bbspace.infra.player.PlaybackSnapshot
+import java.util.Locale
 import kotlin.math.max
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -26,17 +31,25 @@ import javax.inject.Singleton
 class PlaybackReporter @Inject constructor(
     private val restClient: BiliRestClient,
     private val authProvider: AuthProvider,
-    private val deviceIdentity: DeviceIdentity
+    private val deviceIdentity: DeviceIdentity,
+    private val localHistoryRepo: LocalHistoryRepository
 ) {
     private val mu = Mutex()
     private var pageOwnerId = 0L
     private var pagePolarisId = ""
+    @Volatile
+    private var pageMeta: VideoHistoryMeta? = null
     private var ctx: SessionCtx? = null
 
     fun bindOwner(who: Long) {
         if (pageOwnerId == who) return
         pageOwnerId = who
         pagePolarisId = BiliSessionId.polarisAction()
+        pageMeta = null
+    }
+
+    fun updateVideoMeta(meta: VideoHistoryMeta?) {
+        pageMeta = meta
     }
 
     suspend fun startSession(
@@ -45,22 +58,19 @@ class PlaybackReporter @Inject constructor(
         startPositionMs: Long
     ) {
         val token = authProvider.accessToken
-        if (token.isBlank()) {
-            mu.withLock { ctx = null }
-            return
-        }
-
         val source = state.playbackSource ?: return
         val quality = state.currentStream?.quality ?: DEFAULT_QN
         val startSec = msToSec(startPositionMs)
         val nowElapsed = SystemClock.elapsedRealtime()
         mu.withLock {
             ctx = SessionCtx(
+                uid = authProvider.mid,
                 request = request,
                 source = source,
                 report = source.report,
                 sessionId = BiliSessionId.view(deviceIdentity.buvid),
                 polarisActionId = pagePolarisId.ifBlank(BiliSessionId::polarisAction),
+                reportEnabled = token.isNotBlank(),
                 historyStartTs = nowSec(),
                 startElapsedMs = nowElapsed,
                 lastSampleElapsedMs = nowElapsed,
@@ -137,14 +147,18 @@ class PlaybackReporter @Inject constructor(
     }
 
     private suspend fun startHeartbeat(active: SessionCtx) {
-        val params = buildHeartbeatParams(
-            active = active,
-            startPacket = true
-        )
-        val ts = request(HB_URL, params)
-            ?.opt("data")
-            ?.let(::readStartTs)
-            ?: 0L
+        val ts = if (active.reportEnabled) {
+            val params = buildHeartbeatParams(
+                active = active,
+                startPacket = true
+            )
+            request(HB_URL, params)
+                ?.opt("data")
+                ?.let(::readStartTs)
+                ?: 0L
+        } else {
+            0L
+        }
 
         mu.withLock {
             val current = ctx ?: return@withLock
@@ -159,11 +173,13 @@ class PlaybackReporter @Inject constructor(
 
     private suspend fun endHeartbeat(active: SessionCtx) {
         if (active.heartbeatEnded) return
-        val params = buildHeartbeatParams(
-            active = active,
-            startPacket = false
-        )
-        request(HB_URL, params)
+        if (active.reportEnabled) {
+            val params = buildHeartbeatParams(
+                active = active,
+                startPacket = false
+            )
+            request(HB_URL, params)
+        }
         mu.withLock {
             val current = ctx ?: return@withLock
             if (current.sessionId != active.sessionId) return@withLock
@@ -188,7 +204,10 @@ class PlaybackReporter @Inject constructor(
         snapshot: PlaybackSnapshot,
         complete: Boolean
     ) {
-        request(HISTORY_URL, buildHistoryParams(active, snapshot, complete))
+        saveLocalHistory(active, snapshot)
+        if (active.reportEnabled) {
+            request(HISTORY_URL, buildHistoryParams(active, snapshot, complete))
+        }
         mu.withLock {
             val current = ctx ?: return@withLock
             if (current.sessionId != active.sessionId) return@withLock
@@ -197,6 +216,39 @@ class PlaybackReporter @Inject constructor(
                 lastHistoryReportAt = current.lastSampleElapsedMs
             )
         }
+    }
+
+    private suspend fun saveLocalHistory(
+        active: SessionCtx,
+        snapshot: PlaybackSnapshot
+    ) {
+        val key = LocalHistoryKey.video(active.report)
+        val meta = pageMeta
+        val nowMs = System.currentTimeMillis()
+        localHistoryRepo.upsertVideo(
+            VideoHistory(
+                uid = active.uid,
+                key = key,
+                biz = active.report.biz.name.lowercase(Locale.ROOT),
+                aid = active.report.aid,
+                cid = active.report.cid,
+                bvid = active.report.bvid,
+                epId = active.report.epId,
+                seasonId = active.report.seasonId,
+                title = meta?.title.orEmpty(),
+                cover = meta?.cover,
+                part = meta?.part,
+                partTitle = meta?.partTitle,
+                ownerUid = meta?.ownerUid,
+                ownerName = meta?.ownerName,
+                durationMs = active.source.durationMs.coerceAtLeast(0L),
+                progressMs = snapshot.positionMs.coerceAtLeast(0L),
+                watchMs = active.actualPlayedTimeMs.coerceAtLeast(0L),
+                watchAt = active.historyStartTs * 1000L,
+                updatedAt = nowMs,
+                finished = isComplete(active, snapshot, allowEndedOnly = false)
+            )
+        )
     }
 
     private suspend fun request(
@@ -250,7 +302,7 @@ class PlaybackReporter @Inject constructor(
         val common = buildCommonParams(now)
         val base = mutableMapOf<String, String>()
         base["session"] = active.sessionId
-        base["mid"] = authProvider.mid.toString()
+        base["mid"] = active.uid.toString()
         base["aid"] = report.aid.toString()
         base["cid"] = report.cid.toString()
         base["type"] = report.type.toString()
@@ -415,11 +467,13 @@ class PlaybackReporter @Inject constructor(
     }
 
     private data class SessionCtx(
+        val uid: Long,
         val request: PlaybackRequest,
         val source: PlaybackSource,
         val report: PlayReportParams,
         val sessionId: String,
         val polarisActionId: String,
+        val reportEnabled: Boolean,
         val historyStartTs: Long,
         val startElapsedMs: Long,
         var lastSampleElapsedMs: Long,

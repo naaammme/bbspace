@@ -14,16 +14,15 @@ import com.bapis.bilibili.app.viewunite.v1.ViewReq
 import com.bapis.bilibili.pagination.Pagination
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.VideoDetail
+import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.core.model.VideoOwner
 import com.naaammme.bbspace.core.model.VideoPagePart
 import com.naaammme.bbspace.core.model.VideoRelate
 import com.naaammme.bbspace.core.model.VideoSeason
 import com.naaammme.bbspace.core.model.VideoSeasonEpisode
 import com.naaammme.bbspace.core.model.VideoSeasonSection
-import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoStaff
 import com.naaammme.bbspace.core.model.VideoStat
-import com.naaammme.bbspace.core.model.VideoJump
 import com.naaammme.bbspace.core.model.VideoJumpTool
 import com.naaammme.bbspace.infra.crypto.BiliSessionId
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
@@ -40,24 +39,18 @@ class VideoDetailRepoImpl @Inject constructor(
     private val deviceIdentity: DeviceIdentity
 ) : VideoDetailRepository {
 
-    override suspend fun fetchVideoDetail(
-        aid: Long,
-        src: VideoSrc
-    ): VideoDetail {
+    override suspend fun fetchVideoDetail(jump: VideoJump): VideoDetail {
         val reply = withContext(Dispatchers.IO) {
             grpcClient.call(
                 endpoint = ENDPOINT,
-                requestBytes = buildRequest(aid, src).toByteArray(),
+                requestBytes = buildRequest(jump).toByteArray(),
                 parser = ViewReply.parser()
             )
         }
-        return withContext(Dispatchers.Default) { mapReply(aid, reply) }
+        return withContext(Dispatchers.Default) { mapReply(jump.aid, reply) }
     }
 
-    private fun buildRequest(
-        aid: Long,
-        src: VideoSrc
-    ): ViewReq {
+    private fun buildRequest(jump: VideoJump): ViewReq {
         val playerArgs = PlayerArgs.newBuilder()
             .setQn(DEFAULT_QN)
             .setFnver(DEFAULT_FNVER)
@@ -71,10 +64,9 @@ class VideoDetailRepoImpl @Inject constructor(
             .build()
 
         val builder = ViewReq.newBuilder()
-            .setAid(aid)
-            .setFrom(src.from)
+            .setFrom(jump.src.from)
             .setSpmid(VideoJumpTool.SPMID)
-            .setFromSpmid(src.fromSpmid)
+            .setFromSpmid(jump.src.fromSpmid)
             .setSessionId(BiliSessionId.view(deviceIdentity.buvid))
             .setPlayerArgs(playerArgs)
             .putAllExtraContent(EXTRA_CONTENT)
@@ -84,13 +76,16 @@ class VideoDetailRepoImpl @Inject constructor(
                     .build()
             )
             .setFromScene(FROM_SCENE)
-        if (!src.trackId.isNullOrBlank()) {
-            builder.trackId = src.trackId
+        jump.aid.takeIf { it > 0L }?.let(builder::setAid)
+        jump.bvid?.takeIf(String::isNotBlank)?.let(builder::setBvid)
+        if (!jump.src.trackId.isNullOrBlank()) {
+            builder.trackId = jump.src.trackId
         }
         return builder.build()
     }
 
     private fun mapReply(aid: Long, reply: ViewReply): VideoDetail {
+        val resolvedAid = reply.arc.aid.takeIf { it > 0L } ?: aid
         var title = reply.arc.title
         var pubTs: Long? = null
         var desc = ""
@@ -141,9 +136,10 @@ class VideoDetailRepoImpl @Inject constructor(
             }
 
         return VideoDetail(
-            aid = aid,
+            aid = resolvedAid,
             bvid = reply.arc.bvid,
             title = title.ifBlank { "视频详情" },
+            cover = reply.arc.cover.toHttps().ifBlank { null },
             owner = mapOwner(reply),
             stat = mapStat(reply.arc.stat),
             pubTs = pubTs,

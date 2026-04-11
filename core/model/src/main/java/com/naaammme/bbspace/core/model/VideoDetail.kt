@@ -7,6 +7,7 @@ data class VideoDetail(
     val aid: Long,
     val bvid: String,
     val title: String,
+    val cover: String? = null,
     val owner: VideoOwner? = null,
     val stat: VideoStat? = null,
     val pubTs: Long? = null,
