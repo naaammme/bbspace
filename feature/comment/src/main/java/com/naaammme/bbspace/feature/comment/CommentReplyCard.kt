@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -71,7 +75,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun CommentCard(reply: CommentReply) {
+internal fun CommentCard(
+    reply: CommentReply,
+    isLoading: (Long) -> Boolean,
+    onTranslate: (Long) -> Unit
+) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -134,12 +142,7 @@ internal fun CommentCard(reply: CommentReply) {
                         }
                     }
 
-                    reply.message.takeIf(String::isNotBlank)?.let { message ->
-                        Text(
-                            text = message,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+                    ReplyMessage(reply)
 
                     if (reply.pictures.isNotEmpty()) {
                         PictureRow(reply.pictures)
@@ -147,26 +150,35 @@ internal fun CommentCard(reply: CommentReply) {
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = reply.timeText.ifBlank { "刚刚" },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "点赞 ${reply.likeCount.formatCount()}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (reply.replyCount > 0L) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "回复 ${reply.replyCount.formatCount()}",
+                                text = reply.timeText.ifBlank { "刚刚" },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Text(
+                                text = "点赞 ${reply.likeCount.formatCount()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (reply.replyCount > 0L) {
+                                Text(
+                                    text = "回复 ${reply.replyCount.formatCount()}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.weight(1f))
+                        ReplyMenuButton(
+                            loading = isLoading(reply.rpid),
+                            onTranslate = { onTranslate(reply.rpid) }
+                        )
                     }
                 }
             }
@@ -184,7 +196,11 @@ internal fun CommentCard(reply: CommentReply) {
                         )
                     }
                     reply.replies.forEach { child ->
-                        SubReplyCard(reply = child)
+                        SubReplyCard(
+                            reply = child,
+                            isLoading = isLoading,
+                            onTranslate = onTranslate
+                        )
                     }
                 }
             }
@@ -193,7 +209,11 @@ internal fun CommentCard(reply: CommentReply) {
 }
 
 @Composable
-private fun SubReplyCard(reply: CommentReply) {
+private fun SubReplyCard(
+    reply: CommentReply,
+    isLoading: (Long) -> Boolean,
+    onTranslate: (Long) -> Unit
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         shape = MaterialTheme.shapes.large
@@ -219,19 +239,23 @@ private fun SubReplyCard(reply: CommentReply) {
                         MiniChip(label)
                     }
                 }
-                Text(
-                    text = reply.timeText.ifBlank { "刚刚" },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = reply.timeText.ifBlank { "刚刚" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ReplyMenuButton(
+                        loading = isLoading(reply.rpid),
+                        onTranslate = { onTranslate(reply.rpid) }
+                    )
+                }
             }
 
-            reply.message.takeIf(String::isNotBlank)?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            ReplyMessage(reply)
 
             if (reply.pictures.isNotEmpty()) {
                 PictureRow(reply.pictures)
@@ -249,6 +273,63 @@ private fun SubReplyCard(reply: CommentReply) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ReplyMessage(reply: CommentReply) {
+    val message = reply.message.takeIf(String::isNotBlank)
+    val translated = reply.translatedMessage?.takeIf(String::isNotBlank)
+    if (message == null && translated == null) return
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        message?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        translated?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReplyMenuButton(
+    loading: Boolean,
+    onTranslate: () -> Unit
+) {
+    var show by remember { mutableStateOf(false) }
+
+    Box {
+        IconButton(
+            onClick = { show = true },
+            enabled = !loading
+        ) {
+            Text(
+                text = "其他",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        DropdownMenu(
+            expanded = show,
+            onDismissRequest = { show = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("评论翻译") },
+                onClick = {
+                    show = false
+                    onTranslate()
+                }
+            )
         }
     }
 }

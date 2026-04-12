@@ -67,6 +67,7 @@ data class CommentPage(
 data class CommentReply(
     val rpid: Long,
     val message: String = "",
+    val translatedMessage: String? = null,
     val likeCount: Long = 0L,
     val replyCount: Long = 0L,
     val timeText: String = "",

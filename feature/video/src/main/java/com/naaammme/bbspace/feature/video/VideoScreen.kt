@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -64,11 +63,6 @@ fun VideoScreen(
     val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
     var isFull by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(viewModel) {
-        viewModel.attach()
-        viewModel.ensureStarted()
-    }
-
     BackHandler(enabled = isFull) {
         isFull = false
     }
@@ -109,14 +103,28 @@ fun VideoScreen(
     }
 
     DisposableEffect(owner, viewModel, backgroundPlayback) {
+        val lifecycle = owner.lifecycle
+        val syncSession = {
+            viewModel.attach()
+            viewModel.ensureStarted()
+        }
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !backgroundPlayback) {
-                viewModel.pause()
+            when (event) {
+                Lifecycle.Event.ON_START -> syncSession()
+                Lifecycle.Event.ON_STOP -> {
+                    if (!backgroundPlayback) {
+                        viewModel.pause()
+                    }
+                }
+                else -> Unit
             }
         }
-        owner.lifecycle.addObserver(obs)
+        lifecycle.addObserver(obs)
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            syncSession()
+        }
         onDispose {
-            owner.lifecycle.removeObserver(obs)
+            lifecycle.removeObserver(obs)
         }
     }
 

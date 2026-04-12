@@ -138,6 +138,11 @@ class PlaybackReporter @Inject constructor(
         }
         active ?: return
 
+        if (!active.historyStarted) {
+            mu.withLock { ctx = null }
+            return
+        }
+
         if (!active.finalized) {
             reportHistory(active, snapshot, complete = isComplete(active, snapshot, allowEndedOnly = false))
             endHeartbeat(active)

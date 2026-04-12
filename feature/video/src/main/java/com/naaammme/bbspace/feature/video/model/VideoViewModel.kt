@@ -11,6 +11,7 @@ import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.PlaybackError
+import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import com.naaammme.bbspace.core.model.VideoRoute
@@ -72,6 +73,7 @@ class VideoViewModel @Inject constructor(
         scope = viewModelScope,
         repository = danmakuRepository
     )
+    private var startJob: Job? = null
     private var metaJob: Job? = null
     private var pgcDetailJob: Job? = null
 
@@ -212,9 +214,7 @@ class VideoViewModel @Inject constructor(
     fun ensureStarted() {
         val request = _req.value ?: return
         if (sessionManager.hasSession(ownerId, request)) return
-        viewModelScope.launch {
-            sessionManager.start(ownerId, request)
-        }
+        startPlayback(request)
     }
 
     fun togglePlayPause() {
@@ -371,12 +371,12 @@ class VideoViewModel @Inject constructor(
         )
         _req.value = next
         if (sessionManager.hasSession(ownerId, next)) return
-        viewModelScope.launch {
-            sessionManager.start(ownerId, next)
-        }
+        startPlayback(next)
     }
 
     fun close() {
+        startJob?.cancel()
+        startJob = null
         pgcDetailJob?.cancel()
         pgcDetailJob = null
         metaJob?.cancel()
@@ -392,6 +392,13 @@ class VideoViewModel @Inject constructor(
 
     private companion object {
         val nextOwnerId = AtomicLong(1L)
+    }
+
+    private fun startPlayback(request: PlaybackRequest) {
+        startJob?.cancel()
+        startJob = viewModelScope.launch {
+            sessionManager.start(ownerId, request)
+        }
     }
 }
 

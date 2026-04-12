@@ -10,6 +10,7 @@ data class CommentUiState(
     val subject: CommentSubject? = null,
     val loading: Boolean = false,
     val loadingMore: Boolean = false,
+    val loadingReplyIds: Set<Long> = emptySet(),
     val error: String? = null,
     val loadMoreError: String? = null,
     val title: String = "评论",

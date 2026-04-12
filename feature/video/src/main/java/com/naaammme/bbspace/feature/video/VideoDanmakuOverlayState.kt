@@ -13,7 +13,9 @@ import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.api.DanmakuSegmentData
 import master.flame.danmaku.api.SegmentDanmakuSession
 import master.flame.danmaku.danmaku.model.android.DanmakuContext
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
+import kotlin.concurrent.thread
 
 internal class VideoDanmakuOverlayState(
     internal val danmakuView: View,
@@ -22,6 +24,7 @@ internal class VideoDanmakuOverlayState(
     private val timeProvider: PlayerSessionTimeProvider,
     private val session: SegmentDanmakuSession<DanmakuElem>
 ) {
+    private val released = AtomicBoolean(false)
     private var lastVideoId: VideoPlaybackId? = null
     private var lastObservedPositionMs: Long? = null
     private var pendingSeek = true
@@ -31,6 +34,7 @@ internal class VideoDanmakuOverlayState(
     private val appliedSegmentIndices = linkedSetOf<Long>()
 
     fun prepare() {
+        if (released.get()) return
         session.prepare()
     }
 
@@ -40,6 +44,7 @@ internal class VideoDanmakuOverlayState(
         snapshot: PlaybackSnapshot,
         hasSource: Boolean,
     ) {
+        if (released.get()) return
         val clampedPositionMs = snapshot.positionMs.coerceAtLeast(0L)
         val clampedSpeed = snapshot.speed.coerceIn(0.25f, 3f)
         val currentSegmentIndex = clampedPositionMs.toDanmakuSegmentIndex()
@@ -126,12 +131,19 @@ internal class VideoDanmakuOverlayState(
     }
 
     fun release() {
+        if (!released.compareAndSet(false, true)) return
         appliedSegmentIndices.clear()
-        session.clearSegments()
         session.setCallback(null)
         session.setPlayerTimeProvider(null)
+        session.pause()
         timeProvider.release()
-        session.release()
+        thread(
+            start = true,
+            isDaemon = true,
+            name = "DanmakuRelease"
+        ) {
+            session.release()
+        }
     }
 
     private fun syncVideo(

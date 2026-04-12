@@ -12,4 +12,9 @@ interface CommentRepository {
         filterTag: String = COMMENT_FILTER_ALL,
         offset: String = ""
     ): CommentPage
+
+    suspend fun fetchTranslatedReply(
+        subject: CommentSubject,
+        rpid: Long
+    ): String?
 }

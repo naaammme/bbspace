@@ -19,6 +19,7 @@ import com.naaammme.bbspace.infra.player.PlayerEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -149,6 +150,9 @@ class PlayerSessionManager @Inject constructor(
                 startPositionMs = startMs ?: 0L
             )
         } catch (t: Throwable) {
+            if (t is CancellationException) {
+                throw t
+            }
             if (!isOwner(who)) return
             _state.value = _state.value.copy(
                 isPreparing = false,

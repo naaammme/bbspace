@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.feature.comment
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,11 +25,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun CommentPanel(
@@ -41,6 +44,7 @@ fun CommentPanel(
         viewModel.bind(subject)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val listState = rememberLazyListState()
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -58,6 +62,12 @@ fun CommentPanel(
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore) {
             viewModel.loadMore()
+        }
+    }
+
+    LaunchedEffect(viewModel, context) {
+        viewModel.msg.collectLatest { text ->
+            Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -131,7 +141,11 @@ fun CommentPanel(
                     key = { it.rpid },
                     contentType = { "reply" }
                 ) { reply ->
-                    CommentCard(reply = reply)
+                    CommentCard(
+                        reply = reply,
+                        isLoading = { rpid -> rpid in uiState.loadingReplyIds },
+                        onTranslate = viewModel::translateReply
+                    )
                 }
             }
         }

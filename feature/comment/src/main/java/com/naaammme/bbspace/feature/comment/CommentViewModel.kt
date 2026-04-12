@@ -11,6 +11,8 @@ import com.naaammme.bbspace.core.model.CommentSubject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -22,6 +24,8 @@ class CommentViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CommentUiState())
     val uiState = _uiState.asStateFlow()
+    private val _msg = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val msg = _msg.asSharedFlow()
 
     private var reqId = 0L
 
@@ -128,6 +132,56 @@ class CommentViewModel @Inject constructor(
         }
     }
 
+    fun translateReply(rpid: Long) {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        if (rpid in state.loadingReplyIds) return
+        _uiState.update {
+            it.copy(loadingReplyIds = it.loadingReplyIds + rpid)
+        }
+        viewModelScope.launch {
+            val result = runCatching {
+                repo.fetchTranslatedReply(subject, rpid)
+            }
+            if (_uiState.value.subject != subject) return@launch
+            _uiState.update {
+                it.copy(loadingReplyIds = it.loadingReplyIds - rpid)
+            }
+            result.fold(
+                onSuccess = { translated ->
+                    when {
+                        translated == null -> _msg.tryEmit("评论已不存在")
+                        translated.isBlank() -> _msg.tryEmit("当前语言为中文,故无法翻译中文") // TODO:支持动态 x-bili-locale-bin, 从而实现汉译英汉,英译日等
+                        else -> {
+                            _uiState.update { cur ->
+                                cur.copy(
+                                    items = cur.items.map { item ->
+                                        when {
+                                            item.rpid == rpid -> item.copy(translatedMessage = translated)
+                                            item.replies.any { it.rpid == rpid } -> item.copy(
+                                                replies = item.replies.map { child ->
+                                                    if (child.rpid == rpid) {
+                                                        child.copy(translatedMessage = translated)
+                                                    } else {
+                                                        child
+                                                    }
+                                                }
+                                            )
+                                            else -> item
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                },
+                onFailure = { err ->
+                    _msg.tryEmit(err.message ?: "评论翻译失败")
+                }
+            )
+        }
+    }
+
     private fun refresh(
         subject: CommentSubject,
         sort: CommentSort,
@@ -200,7 +254,36 @@ class CommentViewModel @Inject constructor(
         if (append.isEmpty()) return current
         val items = LinkedHashMap<Long, CommentReply>(current.size + append.size)
         current.forEach { reply -> items[reply.rpid] = reply }
-        append.forEach { reply -> items[reply.rpid] = reply }
+        append.forEach { reply ->
+            val cur = items[reply.rpid]
+            items[reply.rpid] = if (cur == null) {
+                reply
+            } else {
+                reply.copy(
+                    translatedMessage = cur.translatedMessage ?: reply.translatedMessage,
+                    replies = mergeChildReplies(cur.replies, reply.replies)
+                )
+            }
+        }
+        return items.values.toList()
+    }
+
+    private fun mergeChildReplies(
+        current: List<CommentReply>,
+        append: List<CommentReply>
+    ): List<CommentReply> {
+        if (append.isEmpty()) return current
+        if (current.isEmpty()) return append
+        val items = LinkedHashMap<Long, CommentReply>(current.size + append.size)
+        current.forEach { reply -> items[reply.rpid] = reply }
+        append.forEach { reply ->
+            val cur = items[reply.rpid]
+            items[reply.rpid] = if (cur == null) {
+                reply
+            } else {
+                reply.copy(translatedMessage = cur.translatedMessage ?: reply.translatedMessage)
+            }
+        }
         return items.values.toList()
     }
 }

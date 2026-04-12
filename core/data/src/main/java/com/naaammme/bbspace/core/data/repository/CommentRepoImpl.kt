@@ -5,6 +5,8 @@ import com.bapis.bilibili.main.community.reply.v1.MainListReply
 import com.bapis.bilibili.main.community.reply.v1.MainListReq
 import com.bapis.bilibili.main.community.reply.v1.Mode
 import com.bapis.bilibili.main.community.reply.v1.ReplyInfo
+import com.bapis.bilibili.main.community.reply.v1.TranslateReplyReq
+import com.bapis.bilibili.main.community.reply.v1.TranslateReplyResp
 import com.bapis.bilibili.main.community.reply.v1.WordSearchParam
 import com.bapis.bilibili.pagination.FeedPagination
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
@@ -48,6 +50,27 @@ class CommentRepoImpl @Inject constructor(
                 filterTag = filterTag,
                 reply = reply
             )
+        }
+    }
+
+    override suspend fun fetchTranslatedReply(
+        subject: CommentSubject,
+        rpid: Long
+    ): String? {
+        val reply = withContext(Dispatchers.IO) {
+            grpcClient.call(
+                endpoint = TRANSLATE_ENDPOINT,
+                requestBytes = TranslateReplyReq.newBuilder()
+                    .setType(subject.type)
+                    .setOid(subject.oid)
+                    .addRpids(rpid)
+                    .build()
+                    .toByteArray(),
+                parser = TranslateReplyResp.parser()
+            )
+        }
+        return withContext(Dispatchers.Default) {
+            reply.translatedRepliesMap[rpid]?.translatedContent?.message?.trim()
         }
     }
 
@@ -140,7 +163,10 @@ class CommentRepoImpl @Inject constructor(
 
     private fun ReplyInfo.toReplyIfPresent(topLabel: String?): CommentReply? {
         if (id <= 0L) return null
-        return mapReply(this, topLabel)
+        return mapReply(
+            info = this,
+            topLabel = topLabel
+        )
     }
 
     private fun mapReply(
@@ -266,5 +292,6 @@ class CommentRepoImpl @Inject constructor(
 
     private companion object {
         const val ENDPOINT = "bilibili.main.community.reply.v1.Reply/MainList"
+        const val TRANSLATE_ENDPOINT = "bilibili.main.community.reply.v1.Reply/TranslateReply"
     }
 }
