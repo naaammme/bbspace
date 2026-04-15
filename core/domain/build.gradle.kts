@@ -20,5 +20,6 @@ android {
 
 dependencies {
     api(project(":core:model"))
+    api(libs.media3.common)
     implementation(libs.kotlinx.coroutines.core)
 }

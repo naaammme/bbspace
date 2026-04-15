@@ -3,43 +3,51 @@ package com.naaammme.bbspace.feature.video.model
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.data.AppSettings
-import com.naaammme.bbspace.core.data.player.PlayerSessionManager
+import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
+import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
+import com.naaammme.bbspace.core.domain.player.VideoPlaybackSettings
+import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.PlayBiz
-import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
-import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
+import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.VideoDetail
+import com.naaammme.bbspace.core.model.VideoDanmakuConfig
+import com.naaammme.bbspace.core.model.VideoBufferSettings
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
+import com.naaammme.bbspace.core.model.VideoPlaybackPrefs
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.core.model.toPlayableParams
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
+import androidx.media3.common.Player
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class VideoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val appSettings: AppSettings,
-    private val sessionManager: PlayerSessionManager,
+    private val playbackController: VideoPlaybackController,
+    private val playbackSettings: VideoPlaybackSettings,
     private val detailRepo: VideoDetailRepository,
     danmakuRepository: DanmakuRepository
 ) : ViewModel() {
 
-    private val ownerId = nextOwnerId.getAndIncrement()
     private val src = VideoRouteTool.custom(
         from = savedStateHandle.get<String>("from"),
         fromSpmid = savedStateHandle.get<String>("fromSpmid"),
@@ -48,13 +56,6 @@ class VideoViewModel @Inject constructor(
     )
     private val route = savedStateHandle.toVideoRoute(src)
     private val ugcRoute = route as? VideoRoute.Ugc
-    val commentSubject: CommentSubject?
-        get() {
-            val targetAid = sessionManager.state.value.playbackSource?.videoId?.aid?.takeIf { it > 0L }
-                ?: ugcRoute?.aid
-                ?: return null
-            return CommentSubjectTool.video(targetAid, src)
-        }
     private val _detail = MutableStateFlow<VideoDetail?>(null)
     private val _detailLoading = MutableStateFlow(
         route is VideoRoute.Ugc || route is VideoRoute.Pgc || route is VideoRoute.Pugv
@@ -73,24 +74,38 @@ class VideoViewModel @Inject constructor(
         scope = viewModelScope,
         repository = danmakuRepository
     )
+    private val session = MutableStateFlow<VideoPlaybackController.Session?>(null)
     private var startJob: Job? = null
-    private var metaJob: Job? = null
-    private var pgcDetailJob: Job? = null
+    private var openingRequest: PlaybackRequest? = null
 
-    fun getPlayerForView() = sessionManager.playerEngine.getPlayerForView()
+    val player = session.flatMapLatest { it?.player ?: flowOf<Player?>(null) }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = null
+    )
+
+    val playerState: StateFlow<PlaybackViewState> = session.flatMapLatest {
+        it?.state ?: flowOf(PlaybackViewState())
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = PlaybackViewState()
+    )
+
+    val settingsState = playbackSettings.state
 
     val pageState = combine(
-        sessionManager.state,
+        playerState,
         _req,
         _detail,
         _detailLoading,
         _detailError
-    ) { session, req, detail, detailLoading, detailError ->
+    ) { playbackState, req, detail, detailLoading, detailError ->
         VideoPageState(
             detail = detail,
             detailLoading = detailLoading,
             detailError = detailError,
-            curCid = session.playbackSource?.videoId?.cid ?: req?.videoId?.cid
+            curCid = playbackState.playbackSource?.videoId?.cid ?: req?.videoId?.cid
         )
     }.stateIn(
         scope = viewModelScope,
@@ -98,130 +113,33 @@ class VideoViewModel @Inject constructor(
         initialValue = VideoPageState(curCid = initReq?.videoId?.cid)
     )
 
-    val playerState = combine(
-        sessionManager.state,
-        sessionManager.playerEngine.snapshot
-    ) { session, snapshot ->
-        VideoPlayerState(
-            isLoading = session.isPreparing,
-            playbackSource = session.playbackSource,
-            currentStream = session.currentStream,
-            currentAudio = session.currentAudio,
-            cdnIndex = session.cdnIndex,
-            snapshot = snapshot,
-            error = session.error
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = VideoPlayerState()
-    )
-
-    val playerMenuState = appSettings.playerMenuStateFlow().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = VideoPlayerMenuState()
-    )
-    val backgroundPlayback = appSettings.backgroundPlayback.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = false
-    )
+    val commentSubject: CommentSubject?
+        get() {
+            val targetAid = playerState.value.playbackSource?.videoId?.aid?.takeIf { it > 0L }
+                ?: ugcRoute?.aid
+                ?: return null
+            return CommentSubjectTool.video(targetAid, src)
+        }
 
     internal val danmakuState = danmakuController.state
 
     init {
-        when (val route = route) {
-            is VideoRoute.Ugc -> {
-                viewModelScope.launch {
-                    val result = runCatching {
-                        detailRepo.fetchVideoDetail(
-                            aid = route.aid,
-                            bvid = route.bvid,
-                            src = route.src
-                        )
-                    }
-                    _detail.value = result.getOrNull()
-                    _detailError.value = result.exceptionOrNull()?.message
-                        ?: if (result.isFailure) "加载视频详情失败" else null
-                    _detailLoading.value = false
-                }
-            }
-
-            is VideoRoute.Pgc, is VideoRoute.Pugv -> {
-                Unit
-            }
-
-            else -> {
-                _detailLoading.value = false
-            }
-        }
-    }
-
-    fun attach() {
-        sessionManager.bindReporter(ownerId, viewModelScope)
-        danmakuController.bind(
-            playbackSourceFlow = sessionManager.state.map { it.playbackSource },
-            snapshotFlow = sessionManager.playerEngine.snapshot,
-            enabledFlow = appSettings.danmakuEnabled
-        )
-        if (metaJob?.isActive != true) {
-            metaJob = viewModelScope.launch {
-                combine(_detail, _req, sessionManager.state) { detail, req, session ->
-                    detail.toHistoryMeta(session.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
-                }.collect { meta ->
-                    sessionManager.updateVideoMeta(ownerId, meta)
-                }
-            }
-        }
-        if ((route is VideoRoute.Pgc || route is VideoRoute.Pugv) && pgcDetailJob?.isActive != true) {
-            pgcDetailJob = viewModelScope.launch {
-                var loadedAid = _detail.value?.aid?.takeIf { it > 0L } ?: 0L
-                var loadedBvid = _detail.value?.bvid.orEmpty()
-                sessionManager.state.collect { session ->
-                    val videoId = session.playbackSource?.videoId
-                    val aid = videoId?.aid?.takeIf { it > 0L }
-                    if (aid != null) {
-                        val bvid = videoId.bvid.orEmpty()
-                        if (aid == loadedAid && bvid == loadedBvid) return@collect
-                        loadedAid = aid
-                        loadedBvid = bvid
-                        _detailError.value = null
-                        _detailLoading.value = true
-                        val result = runCatching {
-                            detailRepo.fetchVideoDetail(
-                                aid = aid,
-                                bvid = videoId.bvid,
-                                src = route.src
-                            )
-                        }
-                        _detail.value = result.getOrNull()
-                        _detailError.value = result.exceptionOrNull()?.message
-                            ?: if (result.isFailure) "加载视频详情失败" else null
-                        _detailLoading.value = false
-                        return@collect
-                    }
-                    val error = session.error
-                    if (error != null && _detail.value == null) {
-                        _detailError.value = error.toUiMsg()
-                        _detailLoading.value = false
-                    }
-                }
-            }
-        }
+        connectSession()
+        loadInitialDetail()
     }
 
     fun ensureStarted() {
         val request = _req.value ?: return
-        if (sessionManager.hasSession(ownerId, request)) return
+        if (openingRequest == request && startJob?.isActive == true) return
         startPlayback(request)
     }
 
     fun togglePlayPause() {
-        if (playerState.value.snapshot.isPlaying) {
-            sessionManager.pause(ownerId)
+        val playbackSession = session.value ?: return
+        if (playerState.value.isPlaying) {
+            playbackSession.pause()
         } else {
-            sessionManager.play(ownerId)
+            playbackSession.play()
         }
     }
 
@@ -230,138 +148,99 @@ class VideoViewModel @Inject constructor(
     }
 
     fun switchQuality(quality: Int) {
-        sessionManager.switchQuality(ownerId, quality)
+        session.value?.switchQuality(quality)
     }
 
     fun switchAudio(audioId: Int) {
-        sessionManager.switchAudio(ownerId, audioId)
+        session.value?.switchAudio(audioId)
     }
 
     fun switchCdn(cdnIndex: Int) {
-        viewModelScope.launch {
-            appSettings.updatePlayerCdnIndex(cdnIndex)
-            sessionManager.switchCdn(ownerId, cdnIndex)
-        }
+        session.value?.switchCdn(cdnIndex)
     }
 
     fun pause() {
-        sessionManager.pause(ownerId)
+        session.value?.pause()
     }
 
     fun seekTo(positionMs: Long) {
-        sessionManager.seekTo(ownerId, positionMs)
+        session.value?.seekTo(positionMs)
     }
 
     fun setSpeed(speed: Float) {
-        sessionManager.setSpeed(ownerId, speed)
+        session.value?.setSpeed(speed)
     }
 
     fun updateBackgroundPlayback(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateBackgroundPlayback(enabled)
-        }
+        updatePlayback { copy(backgroundPlayback = enabled) }
     }
 
     fun updateMinBufferMs(value: Int) {
-        viewModelScope.launch {
-            appSettings.updatePlayerMinBufferMs(value)
-        }
+        updateBuffer { copy(minBufferMs = value) }
     }
 
     fun updateMaxBufferMs(value: Int) {
-        viewModelScope.launch {
-            appSettings.updatePlayerMaxBufferMs(value)
-        }
+        updateBuffer { copy(maxBufferMs = value) }
     }
 
     fun updatePlaybackBufferMs(value: Int) {
-        viewModelScope.launch {
-            appSettings.updatePlayerPlaybackBufferMs(value)
-        }
+        updateBuffer { copy(playbackBufferMs = value) }
     }
 
     fun updateRebufferMs(value: Int) {
-        viewModelScope.launch {
-            appSettings.updatePlayerRebufferMs(value)
-        }
+        updateBuffer { copy(rebufferMs = value) }
     }
 
     fun updateBackBufferMs(value: Int) {
-        viewModelScope.launch {
-            appSettings.updatePlayerBackBufferMs(value)
-        }
+        updateBuffer { copy(backBufferMs = value) }
     }
 
     fun updatePreferSoftwareDecode(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updatePreferSoftwareDecode(enabled)
-        }
+        updatePlayback { copy(preferSoftwareDecode = enabled) }
     }
 
     fun updateDecoderFallback(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateDecoderFallback(enabled)
-        }
+        updatePlayback { copy(decoderFallback = enabled) }
     }
 
     fun updateDanmakuEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuEnabled(enabled)
-        }
+        updateDanmaku { copy(enabled = enabled) }
     }
 
     fun updateDanmakuAreaPercent(percent: Int) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuAreaPercent(percent)
-        }
+        updateDanmaku { copy(areaPercent = percent) }
     }
 
     fun updateDanmakuOpacity(value: Float) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuOpacity(value)
-        }
+        updateDanmaku { copy(opacity = value) }
     }
 
     fun updateDanmakuTextScale(value: Float) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuTextScale(value)
-        }
+        updateDanmaku { copy(textScale = value) }
     }
 
     fun updateDanmakuSpeed(value: Float) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuSpeed(value)
-        }
+        updateDanmaku { copy(speed = value) }
     }
 
     fun updateDanmakuDensity(level: Int) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuDensity(level)
-        }
+        updateDanmaku { copy(densityLevel = level) }
     }
 
     fun updateDanmakuMergeDuplicates(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuMergeDuplicates(enabled)
-        }
+        updateDanmaku { copy(mergeDuplicates = enabled) }
     }
 
     fun updateDanmakuShowTop(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuShowTop(enabled)
-        }
+        updateDanmaku { copy(showTop = enabled) }
     }
 
     fun updateDanmakuShowBottom(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuShowBottom(enabled)
-        }
+        updateDanmaku { copy(showBottom = enabled) }
     }
 
     fun updateDanmakuShowScrollRl(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateDanmakuShowScrollRl(enabled)
-        }
+        updateDanmaku { copy(showScrollRl = enabled) }
     }
 
     fun switchPage(cid: Long) {
@@ -374,35 +253,130 @@ class VideoViewModel @Inject constructor(
             seekToMs = null
         )
         _req.value = next
-        if (sessionManager.hasSession(ownerId, next)) return
         startPlayback(next)
     }
 
-    fun close() {
+    fun closePage() {
         startJob?.cancel()
         startJob = null
-        pgcDetailJob?.cancel()
-        pgcDetailJob = null
-        metaJob?.cancel()
-        metaJob = null
-        danmakuController.clear()
-        sessionManager.closeCurrentSession(ownerId, viewModelScope)
+        openingRequest = null
+        session.value?.release()
     }
 
     override fun onCleared() {
-        close()
+        startJob?.cancel()
+        startJob = null
+        openingRequest = null
+        session.value?.release()
+        danmakuController.clear()
         super.onCleared()
     }
 
-    private companion object {
-        val nextOwnerId = AtomicLong(1L)
+    private fun startPlayback(request: PlaybackRequest) {
+        if (openingRequest == request && startJob?.isActive == true) return
+        startJob?.cancel()
+        openingRequest = request
+        startJob = viewModelScope.launch {
+            try {
+                session.value?.open(request)
+            } finally {
+                if (openingRequest == request) {
+                    openingRequest = null
+                }
+            }
+        }
     }
 
-    private fun startPlayback(request: PlaybackRequest) {
-        startJob?.cancel()
-        startJob = viewModelScope.launch {
-            sessionManager.start(ownerId, request)
+    private fun connectSession() {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val playbackSession = playbackController.connect()
+            session.value = playbackSession
+            danmakuController.bind(
+                playbackStateFlow = playbackSession.state,
+                enabledFlow = settingsState.map { it.danmaku.enabled }
+            )
+            launch {
+                combine(_detail, _req, playbackSession.state) { detail, req, playbackState ->
+                    detail.toHistoryMeta(playbackState.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
+                }.collect { meta ->
+                    playbackSession.updateMeta(meta)
+                }
+            }
+            if (route is VideoRoute.Pgc || route is VideoRoute.Pugv) {
+                launch {
+                    var loadedAid = _detail.value?.aid?.takeIf { it > 0L } ?: 0L
+                    var loadedBvid = _detail.value?.bvid.orEmpty()
+                    playbackSession.state.collect { playbackState ->
+                        val videoId = playbackState.playbackSource?.videoId
+                        val aid = videoId?.aid?.takeIf { it > 0L }
+                        if (aid != null) {
+                            val bvid = videoId.bvid.orEmpty()
+                            if (aid == loadedAid && bvid == loadedBvid) return@collect
+                            loadedAid = aid
+                            loadedBvid = bvid
+                            fetchDetail(aid, videoId.bvid, route.src)
+                            return@collect
+                        }
+                        val error = playbackState.error
+                        if (error != null && _detail.value == null) {
+                            _detailError.value = error.toUiMsg()
+                            _detailLoading.value = false
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    private fun loadInitialDetail() {
+        when (val route = route) {
+            is VideoRoute.Ugc -> {
+                viewModelScope.launch {
+                    fetchDetail(route.aid, route.bvid, route.src)
+                }
+            }
+
+            is VideoRoute.Pgc, is VideoRoute.Pugv -> Unit
+            else -> _detailLoading.value = false
+        }
+    }
+
+    private fun updateBuffer(transform: VideoBufferSettings.() -> VideoBufferSettings) {
+        viewModelScope.launch {
+            playbackSettings.updateBuffer(settingsState.value.buffer.transform())
+        }
+    }
+
+    private fun updatePlayback(transform: VideoPlaybackPrefs.() -> VideoPlaybackPrefs) {
+        viewModelScope.launch {
+            playbackSettings.updatePlayback(settingsState.value.playback.transform())
+        }
+    }
+
+    private fun updateDanmaku(transform: VideoDanmakuConfig.() -> VideoDanmakuConfig) {
+        viewModelScope.launch {
+            playbackSettings.updateDanmaku(settingsState.value.danmaku.transform())
+        }
+    }
+
+    private suspend fun fetchDetail(
+        aid: Long,
+        bvid: String?,
+        src: com.naaammme.bbspace.core.model.VideoSrc
+    ) {
+        _detailError.value = null
+        _detailLoading.value = true
+        val result = runCatching {
+            detailRepo.fetchVideoDetail(
+                aid = aid,
+                bvid = bvid,
+                src = src
+            )
+        }
+        _detail.value = result.getOrNull()
+        _detailError.value = result.exceptionOrNull()?.message
+            ?: if (result.isFailure) "加载视频详情失败" else null
+        _detailLoading.value = false
     }
 }
 
@@ -470,131 +444,3 @@ private fun VideoDetail?.toHistoryMeta(cid: Long?): VideoHistoryMeta? {
         partTitle = part?.part
     )
 }
-
-private fun AppSettings.playerMenuStateFlow(): Flow<VideoPlayerMenuState> {
-    val bufferSettings = combine(
-        playerMinBufferMs,
-        playerMaxBufferMs,
-        playerPlaybackBufferMs,
-        playerRebufferMs,
-        playerBackBufferMs
-    ) { minBufferMs, maxBufferMs, playbackBufferMs, rebufferMs, backBufferMs ->
-        PlayerBufferSettings(
-            minBufferMs = minBufferMs,
-            maxBufferMs = maxBufferMs,
-            playbackBufferMs = playbackBufferMs,
-            rebufferMs = rebufferMs,
-            backBufferMs = backBufferMs
-        )
-    }
-
-    val playbackSettings = combine(
-        backgroundPlayback,
-        preferSoftwareDecode,
-        decoderFallback
-    ) { backgroundPlayback, preferSoftwareDecode, decoderFallback ->
-        PlayerPlaybackSettings(
-            backgroundPlayback = backgroundPlayback,
-            preferSoftwareDecode = preferSoftwareDecode,
-            decoderFallback = decoderFallback
-        )
-    }
-
-    val danmakuDisplaySettings = combine(
-        danmakuEnabled,
-        danmakuAreaPercent,
-        danmakuOpacity,
-        danmakuTextScale,
-        danmakuSpeed
-    ) { enabled, areaPercent, opacity, textScale, speed ->
-        DanmakuDisplaySettings(
-            enabled = enabled,
-            areaPercent = areaPercent,
-            opacity = opacity,
-            textScale = textScale,
-            speed = speed
-        )
-    }
-
-    val danmakuBehaviorSettings = combine(
-        danmakuDensity,
-        danmakuMergeDuplicates,
-        danmakuShowTop,
-        danmakuShowBottom,
-        danmakuShowScrollRl
-    ) { densityLevel, mergeDuplicates, showTop, showBottom, showScrollRl ->
-        DanmakuBehaviorSettings(
-            densityLevel = densityLevel,
-            mergeDuplicates = mergeDuplicates,
-            showTop = showTop,
-            showBottom = showBottom,
-            showScrollRl = showScrollRl
-        )
-    }
-
-    val danmakuConfig = combine(
-        danmakuDisplaySettings,
-        danmakuBehaviorSettings
-    ) { displaySettings, behaviorSettings ->
-        VideoDanmakuConfig(
-            enabled = displaySettings.enabled,
-            areaPercent = displaySettings.areaPercent,
-            opacity = displaySettings.opacity,
-            textScale = displaySettings.textScale,
-            speed = displaySettings.speed,
-            densityLevel = behaviorSettings.densityLevel,
-            mergeDuplicates = behaviorSettings.mergeDuplicates,
-            showTop = behaviorSettings.showTop,
-            showBottom = behaviorSettings.showBottom,
-            showScrollRl = behaviorSettings.showScrollRl
-        )
-    }
-
-    return combine(
-        bufferSettings,
-        playbackSettings,
-        danmakuConfig
-    ) { bufferSettings, playbackSettings, danmakuConfig ->
-        VideoPlayerMenuState(
-            minBufferMs = bufferSettings.minBufferMs,
-            maxBufferMs = bufferSettings.maxBufferMs,
-            playbackBufferMs = bufferSettings.playbackBufferMs,
-            rebufferMs = bufferSettings.rebufferMs,
-            backBufferMs = bufferSettings.backBufferMs,
-            backgroundPlayback = playbackSettings.backgroundPlayback,
-            preferSoftwareDecode = playbackSettings.preferSoftwareDecode,
-            decoderFallback = playbackSettings.decoderFallback,
-            danmaku = danmakuConfig
-        )
-    }
-}
-
-private data class PlayerBufferSettings(
-    val minBufferMs: Int,
-    val maxBufferMs: Int,
-    val playbackBufferMs: Int,
-    val rebufferMs: Int,
-    val backBufferMs: Int
-)
-
-private data class PlayerPlaybackSettings(
-    val backgroundPlayback: Boolean,
-    val preferSoftwareDecode: Boolean,
-    val decoderFallback: Boolean
-)
-
-private data class DanmakuDisplaySettings(
-    val enabled: Boolean,
-    val areaPercent: Int,
-    val opacity: Float,
-    val textScale: Float,
-    val speed: Float
-)
-
-private data class DanmakuBehaviorSettings(
-    val densityLevel: Int,
-    val mergeDuplicates: Boolean,
-    val showTop: Boolean,
-    val showBottom: Boolean,
-    val showScrollRl: Boolean
-)

@@ -9,7 +9,7 @@ import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.infra.coldstart.ColdStartClient
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.CacheManager
-import com.naaammme.bbspace.core.data.player.PlayerSessionManager
+import com.naaammme.bbspace.core.data.player.VideoPlaybackControllerImpl
 import com.naaammme.bbspace.infra.grpc.GaiaReporter
 import com.naaammme.bbspace.infra.crypto.BuvidFetcher
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
@@ -39,7 +39,7 @@ class AppInitializer @Inject constructor(
     private val gaiaReporter: GaiaReporter,
     private val appSettings: AppSettings,
     private val cacheManager: CacheManager,
-    private val playerSessionManager: PlayerSessionManager
+    private val playbackController: VideoPlaybackControllerImpl
 ) {
     companion object {
         private const val TAG = "AppInitializer"
@@ -57,7 +57,7 @@ class AppInitializer @Inject constructor(
         registerNetworkCallback()
         initScope.launch {
             runCatching {
-                playerSessionManager.prepareEngine()
+                playbackController.prepareEngine()
             }.onSuccess {
                 Logger.d(TAG) { "Player warmup done" }
             }.onFailure { error ->

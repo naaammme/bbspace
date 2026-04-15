@@ -11,10 +11,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.PlayerView
-import androidx.media3.ui.R as Media3UiR
-import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
+import com.naaammme.bbspace.core.model.PlaybackViewState
+import com.naaammme.bbspace.core.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
-import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.api.SegmentDanmakuSession
@@ -35,6 +34,7 @@ internal fun rememberVideoDanmakuOverlayState(
             enableDanmakuDrawingCache(true)
             showFPS(false)
             setDrawingThreadType(IDanmakuView.THREAD_TYPE_HIGH_PRIORITY)
+            setZOrderMediaOverlay(true)
             isClickable = false
             isFocusable = false
             isFocusableInTouchMode = false
@@ -68,24 +68,24 @@ internal fun rememberVideoDanmakuOverlayState(
 internal fun VideoDanmakuLayer(
     playerView: PlayerView,
     viewModel: VideoViewModel,
-    playerState: VideoPlayerState,
+    playbackState: PlaybackViewState,
     danmakuConfig: VideoDanmakuConfig
 ) {
-    val videoId = playerState.playbackSource?.videoId
+    val videoId = playbackState.playbackSource?.videoId
     if (videoId == null) return
 
     val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val overlayState = rememberVideoDanmakuOverlayState(
         viewModel = viewModel,
         initialConfig = danmakuConfig,
-        initialPositionMs = playerState.snapshot.positionMs,
-        initialIsPlaying = playerState.snapshot.isPlaying,
-        initialSpeed = playerState.snapshot.speed
+        initialPositionMs = playbackState.positionMs,
+        initialIsPlaying = playbackState.isPlaying,
+        initialSpeed = playbackState.speed
     )
     VideoDanmakuOverlay(
         playerView = playerView,
         overlayState = overlayState,
-        playerState = playerState,
+        playbackState = playbackState,
         danmakuState = danmakuState,
         danmakuConfig = danmakuConfig
     )
@@ -95,7 +95,7 @@ internal fun VideoDanmakuLayer(
 internal fun VideoDanmakuOverlay(
     playerView: PlayerView,
     overlayState: VideoDanmakuOverlayState,
-    playerState: VideoPlayerState,
+    playbackState: PlaybackViewState,
     danmakuState: VideoDanmakuState,
     danmakuConfig: VideoDanmakuConfig
 ) {
@@ -108,28 +108,37 @@ internal fun VideoDanmakuOverlay(
 
     DisposableEffect(playerView, overlayState) {
         val view = overlayState.danmakuView
-        val host = playerView.findViewById<ViewGroup>(Media3UiR.id.exo_content_frame)
-        if (host != null) {
-            val parent = view.parent as? ViewGroup
-            if (parent !== host) {
-                parent?.removeView(view)
-                host.addView(
-                    view,
-                    FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
+        val host = playerView.overlayFrameLayout ?: playerView
+        val parent = view.parent as? ViewGroup
+        if (parent !== host) {
+            parent?.removeView(view)
+            host.addView(
+                view,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+        } else {
+            val lp = view.layoutParams as? FrameLayout.LayoutParams
+            if (
+                lp == null ||
+                lp.width != ViewGroup.LayoutParams.MATCH_PARENT ||
+                lp.height != ViewGroup.LayoutParams.MATCH_PARENT
+            ) {
+                view.layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
                 )
             }
         }
         onDispose {
-            val parent = view.parent as? ViewGroup
-            parent?.removeView(view)
+            (view.parent as? ViewGroup)?.removeView(view)
         }
     }
 
     SideEffect {
-        overlayState.danmakuView.visibility = if (playerState.playbackSource != null) {
+        overlayState.danmakuView.visibility = if (playbackState.playbackSource != null) {
             View.VISIBLE
         } else {
             View.INVISIBLE
@@ -137,8 +146,8 @@ internal fun VideoDanmakuOverlay(
         overlayState.sync(
             danmakuState = danmakuState,
             config = danmakuConfig,
-            snapshot = playerState.snapshot,
-            hasSource = playerState.playbackSource != null,
+            playbackState = playbackState,
+            hasSource = playbackState.playbackSource != null,
         )
     }
 }

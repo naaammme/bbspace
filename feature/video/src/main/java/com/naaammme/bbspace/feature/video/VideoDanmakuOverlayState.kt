@@ -3,12 +3,11 @@ package com.naaammme.bbspace.feature.video
 import android.view.View
 import com.naaammme.bbspace.core.model.DanmakuElem
 import com.naaammme.bbspace.core.model.DanmakuSegment
+import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.VIDEO_DANMAKU_SEGMENT_DURATION_MS
+import com.naaammme.bbspace.core.model.VideoDanmakuConfig
 import com.naaammme.bbspace.core.model.VideoPlaybackId
-import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
 import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
-import com.naaammme.bbspace.infra.player.EngineDiscontinuityReason
-import com.naaammme.bbspace.infra.player.PlaybackSnapshot
 import master.flame.danmaku.controller.DrawHandler
 import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.api.DanmakuSegmentData
@@ -34,7 +33,7 @@ internal class VideoDanmakuOverlayState(
     private var lastCfgState: DanmakuCfgState? = null
     private var lastPlayState: DanmakuPlayState? = null
     private var lastPlaybackSpeed = 1f
-    private var lastDiscSeq = 0L
+    private var lastSeekEventId = 0L
     private val appliedSegmentIndices = linkedSetOf<Long>()
     private val callback = object : DrawHandler.Callback {
         override fun prepared() = Unit
@@ -54,15 +53,15 @@ internal class VideoDanmakuOverlayState(
     fun sync(
         danmakuState: VideoDanmakuState,
         config: VideoDanmakuConfig,
-        snapshot: PlaybackSnapshot,
+        playbackState: PlaybackViewState,
         hasSource: Boolean,
     ) {
         if (released.get()) return
-        val clampedPositionMs = snapshot.positionMs.coerceAtLeast(0L)
-        val clampedSpeed = snapshot.speed.coerceIn(0.25f, 3f)
+        val clampedPositionMs = playbackState.positionMs.coerceAtLeast(0L)
+        val clampedSpeed = playbackState.speed.coerceIn(0.25f, 3f)
         val currentSegmentIndex = clampedPositionMs.toDanmakuSegmentIndex()
-        syncVideo(danmakuState.videoId, snapshot.discontinuitySeq)
-        val hasSeek = consumeSeekDiscontinuity(snapshot)
+        syncVideo(danmakuState.videoId)
+        val hasSeek = consumeSeekEvent(playbackState)
         val hasSpeedChange = lastPlaybackSpeed != clampedSpeed
         lastPlaybackSpeed = clampedSpeed
         if (hasSeek) {
@@ -82,7 +81,7 @@ internal class VideoDanmakuOverlayState(
                 curReady = curReady
             )
         }
-        val canPlay = snapshot.isPlaying && !pendingSeek
+        val canPlay = playbackState.isPlaying && !pendingSeek
         val needStateOverride = hasSeek ||
                 hasSpeedChange ||
                 !canPlay ||
@@ -164,15 +163,12 @@ internal class VideoDanmakuOverlayState(
         }
     }
 
-    private fun syncVideo(
-        videoId: VideoPlaybackId?,
-        discontinuitySeq: Long
-    ) {
+    private fun syncVideo(videoId: VideoPlaybackId?) {
         if (lastVideoId == videoId) return
 
         lastVideoId = videoId
         lastObservedPositionMs = null
-        lastDiscSeq = discontinuitySeq
+        lastSeekEventId = 0L
         pendingSeek = true
         appliedSegmentIndices.clear()
         session.clearSegments()
@@ -233,14 +229,13 @@ internal class VideoDanmakuOverlayState(
         }
     }
 
-    private fun consumeSeekDiscontinuity(snapshot: PlaybackSnapshot): Boolean {
-        val seq = snapshot.discontinuitySeq
-        if (seq == 0L || seq == lastDiscSeq) {
+    private fun consumeSeekEvent(playbackState: PlaybackViewState): Boolean {
+        val seekEventId = playbackState.seekEventId
+        if (seekEventId == 0L || seekEventId == lastSeekEventId) {
             return false
         }
-        lastDiscSeq = seq
-        return snapshot.discontinuityReason == EngineDiscontinuityReason.Seek ||
-                snapshot.discontinuityReason == EngineDiscontinuityReason.SeekAdjustment
+        lastSeekEventId = seekEventId
+        return true
     }
 }
 

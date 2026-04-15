@@ -48,8 +48,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.model.PlaybackAudio
+import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.QualityOption
-import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import kotlinx.coroutines.delay
 
@@ -65,7 +65,8 @@ internal fun VideoPlayerPane(
 ) {
     val context = LocalContext.current
     val state by viewModel.playerState.collectAsStateWithLifecycle()
-    val menuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
+    val player by viewModel.player.collectAsStateWithLifecycle()
+    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val tapSrc = remember { MutableInteractionSource() }
     var showQ by remember { mutableStateOf(false) }
     var showA by remember { mutableStateOf(false) }
@@ -73,15 +74,14 @@ internal fun VideoPlayerPane(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(true) }
     var dragMs by remember { mutableStateOf<Long?>(null) }
-    var livePosMs by remember(state.snapshot.playerInstanceId) {
+    var livePosMs by remember(player) {
         mutableStateOf(0L)
     }
-    val player = viewModel.getPlayerForView()
 
-    LaunchedEffect(showCtrl, state.snapshot.isPlaying, dragMs, showA, showQ, showSp, showSettingsSheet) {
+    LaunchedEffect(showCtrl, state.isPlaying, dragMs, showA, showQ, showSp, showSettingsSheet) {
         if (
             showCtrl &&
-            state.snapshot.isPlaying &&
+            state.isPlaying &&
             dragMs == null &&
             !showA &&
             !showQ &&
@@ -97,29 +97,29 @@ internal fun VideoPlayerPane(
         player,
         showCtrl,
         dragMs,
-        state.snapshot.isPlaying,
-        state.snapshot.discontinuitySeq,
-        state.snapshot.firstFrameSeq
+        state.isPlaying,
+        state.seekEventId,
+        state.hasRenderedFirstFrame
     ) {
         val curPlayer = player
         if (!showCtrl || dragMs != null || curPlayer == null) {
-            livePosMs = state.snapshot.positionMs
+            livePosMs = state.positionMs
             return@LaunchedEffect
         }
         do {
             livePosMs = curPlayer.currentPosition.coerceAtLeast(0L)
-            if (!state.snapshot.isPlaying) break
+            if (!state.isPlaying) break
             delay(200)
         } while (showCtrl && dragMs == null)
     }
 
     val durationMs = player?.duration
         ?.takeIf { it > 0L }
-        ?: state.snapshot.durationMs
+        ?: state.durationMs
         .takeIf { it > 0 }
         ?: state.playbackSource?.durationMs?.coerceAtLeast(0L)
         ?: 0L
-    val danmakuOn = menuState.danmaku.enabled
+    val danmakuOn = settingsState.danmaku.enabled
     val barMs = dragMs ?: livePosMs
     val sliderVal = if (durationMs > 0) {
         (barMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
@@ -156,7 +156,7 @@ internal fun VideoPlayerPane(
                 if (view.player !== player) {
                     view.player = player
                 }
-                view.keepScreenOn = state.snapshot.playWhenReady
+                view.keepScreenOn = state.playWhenReady
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -164,8 +164,8 @@ internal fun VideoPlayerPane(
         VideoDanmakuLayer(
             playerView = playerView,
             viewModel = viewModel,
-            playerState = state,
-            danmakuConfig = menuState.danmaku
+            playbackState = state,
+            danmakuConfig = settingsState.danmaku
         )
 
         Box(
@@ -201,12 +201,12 @@ internal fun VideoPlayerPane(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color.Black.copy(alpha = if (menuState.danmaku.enabled) 0.42f else 0.26f),
+                        color = Color.Black.copy(alpha = if (settingsState.danmaku.enabled) 0.42f else 0.26f),
                         modifier = Modifier
                             .clip(CircleShape)
                             .clickable {
                                 showCtrl = true
-                                viewModel.updateDanmakuEnabled(!menuState.danmaku.enabled)
+                                viewModel.updateDanmakuEnabled(!settingsState.danmaku.enabled)
                             }
                     ) {
                         Text(
@@ -234,11 +234,11 @@ internal fun VideoPlayerPane(
 
         if (showCtrl) {
             PlayerCtrlBar(
-                playText = if (state.snapshot.isPlaying) "暂停" else "播放",
+                playText = if (state.isPlaying) "暂停" else "播放",
                 timeText = formatPlaybackTime(barMs, durationMs),
                 audioText = state.currentAudio?.let { getAudioName(it.id, short = true) } ?: "音频",
                 qualityText = getQualityName(state.playbackSource, state.currentStream),
-                speedText = formatSpeed(state.snapshot.speed),
+                speedText = formatSpeed(state.speed),
                 fullText = if (isFull) "还原" else "全屏",
                 sliderVal = sliderVal,
                 sliderOn = durationMs > 0,
@@ -309,7 +309,7 @@ internal fun VideoPlayerPane(
 
     if (showSp) {
         SpeedSelectionDialog(
-            curSpeed = state.snapshot.speed,
+            curSpeed = state.speed,
             onDismiss = { showSp = false },
             onSelect = { speed ->
                 viewModel.setSpeed(speed)
@@ -328,10 +328,10 @@ internal fun VideoPlayerPane(
     }
 }
 
-private fun VideoPlayerState.expectedVideoAspect(): Float? {
-    val width = snapshot.videoWidth.takeIf { it > 0 }
+private fun PlaybackViewState.expectedVideoAspect(): Float? {
+    val width = videoWidth.takeIf { it > 0 }
         ?: currentStream?.width?.takeIf { it > 0 }
-    val height = snapshot.videoHeight.takeIf { it > 0 }
+    val height = videoHeight.takeIf { it > 0 }
         ?: currentStream?.height?.takeIf { it > 0 }
     if (width == null || height == null || width <= 0 || height <= 0) return null
     return width.toFloat() / height.toFloat()

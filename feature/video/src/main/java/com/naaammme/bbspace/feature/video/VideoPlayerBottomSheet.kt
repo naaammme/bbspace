@@ -36,9 +36,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.PlaybackError
+import com.naaammme.bbspace.core.model.PlaybackState
+import com.naaammme.bbspace.core.model.PlaybackViewState
+import com.naaammme.bbspace.core.model.VideoPlaybackSettingsState
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
-import com.naaammme.bbspace.feature.video.model.VideoPlayerMenuState
-import com.naaammme.bbspace.feature.video.model.VideoPlayerState
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
 
@@ -53,12 +54,12 @@ private enum class PlayerSheetSection(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun VideoPlayerBottomSheet(
-    state: VideoPlayerState,
+    state: PlaybackViewState,
     viewModel: VideoViewModel,
     limitUnderPlayer: Boolean,
     onDismiss: () -> Unit
 ) {
-    val menuState by viewModel.playerMenuState.collectAsStateWithLifecycle()
+    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var section by rememberSaveable { mutableStateOf(PlayerSheetSection.Info) }
     val configuration = LocalConfiguration.current
@@ -119,12 +120,12 @@ internal fun VideoPlayerBottomSheet(
                 PlayerSheetSection.Info -> PlayerInfoSection(state)
                 PlayerSheetSection.Playback -> PlaybackSettingsSection(
                     state = state,
-                    menuState = menuState,
+                    settingsState = settingsState,
                     viewModel = viewModel
                 )
 
                 PlayerSheetSection.Danmaku -> DanmakuSettingsSection(
-                    menuState = menuState,
+                    settingsState = settingsState,
                     viewModel = viewModel
                 )
             }
@@ -134,8 +135,8 @@ internal fun VideoPlayerBottomSheet(
 
 @Composable
 private fun PlaybackSettingsSection(
-    state: VideoPlayerState,
-    menuState: VideoPlayerMenuState,
+    state: PlaybackViewState,
+    settingsState: VideoPlaybackSettingsState,
     viewModel: VideoViewModel
 ) {
     SheetSectionTitle("播放设置")
@@ -155,7 +156,7 @@ private fun PlaybackSettingsSection(
     SheetChoiceCard(
         title = "最小缓冲时长",
         subtitle = "持续补缓冲的最低时长",
-        currentValue = menuState.minBufferMs,
+        currentValue = settingsState.buffer.minBufferMs,
         options = listOf(2_000, 5_000, 10_000, 15_000, 30_000, 60_000),
         label = ::formatBufferMs,
         onSelect = viewModel::updateMinBufferMs
@@ -164,7 +165,7 @@ private fun PlaybackSettingsSection(
     SheetChoiceCard(
         title = "最大缓冲时长",
         subtitle = "播放器最多预读多久",
-        currentValue = menuState.maxBufferMs,
+        currentValue = settingsState.buffer.maxBufferMs,
         options = listOf(15_000, 30_000, 60_000, 90_000, 120_000),
         label = ::formatBufferMs,
         onSelect = viewModel::updateMaxBufferMs
@@ -173,7 +174,7 @@ private fun PlaybackSettingsSection(
     SheetChoiceCard(
         title = "起播缓冲时长",
         subtitle = "开始播放前至少缓冲多久",
-        currentValue = menuState.playbackBufferMs,
+        currentValue = settingsState.buffer.playbackBufferMs,
         options = listOf(50, 100, 150, 250, 400, 600, 800, 1_000),
         label = ::formatBufferMs,
         onSelect = viewModel::updatePlaybackBufferMs
@@ -182,7 +183,7 @@ private fun PlaybackSettingsSection(
     SheetChoiceCard(
         title = "重缓冲恢复时长",
         subtitle = "卡顿后恢复播放前至少缓冲多久",
-        currentValue = menuState.rebufferMs,
+        currentValue = settingsState.buffer.rebufferMs,
         options = listOf(100, 250, 400, 500, 750, 1_000, 1_500),
         label = ::formatBufferMs,
         onSelect = viewModel::updateRebufferMs
@@ -191,7 +192,7 @@ private fun PlaybackSettingsSection(
     SheetChoiceCard(
         title = "回看缓冲时长",
         subtitle = "保留已播内容用于回退拖动",
-        currentValue = menuState.backBufferMs,
+        currentValue = settingsState.buffer.backBufferMs,
         options = listOf(0, 5_000, 10_000, 15_000, 30_000),
         label = ::formatBufferMs,
         onSelect = viewModel::updateBackBufferMs
@@ -199,29 +200,29 @@ private fun PlaybackSettingsSection(
 
     SheetSwitchCard(
         title = "后台播放",
-        subtitle = "退到后台时是否继续播放",
-        checked = menuState.backgroundPlayback,
+        subtitle = "当前阶段未接入后台播放宿主，暂不生效",
+        checked = settingsState.playback.backgroundPlayback,
         onCheckedChange = viewModel::updateBackgroundPlayback
     )
 
     SheetSwitchCard(
         title = "软解优先",
         subtitle = "优先使用软件解码",
-        checked = menuState.preferSoftwareDecode,
+        checked = settingsState.playback.preferSoftwareDecode,
         onCheckedChange = viewModel::updatePreferSoftwareDecode
     )
 
     SheetSwitchCard(
         title = "解码失败自动回退",
         subtitle = "允许切换到低优先级解码器",
-        checked = menuState.decoderFallback,
+        checked = settingsState.playback.decoderFallback,
         onCheckedChange = viewModel::updateDecoderFallback
     )
 }
 
 @Composable
 private fun DanmakuSettingsSection(
-    menuState: VideoPlayerMenuState,
+    settingsState: VideoPlaybackSettingsState,
     viewModel: VideoViewModel
 ) {
     SheetSectionTitle("弹幕设置")
@@ -229,7 +230,7 @@ private fun DanmakuSettingsSection(
     SheetChoiceCard(
         title = "显示区域",
         subtitle = "控制滚动弹幕可使用的纵向区域",
-        currentValue = menuState.danmaku.areaPercent,
+        currentValue = settingsState.danmaku.areaPercent,
         options = listOf(25, 50, 75, 100),
         label = ::formatDanmakuArea,
         onSelect = viewModel::updateDanmakuAreaPercent
@@ -238,7 +239,7 @@ private fun DanmakuSettingsSection(
     SheetSliderCard(
         title = "不透明度",
         subtitle = "调低后更不挡画面",
-        value = menuState.danmaku.opacity,
+        value = settingsState.danmaku.opacity,
         valueRange = 0.1f..1f,
         steps = 8,
         valueLabel = ::formatPercent,
@@ -248,7 +249,7 @@ private fun DanmakuSettingsSection(
     SheetSliderCard(
         title = "字体大小",
         subtitle = "对原始弹幕字号做整体缩放",
-        value = menuState.danmaku.textScale,
+        value = settingsState.danmaku.textScale,
         valueRange = 0.5f..2f,
         steps = 14,
         valueLabel = ::formatMultiple,
@@ -258,7 +259,7 @@ private fun DanmakuSettingsSection(
     SheetSliderCard(
         title = "弹幕速度",
         subtitle = "数值越大，弹幕滚动越快",
-        value = menuState.danmaku.speed,
+        value = settingsState.danmaku.speed,
         valueRange = 0.5f..2f,
         steps = 14,
         valueLabel = ::formatMultiple,
@@ -268,7 +269,7 @@ private fun DanmakuSettingsSection(
     SheetChoiceCard(
         title = "弹幕密度",
         subtitle = "控制同屏弹幕数量和防重叠策略",
-        currentValue = menuState.danmaku.densityLevel,
+        currentValue = settingsState.danmaku.densityLevel,
         options = listOf(0, 1, 2),
         label = ::formatDanmakuDensity,
         onSelect = viewModel::updateDanmakuDensity
@@ -277,34 +278,34 @@ private fun DanmakuSettingsSection(
     SheetSwitchCard(
         title = "重复弹幕合并",
         subtitle = "合并短时间内重复出现的相同内容",
-        checked = menuState.danmaku.mergeDuplicates,
+        checked = settingsState.danmaku.mergeDuplicates,
         onCheckedChange = viewModel::updateDanmakuMergeDuplicates
     )
 
     SheetSwitchCard(
         title = "滚动弹幕",
         subtitle = "控制右向左滚动弹幕显示",
-        checked = menuState.danmaku.showScrollRl,
+        checked = settingsState.danmaku.showScrollRl,
         onCheckedChange = viewModel::updateDanmakuShowScrollRl
     )
 
     SheetSwitchCard(
         title = "顶部弹幕",
         subtitle = "固定显示在顶部",
-        checked = menuState.danmaku.showTop,
+        checked = settingsState.danmaku.showTop,
         onCheckedChange = viewModel::updateDanmakuShowTop
     )
 
     SheetSwitchCard(
         title = "底部弹幕",
         subtitle = "固定显示在底部",
-        checked = menuState.danmaku.showBottom,
+        checked = settingsState.danmaku.showBottom,
         onCheckedChange = viewModel::updateDanmakuShowBottom
     )
 }
 
 @Composable
-private fun PlayerInfoSection(state: VideoPlayerState) {
+private fun PlayerInfoSection(state: PlaybackViewState) {
     SheetSectionTitle("视频信息")
 
     state.error?.let { err ->
@@ -314,7 +315,7 @@ private fun PlayerInfoSection(state: VideoPlayerState) {
         )
     }
 
-    state.snapshot.errorMessage?.let { msg ->
+    state.playerError?.let { msg ->
         SheetInfoGroup(
             title = "播放器错误",
             rows = listOf("错误" to msg)
@@ -325,7 +326,7 @@ private fun PlayerInfoSection(state: VideoPlayerState) {
     if (src == null) {
         Card {
             Text(
-                text = if (state.isLoading) "正在加载播放信息" else "暂无播放信息",
+                text = if (state.isPreparing) "正在加载播放信息" else "暂无播放信息",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(16.dp)
@@ -334,7 +335,6 @@ private fun PlayerInfoSection(state: VideoPlayerState) {
         return
     }
 
-    val snap = state.snapshot
     val stream = state.currentStream
     val audio = state.currentAudio
 
@@ -357,7 +357,6 @@ private fun PlayerInfoSection(state: VideoPlayerState) {
                     add("带宽" to "${it.bandwidth / 1000} kbps")
                 }
             }
-            add("视频解码器" to (snap.videoDecoderName ?: "未初始化"))
         }
     )
 
@@ -367,8 +366,7 @@ private fun PlayerInfoSection(state: VideoPlayerState) {
             rows = listOf(
                 "音频ID" to it.id.toString(),
                 "音频名称" to getAudioName(it.id),
-                "音频带宽" to "${it.bandwidth / 1000} kbps",
-                "音频解码器" to (snap.audioDecoderName ?: "未初始化")
+                "音频带宽" to "${it.bandwidth / 1000} kbps"
             )
         )
     }
@@ -377,10 +375,10 @@ private fun PlayerInfoSection(state: VideoPlayerState) {
         title = "播放状态",
         rows = listOf(
             "状态" to playbackStateText(state),
-            "播放位置" to formatDuration(snap.positionMs),
-            "缓冲位置" to formatDuration(snap.bufferedPositionMs),
-            "缓冲时长" to formatDuration(snap.totalBufferedDurationMs),
-            "播放速度" to formatSpeed(snap.speed)
+            "播放位置" to formatDuration(state.positionMs),
+            "缓冲位置" to formatDuration(state.bufferedPositionMs),
+            "缓冲时长" to formatDuration(state.totalBufferedDurationMs),
+            "播放速度" to formatSpeed(state.speed)
         )
     )
 }
@@ -597,15 +595,15 @@ private fun formatMultiple(value: Float): String {
     return "${normalized}x"
 }
 
-private fun playbackStateText(state: VideoPlayerState): String {
+private fun playbackStateText(state: PlaybackViewState): String {
     return when {
-        state.snapshot.isPlaying -> "播放中"
-        state.isLoading -> "准备中"
-        else -> when (state.snapshot.playbackState) {
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Buffering -> "缓冲中"
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Ready -> "已暂停"
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Ended -> "已结束"
-            com.naaammme.bbspace.infra.player.EnginePlaybackState.Idle -> "未开始"
+        state.isPlaying -> "播放中"
+        state.isPreparing -> "准备中"
+        else -> when (state.playbackState) {
+            PlaybackState.Buffering -> "缓冲中"
+            PlaybackState.Ready -> "已暂停"
+            PlaybackState.Ended -> "已结束"
+            PlaybackState.Idle -> "未开始"
         }
     }
 }

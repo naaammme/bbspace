@@ -56,7 +56,6 @@ fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
-    val backgroundPlayback by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
@@ -78,7 +77,7 @@ fun VideoScreen(
 
     DisposableEffect(viewModel) {
         onDispose {
-            viewModel.close()
+            viewModel.closePage()
         }
     }
 
@@ -102,26 +101,18 @@ fun VideoScreen(
         }
     }
 
-    DisposableEffect(owner, viewModel, backgroundPlayback) {
+    DisposableEffect(owner, viewModel) {
         val lifecycle = owner.lifecycle
-        val syncSession = {
-            viewModel.attach()
-            viewModel.ensureStarted()
-        }
         val obs = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> syncSession()
-                Lifecycle.Event.ON_STOP -> {
-                    if (!backgroundPlayback) {
-                        viewModel.pause()
-                    }
-                }
+                Lifecycle.Event.ON_START -> viewModel.ensureStarted()
+                Lifecycle.Event.ON_STOP -> viewModel.pause()
                 else -> Unit
             }
         }
         lifecycle.addObserver(obs)
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            syncSession()
+            viewModel.ensureStarted()
         }
         onDispose {
             lifecycle.removeObserver(obs)

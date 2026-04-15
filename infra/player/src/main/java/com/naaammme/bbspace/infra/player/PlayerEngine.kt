@@ -19,9 +19,8 @@ data class PlayerConfig(
 )
 
 interface PlayerEngine {
+    val player: StateFlow<Player?>
     val snapshot: StateFlow<PlaybackSnapshot>
-
-    fun getPlayerForView(): Player?
 
     fun updateConfig(config: PlayerConfig)
     fun setSource(

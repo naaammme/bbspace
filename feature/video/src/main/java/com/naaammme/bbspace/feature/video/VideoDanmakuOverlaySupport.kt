@@ -3,7 +3,7 @@ package com.naaammme.bbspace.feature.video
 import android.graphics.Color
 import android.os.SystemClock
 import com.naaammme.bbspace.core.model.DanmakuElem
-import com.naaammme.bbspace.feature.video.model.VideoDanmakuConfig
+import com.naaammme.bbspace.core.model.VideoDanmakuConfig
 import master.flame.danmaku.api.DanmakuItemMapper
 import master.flame.danmaku.api.DanmakuItemUtils
 import master.flame.danmaku.api.PlayerTimeProvider

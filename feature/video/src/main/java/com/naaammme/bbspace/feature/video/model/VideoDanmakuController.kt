@@ -3,9 +3,9 @@ package com.naaammme.bbspace.feature.video.model
 import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
 import com.naaammme.bbspace.core.model.DanmakuRequest
 import com.naaammme.bbspace.core.model.DanmakuSegment
+import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.VideoPlaybackId
-import com.naaammme.bbspace.infra.player.PlaybackSnapshot
 import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -42,16 +42,15 @@ internal class VideoDanmakuController(
     private var observerJob: Job? = null
 
     fun bind(
-        playbackSourceFlow: Flow<PlaybackSource?>,
-        snapshotFlow: Flow<PlaybackSnapshot>,
+        playbackStateFlow: Flow<PlaybackViewState>,
         enabledFlow: Flow<Boolean>
     ) {
         if (observerJob?.isActive == true) return
         observerJob = scope.launch {
-            combine(playbackSourceFlow, snapshotFlow, enabledFlow) { source, snapshot, enabled ->
-                Triple(source, snapshot, enabled)
-            }.collect { (source, snapshot, enabled) ->
-                handlePlaybackUpdate(source, snapshot, enabled)
+            combine(playbackStateFlow, enabledFlow) { playbackState, enabled ->
+                playbackState to enabled
+            }.collect { (playbackState, enabled) ->
+                handlePlaybackUpdate(playbackState = playbackState, enabled = enabled)
             }
         }
     }
@@ -63,10 +62,10 @@ internal class VideoDanmakuController(
     }
 
     private fun handlePlaybackUpdate(
-        source: PlaybackSource?,
-        snapshot: PlaybackSnapshot,
+        playbackState: PlaybackViewState,
         enabled: Boolean
     ) {
+        val source = playbackState.playbackSource
         if (source == null) {
             reset()
             return
@@ -80,8 +79,8 @@ internal class VideoDanmakuController(
         if (currentVideoId != source.videoId) {
             reset(source.videoId)
         }
-        val durationMs = source.durationMs.takeIf { it > 0 } ?: snapshot.durationMs.coerceAtLeast(0L)
-        val positionMs = snapshot.positionMs.coerceAtLeast(0L)
+        val durationMs = source.durationMs.takeIf { it > 0 } ?: playbackState.durationMs.coerceAtLeast(0L)
+        val positionMs = playbackState.positionMs.coerceAtLeast(0L)
         currentSource = source
         currentDurationMs = durationMs
         val request = DanmakuRequest(
@@ -100,7 +99,7 @@ internal class VideoDanmakuController(
             trimCacheAround(segmentIndex)
         }
 
-        if (snapshot.firstFrameSeq == 0L && _state.value.loadedSegments.isEmpty()) {
+        if (!playbackState.hasRenderedFirstFrame && _state.value.loadedSegments.isEmpty()) {
             lastPositionMs = positionMs
             return
         }

@@ -44,6 +44,8 @@ class Media3PlayerEngine @Inject constructor(
 
     private val mediaSourceFactory = ProgressiveMediaSource.Factory(dataSourceFactory)
 
+    private val _player = MutableStateFlow<Player?>(null)
+    override val player: StateFlow<Player?> = _player.asStateFlow()
     private val _snapshot = MutableStateFlow(PlaybackSnapshot())
     override val snapshot: StateFlow<PlaybackSnapshot> = _snapshot.asStateFlow()
     private var playerConfig = PlayerConfig()
@@ -118,8 +120,6 @@ class Media3PlayerEngine @Inject constructor(
     }
     private var exoPlayer: ExoPlayer? = null
 
-    override fun getPlayerForView(): Player? = exoPlayer
-
     override fun updateConfig(config: PlayerConfig) {
         val next = normalizeConfig(config)
         if (next == playerConfig && exoPlayer != null) return
@@ -129,6 +129,7 @@ class Media3PlayerEngine @Inject constructor(
         resetRuntimeState()
         val nextPlayer = buildPlayer(appContext, next)
         exoPlayer = nextPlayer
+        _player.value = nextPlayer
         _snapshot.value = PlaybackSnapshot(playerInstanceId = System.identityHashCode(nextPlayer))
         prev?.release()
     }
@@ -191,6 +192,8 @@ class Media3PlayerEngine @Inject constructor(
         val player = exoPlayer ?: return
         resetRuntimeState()
         exoPlayer = null
+        _player.value = null
+        _snapshot.value = PlaybackSnapshot()
         player.release()
     }
 
