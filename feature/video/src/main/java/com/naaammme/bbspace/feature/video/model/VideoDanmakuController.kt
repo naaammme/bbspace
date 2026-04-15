@@ -32,9 +32,13 @@ internal class VideoDanmakuController(
     val state: StateFlow<VideoDanmakuState> = _state.asStateFlow()
 
     private val loadingJobs = mutableMapOf<Long, Job>()
+    private var currentSource: PlaybackSource? = null
     private var currentVideoId: VideoPlaybackId? = null
+    private var currentDurationMs = 0L
     private var currentSegmentIndex: Long? = null
     private var lastPositionMs: Long? = null
+    @Volatile
+    private var lastTickSec = -1L
     private var observerJob: Job? = null
 
     fun bind(
@@ -73,11 +77,13 @@ internal class VideoDanmakuController(
             return
         }
 
-        val durationMs = source.durationMs.takeIf { it > 0 } ?: snapshot.durationMs.coerceAtLeast(0L)
-        val positionMs = snapshot.positionMs.coerceAtLeast(0L)
         if (currentVideoId != source.videoId) {
             reset(source.videoId)
         }
+        val durationMs = source.durationMs.takeIf { it > 0 } ?: snapshot.durationMs.coerceAtLeast(0L)
+        val positionMs = snapshot.positionMs.coerceAtLeast(0L)
+        currentSource = source
+        currentDurationMs = durationMs
         val request = DanmakuRequest(
             videoId = source.videoId,
             positionMs = positionMs,
@@ -86,7 +92,11 @@ internal class VideoDanmakuController(
         val segmentIndex = request.segmentIndex
 
         currentSegmentIndex = segmentIndex
-        if (shouldTrimForSeek(positionMs)) {
+        val shouldTrim = run {
+            val last = lastPositionMs
+            last != null && (positionMs < last || abs(positionMs - last) >= SEEK_RESET_THRESHOLD_MS)
+        }
+        if (shouldTrim) {
             trimCacheAround(segmentIndex)
         }
 
@@ -99,11 +109,25 @@ internal class VideoDanmakuController(
         maybePrefetchNextSegment(request)
 
         lastPositionMs = positionMs
+        lastTickSec = positionMs / 1000L
     }
 
-    private fun shouldTrimForSeek(positionMs: Long): Boolean {
-        val last = lastPositionMs ?: return false
-        return positionMs < last || abs(positionMs - last) >= SEEK_RESET_THRESHOLD_MS
+    fun onTick(positionMs: Long) {
+        val clampedPositionMs = positionMs.coerceAtLeast(0L)
+        val second = clampedPositionMs / 1000L
+        if (second == lastTickSec) return
+        lastTickSec = second
+        scope.launch {
+            val source = currentSource ?: return@launch
+            val request = DanmakuRequest(
+                videoId = source.videoId,
+                positionMs = clampedPositionMs,
+                durationMs = currentDurationMs
+            )
+            currentSegmentIndex = request.segmentIndex
+            ensureSegmentLoaded(request)
+            maybePrefetchNextSegment(request)
+        }
     }
 
     private fun maybePrefetchNextSegment(request: DanmakuRequest) {
@@ -166,9 +190,12 @@ internal class VideoDanmakuController(
     }
 
     private fun reset(videoId: VideoPlaybackId? = null) {
+        currentSource = null
         currentVideoId = videoId
+        currentDurationMs = 0L
         currentSegmentIndex = null
         lastPositionMs = null
+        lastTickSec = -1L
         loadingJobs.values.forEach { it.cancel() }
         loadingJobs.clear()
         _state.update { VideoDanmakuState(videoId = videoId) }

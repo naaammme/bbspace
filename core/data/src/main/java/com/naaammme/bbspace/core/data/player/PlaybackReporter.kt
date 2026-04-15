@@ -98,10 +98,6 @@ class PlaybackReporter @Inject constructor(
                 ended = !active.finalized &&
                         snapshot.playbackState == EnginePlaybackState.Ended &&
                         prev.playbackState != EnginePlaybackState.Ended,
-                interval = active.historyStarted &&
-                        snapshot.isPlaying &&
-                        active.lastHistoryReportAt > 0L &&
-                        active.lastSampleElapsedMs - active.lastHistoryReportAt >= HISTORY_INTERVAL_MS,
                 startHistory = !active.historyStarted && snapshot.firstFrameSeq > 0L
             )
         }
@@ -114,9 +110,6 @@ class PlaybackReporter @Inject constructor(
             startHistory(current.ctx, snapshot)
         }
 
-        if (current.interval) {
-            reportHistory(current.ctx, snapshot, complete = false)
-        }
         if (current.paused) {
             reportHistory(current.ctx, snapshot, complete = false)
         }
@@ -170,8 +163,7 @@ class PlaybackReporter @Inject constructor(
             if (current.sessionId != active.sessionId) return@withLock
             ctx = current.copy(
                 heartbeatStarted = true,
-                heartbeatStartTs = ts,
-                lastHistoryReportAt = current.lastHistoryReportAt
+                heartbeatStartTs = ts
             )
         }
     }
@@ -200,7 +192,7 @@ class PlaybackReporter @Inject constructor(
         mu.withLock {
             val current = ctx ?: return@withLock
             if (current.sessionId != active.sessionId) return@withLock
-            ctx = current.copy(historyStarted = true, lastHistoryReportAt = current.lastSampleElapsedMs)
+            ctx = current.copy(historyStarted = true)
         }
     }
 
@@ -216,10 +208,7 @@ class PlaybackReporter @Inject constructor(
         mu.withLock {
             val current = ctx ?: return@withLock
             if (current.sessionId != active.sessionId) return@withLock
-            ctx = current.copy(
-                historyStarted = true,
-                lastHistoryReportAt = current.lastSampleElapsedMs
-            )
+            ctx = current.copy(historyStarted = true)
         }
     }
 
@@ -493,7 +482,6 @@ class PlaybackReporter @Inject constructor(
         var heartbeatEnded: Boolean = false,
         var historyStarted: Boolean = false,
         var finalized: Boolean = false,
-        var lastHistoryReportAt: Long = 0L,
         var lastSnapshot: PlaybackSnapshot = PlaybackSnapshot()
     )
 
@@ -502,7 +490,6 @@ class PlaybackReporter @Inject constructor(
         val firstFrame: Boolean,
         val paused: Boolean,
         val ended: Boolean,
-        val interval: Boolean,
         val startHistory: Boolean
     )
 
@@ -518,7 +505,6 @@ class PlaybackReporter @Inject constructor(
         const val NETWORK_TYPE_WIFI = "1"
         const val DEFAULT_PLAY_MODE = "1"
         const val COMPLETE_THRESHOLD_MS = 3_000L
-        const val HISTORY_INTERVAL_MS = 30_000L
         const val HB_URL = "${BiliConstants.BASE_URL_API}/x/report/heartbeat/mobile"
         const val HISTORY_URL = "${BiliConstants.BASE_URL_API}/x/v2/history/report"
     }

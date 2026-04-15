@@ -73,6 +73,10 @@ internal fun VideoPlayerPane(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(true) }
     var dragMs by remember { mutableStateOf<Long?>(null) }
+    var livePosMs by remember(state.snapshot.playerInstanceId) {
+        mutableStateOf(0L)
+    }
+    val player = viewModel.getPlayerForView()
 
     LaunchedEffect(showCtrl, state.snapshot.isPlaying, dragMs, showA, showQ, showSp, showSettingsSheet) {
         if (
@@ -89,18 +93,39 @@ internal fun VideoPlayerPane(
         }
     }
 
-    val durationMs = state.snapshot.durationMs
+    LaunchedEffect(
+        player,
+        showCtrl,
+        dragMs,
+        state.snapshot.isPlaying,
+        state.snapshot.discontinuitySeq,
+        state.snapshot.firstFrameSeq
+    ) {
+        val curPlayer = player
+        if (!showCtrl || dragMs != null || curPlayer == null) {
+            livePosMs = state.snapshot.positionMs
+            return@LaunchedEffect
+        }
+        do {
+            livePosMs = curPlayer.currentPosition.coerceAtLeast(0L)
+            if (!state.snapshot.isPlaying) break
+            delay(200)
+        } while (showCtrl && dragMs == null)
+    }
+
+    val durationMs = player?.duration
+        ?.takeIf { it > 0L }
+        ?: state.snapshot.durationMs
         .takeIf { it > 0 }
         ?: state.playbackSource?.durationMs?.coerceAtLeast(0L)
         ?: 0L
     val danmakuOn = menuState.danmaku.enabled
-    val barMs = dragMs ?: state.snapshot.positionMs
+    val barMs = dragMs ?: livePosMs
     val sliderVal = if (durationMs > 0) {
         (barMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
     } else {
         0f
     }
-    val player = viewModel.getPlayerForView()
     val playerView = remember(context) {
         PlayerView(context).apply {
             useController = false

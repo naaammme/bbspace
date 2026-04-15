@@ -225,6 +225,10 @@ class VideoViewModel @Inject constructor(
         }
     }
 
+    fun onDanmakuTick(positionMs: Long) {
+        danmakuController.onTick(positionMs)
+    }
+
     fun switchQuality(quality: Int) {
         sessionManager.switchQuality(ownerId, quality)
     }

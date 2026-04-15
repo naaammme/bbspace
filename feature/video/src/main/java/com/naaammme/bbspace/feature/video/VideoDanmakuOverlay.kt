@@ -40,7 +40,7 @@ internal fun rememberVideoDanmakuOverlayState(
             isFocusableInTouchMode = false
         }
         val danmakuContext = createDanmakuContext().apply {
-            applyConfig(initialConfig, initialSpeed)
+            applyConfig(initialConfig)
         }
         val timeProvider = PlayerSessionTimeProvider(
             positionMs = initialPositionMs,
@@ -57,7 +57,8 @@ internal fun rememberVideoDanmakuOverlayState(
                 danmakuContext,
                 BbspaceDanmakuMapper(),
                 timeProvider
-            )
+            ),
+            onDanmakuTick = viewModel::onDanmakuTick
         )
     }
     return state

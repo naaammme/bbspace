@@ -125,14 +125,10 @@ private fun resolveDanmakuTextSize(
     return fontSize.coerceIn(18, 36).toFloat() * (density - 0.6f).coerceAtLeast(1f)
 }
 
-internal fun DanmakuContext.applyConfig(
-    config: VideoDanmakuConfig,
-    playbackSpeed: Float
-) {
-    val spd = playbackSpeed.coerceIn(0.25f, 3f)
+internal fun DanmakuContext.applyConfig(config: VideoDanmakuConfig) {
     setDanmakuTransparency(config.opacity)
     setScaleTextSize(config.textScale.coerceIn(0.5f, 2f) * 0.6f)
-    setScrollSpeedFactor(2f / (config.speed.coerceIn(0.5f, 2f) * spd))
+    setScrollSpeedFactor(2f / config.speed.coerceIn(0.5f, 2f))
     setDuplicateMergingEnabled(config.mergeDuplicates)
     setMaximumVisibleSizeInScreen(config.maximumVisibleSize)
     setMaximumLines(config.maximumLines)
