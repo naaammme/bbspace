@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">bbspace</string>
+    <string name="playback_notification_channel_name">后台播放</string>
+    <string name="playback_notification_channel_desc">视频后台播放控制</string>
 </resources>

@@ -74,17 +74,17 @@ class VideoViewModel @Inject constructor(
         scope = viewModelScope,
         repository = danmakuRepository
     )
-    private val session = MutableStateFlow<VideoPlaybackController.Session?>(null)
+    private val handle = MutableStateFlow<VideoPlaybackController.Handle?>(null)
     private var startJob: Job? = null
     private var openingRequest: PlaybackRequest? = null
 
-    val player = session.flatMapLatest { it?.player ?: flowOf<Player?>(null) }.stateIn(
+    val player = handle.flatMapLatest { it?.player ?: flowOf<Player?>(null) }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = null
     )
 
-    val playerState: StateFlow<PlaybackViewState> = session.flatMapLatest {
+    val playerState: StateFlow<PlaybackViewState> = handle.flatMapLatest {
         it?.state ?: flowOf(PlaybackViewState())
     }.stateIn(
         scope = viewModelScope,
@@ -124,22 +124,28 @@ class VideoViewModel @Inject constructor(
     internal val danmakuState = danmakuController.state
 
     init {
-        connectSession()
+        acquireHandle()
         loadInitialDetail()
     }
 
     fun ensureStarted() {
+        handle.value?.let { playbackHandle ->
+            danmakuController.bind(
+                playbackStateFlow = playbackHandle.state,
+                enabledFlow = settingsState.map { it.danmaku.enabled }
+            )
+        }
         val request = _req.value ?: return
         if (openingRequest == request && startJob?.isActive == true) return
         startPlayback(request)
     }
 
     fun togglePlayPause() {
-        val playbackSession = session.value ?: return
+        val playbackHandle = handle.value ?: return
         if (playerState.value.isPlaying) {
-            playbackSession.pause()
+            playbackHandle.pause()
         } else {
-            playbackSession.play()
+            playbackHandle.play()
         }
     }
 
@@ -148,27 +154,27 @@ class VideoViewModel @Inject constructor(
     }
 
     fun switchQuality(quality: Int) {
-        session.value?.switchQuality(quality)
+        handle.value?.switchQuality(quality)
     }
 
     fun switchAudio(audioId: Int) {
-        session.value?.switchAudio(audioId)
+        handle.value?.switchAudio(audioId)
     }
 
     fun switchCdn(cdnIndex: Int) {
-        session.value?.switchCdn(cdnIndex)
+        handle.value?.switchCdn(cdnIndex)
     }
 
     fun pause() {
-        session.value?.pause()
+        handle.value?.pause()
     }
 
     fun seekTo(positionMs: Long) {
-        session.value?.seekTo(positionMs)
+        handle.value?.seekTo(positionMs)
     }
 
     fun setSpeed(speed: Float) {
-        session.value?.setSpeed(speed)
+        handle.value?.setSpeed(speed)
     }
 
     fun updateBackgroundPlayback(enabled: Boolean) {
@@ -260,14 +266,20 @@ class VideoViewModel @Inject constructor(
         startJob?.cancel()
         startJob = null
         openingRequest = null
-        session.value?.release()
+        danmakuController.clear()
+        handle.value?.release()
     }
 
     override fun onCleared() {
         startJob?.cancel()
         startJob = null
         openingRequest = null
-        session.value?.release()
+        val playbackHandle = handle.value ?: run {
+            danmakuController.clear()
+            super.onCleared()
+            return
+        }
+        playbackHandle.release()
         danmakuController.clear()
         super.onCleared()
     }
@@ -278,7 +290,7 @@ class VideoViewModel @Inject constructor(
         openingRequest = request
         startJob = viewModelScope.launch {
             try {
-                session.value?.open(request)
+                handle.value?.open(request)
             } finally {
                 if (openingRequest == request) {
                     openingRequest = null
@@ -287,26 +299,22 @@ class VideoViewModel @Inject constructor(
         }
     }
 
-    private fun connectSession() {
+    private fun acquireHandle() {
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            val playbackSession = playbackController.connect()
-            session.value = playbackSession
-            danmakuController.bind(
-                playbackStateFlow = playbackSession.state,
-                enabledFlow = settingsState.map { it.danmaku.enabled }
-            )
+            val playbackHandle = playbackController.acquire()
+            handle.value = playbackHandle
             launch {
-                combine(_detail, _req, playbackSession.state) { detail, req, playbackState ->
+                combine(_detail, _req, playbackHandle.state) { detail, req, playbackState ->
                     detail.toHistoryMeta(playbackState.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
                 }.collect { meta ->
-                    playbackSession.updateMeta(meta)
+                    playbackHandle.updateMeta(meta)
                 }
             }
             if (route is VideoRoute.Pgc || route is VideoRoute.Pugv) {
                 launch {
                     var loadedAid = _detail.value?.aid?.takeIf { it > 0L } ?: 0L
                     var loadedBvid = _detail.value?.bvid.orEmpty()
-                    playbackSession.state.collect { playbackState ->
+                    playbackHandle.state.collect { playbackState ->
                         val videoId = playbackState.playbackSource?.videoId
                         val aid = videoId?.aid?.takeIf { it > 0L }
                         if (aid != null) {

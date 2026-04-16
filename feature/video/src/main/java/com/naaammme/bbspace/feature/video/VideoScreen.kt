@@ -33,6 +33,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.MaterialTheme
@@ -56,7 +57,9 @@ fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
+    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
+    val procOwner = remember { ProcessLifecycleOwner.get() }
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
     val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
@@ -106,7 +109,6 @@ fun VideoScreen(
         val obs = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> viewModel.ensureStarted()
-                Lifecycle.Event.ON_STOP -> viewModel.pause()
                 else -> Unit
             }
         }
@@ -114,6 +116,19 @@ fun VideoScreen(
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             viewModel.ensureStarted()
         }
+        onDispose {
+            lifecycle.removeObserver(obs)
+        }
+    }
+
+    DisposableEffect(procOwner, viewModel, settingsState.playback.backgroundPlayback) {
+        val lifecycle = procOwner.lifecycle
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && !settingsState.playback.backgroundPlayback) {
+                viewModel.pause()
+            }
+        }
+        lifecycle.addObserver(obs)
         onDispose {
             lifecycle.removeObserver(obs)
         }

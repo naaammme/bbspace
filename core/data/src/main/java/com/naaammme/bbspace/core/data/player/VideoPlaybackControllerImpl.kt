@@ -1,11 +1,13 @@
 package com.naaammme.bbspace.core.data.player
 
+import androidx.media3.common.Player
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
 import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
 import com.naaammme.bbspace.core.model.LocalHistoryKey
+import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
@@ -15,6 +17,7 @@ import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerSessionState
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
+import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineDiscontinuityReason
@@ -33,11 +36,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -53,14 +58,21 @@ class VideoPlaybackControllerImpl @Inject constructor(
     private val playerEngine: PlayerEngine
 ) : VideoPlaybackController {
     private val _sessionState = MutableStateFlow(PlayerSessionState())
-    private val sessionState: StateFlow<PlayerSessionState> = _sessionState.asStateFlow()
+    val sessionState: StateFlow<PlayerSessionState> = _sessionState.asStateFlow()
     private val _viewState = MutableStateFlow(PlaybackViewState())
+    val playbackState: StateFlow<PlaybackViewState> = _viewState.asStateFlow()
+    private val _pageMeta = MutableStateFlow<VideoHistoryMeta?>(null)
+    val pageMeta: StateFlow<VideoHistoryMeta?> = _pageMeta.asStateFlow()
+    val playerState: StateFlow<Player?> = playerEngine.player
     private val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val prepMu = Mutex()
     private val ownerId = AtomicLong(0L)
+    private val ownerSessionId = MutableStateFlow(0L)
     private val openId = AtomicLong(0L)
     private val nextSessionId = AtomicLong(1L)
     private var lastDiscontinuitySeq = 0L
+    @Volatile
+    private var nextPlayWhenReady = true
 
     init {
         runtimeScope.launch {
@@ -80,8 +92,8 @@ class VideoPlaybackControllerImpl @Inject constructor(
         }
     }
 
-    override suspend fun connect(): VideoPlaybackController.Session {
-        return Session(nextSessionId.getAndIncrement())
+    override suspend fun acquire(): VideoPlaybackController.Handle {
+        return Handle(nextSessionId.getAndIncrement())
     }
 
     suspend fun prepareEngine() {
@@ -93,11 +105,77 @@ class VideoPlaybackControllerImpl @Inject constructor(
         }
     }
 
-    private inner class Session(
+    fun currentRoute(): VideoRoute? {
+        val state = _sessionState.value
+        val request = state.currentRequest ?: return null
+        val src = request.playable.src
+        val videoId = state.playbackSource?.videoId ?: request.videoId
+        return when (request.playable.biz.biz) {
+            PlayBiz.UGC -> {
+                val aid = videoId.aid.takeIf { it > 0L } ?: return null
+                val cid = videoId.cid.takeIf { it > 0L } ?: return null
+                VideoRoute.Ugc(
+                    aid = aid,
+                    cid = cid,
+                    bvid = videoId.bvid,
+                    src = src
+                )
+            }
+
+            PlayBiz.PGC -> {
+                val epId = request.playable.biz.epId?.takeIf { it > 0L } ?: return null
+                VideoRoute.Pgc(
+                    epId = epId,
+                    seasonId = request.playable.biz.seasonId,
+                    subType = request.playable.biz.subType,
+                    src = src
+                )
+            }
+
+            PlayBiz.PUGV -> {
+                val epId = request.playable.biz.epId?.takeIf { it > 0L } ?: return null
+                VideoRoute.Pugv(
+                    epId = epId,
+                    seasonId = request.playable.biz.seasonId,
+                    src = src
+                )
+            }
+        }
+    }
+
+    fun stopPlayback() {
+        runtimeScope.launch {
+            finishCurrentSession(
+                invalidateOpen = true,
+                releasePlayer = true
+            )
+        }
+    }
+
+    private inner class Handle(
         private val sessionId: Long
-    ) : VideoPlaybackController.Session {
-        override val player = playerEngine.player
-        override val state = _viewState.asStateFlow()
+    ) : VideoPlaybackController.Handle {
+        override val player: StateFlow<Player?> = combine(
+            playerState,
+            ownerSessionId
+        ) { player, owner ->
+            player.takeIf { owner == sessionId }
+        }.stateIn(
+            scope = runtimeScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = null
+        )
+
+        override val state: StateFlow<PlaybackViewState> = combine(
+            playbackState,
+            ownerSessionId
+        ) { state, owner ->
+            if (owner == sessionId) state else PlaybackViewState()
+        }.stateIn(
+            scope = runtimeScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = PlaybackViewState()
+        )
 
         override suspend fun open(request: PlaybackRequest) {
             start(sessionId, request)
@@ -105,11 +183,13 @@ class VideoPlaybackControllerImpl @Inject constructor(
 
         override fun play() {
             if (!isOwner(sessionId)) return
+            nextPlayWhenReady = true
             playerEngine.play()
         }
 
         override fun pause() {
             if (!isOwner(sessionId)) return
+            nextPlayWhenReady = false
             playerEngine.pause()
         }
 
@@ -126,7 +206,7 @@ class VideoPlaybackControllerImpl @Inject constructor(
         override fun switchQuality(quality: Int) {
             if (!isOwner(sessionId)) return
             val state = _sessionState.value
-            val snapshot = playerEngine.snapshot.value
+            val snapshot = latestSnapshot()
             val source = state.playbackSource ?: return
             val stream = source.streams.firstOrNull { it.quality == quality } ?: return
             val audio = selectAudio(stream, source.audios, state.currentAudio?.id ?: 0)
@@ -142,7 +222,7 @@ class VideoPlaybackControllerImpl @Inject constructor(
         override fun switchAudio(audioId: Int) {
             if (!isOwner(sessionId)) return
             val state = _sessionState.value
-            val snapshot = playerEngine.snapshot.value
+            val snapshot = latestSnapshot()
             val source = state.playbackSource ?: return
             val audio = source.audios.firstOrNull { it.id == audioId } ?: return
             val engineSource = buildEngineSource(state.currentStream, audio, state.cdnIndex) ?: return
@@ -156,7 +236,7 @@ class VideoPlaybackControllerImpl @Inject constructor(
         override fun switchCdn(index: Int) {
             if (!isOwner(sessionId)) return
             val state = _sessionState.value
-            val snapshot = playerEngine.snapshot.value
+            val snapshot = latestSnapshot()
             val engineSource = buildEngineSource(state.currentStream, state.currentAudio, index) ?: return
             playerEngine.setSource(engineSource.first, snapshot.positionMs, snapshot.playWhenReady)
             _sessionState.value = state.copy(cdnIndex = engineSource.second)
@@ -167,11 +247,19 @@ class VideoPlaybackControllerImpl @Inject constructor(
 
         override fun updateMeta(meta: VideoHistoryMeta?) {
             if (!isOwner(sessionId)) return
+            _pageMeta.value = meta
             reporter.updateVideoMeta(meta)
         }
 
         override fun release() {
-            ownerId.compareAndSet(sessionId, 0L)
+            if (!isOwner(sessionId)) return
+            val snapshot = clearCurrentSession(
+                invalidateOpen = true,
+                releasePlayer = true
+            ) ?: return
+            runtimeScope.launch {
+                reporter.finishSession(snapshot)
+            }
         }
     }
 
@@ -179,13 +267,29 @@ class VideoPlaybackControllerImpl @Inject constructor(
         who: Long,
         request: PlaybackRequest
     ) {
-        if (canReuse(who, request)) {
+        val state = _sessionState.value
+        val owner = ownerId.get()
+        if (
+            state.currentRequest == request &&
+            state.error == null &&
+            (state.playbackSource != null || state.isPreparing) &&
+            (owner == who || owner == 0L)
+        ) {
+            ownerId.set(who)
+            ownerSessionId.value = who
+            reporter.bindOwner(who)
             return
         }
         val token = openId.incrementAndGet()
-        finishCurrentSession()
+        finishCurrentSession(
+            invalidateOpen = false,
+            releasePlayer = false
+        )
         ownerId.set(who)
+        ownerSessionId.value = who
         reporter.bindOwner(who)
+        nextPlayWhenReady = true
+        _pageMeta.value = null
         _sessionState.value = PlayerSessionState(
             currentRequest = request,
             isPreparing = true
@@ -216,7 +320,11 @@ class VideoPlaybackControllerImpl @Inject constructor(
                 ?: throw NoPlayableStreamException("暂无可用播放流")
             val startMs = resolveStartMs(request, source)
             if (openId.get() != token) return
-            playerEngine.setSource(engineSource.first, startMs)
+            playerEngine.setSource(
+                source = engineSource.first,
+                startPositionMs = startMs,
+                playWhenReady = nextPlayWhenReady
+            )
             if (openId.get() != token) return
 
             _sessionState.value = PlayerSessionState(
@@ -235,11 +343,13 @@ class VideoPlaybackControllerImpl @Inject constructor(
         } catch (t: Throwable) {
             if (t is CancellationException) {
                 if (openId.get() == token && _sessionState.value.playbackSource == null) {
+                    nextPlayWhenReady = true
                     _sessionState.value = PlayerSessionState()
                 }
                 throw t
             }
             if (openId.get() != token) return
+            nextPlayWhenReady = true
             _sessionState.value = _sessionState.value.copy(
                 isPreparing = false,
                 error = when (t) {
@@ -255,24 +365,53 @@ class VideoPlaybackControllerImpl @Inject constructor(
         }
     }
 
-    private suspend fun finishCurrentSession() {
-        val snapshot = playerEngine.snapshot.value
-        val hadSession = _sessionState.value.playbackSource != null
-        playerEngine.stopForReuse(resetPosition = true)
-        _sessionState.value = PlayerSessionState()
-        if (!hadSession) return
+    private suspend fun finishCurrentSession(
+        invalidateOpen: Boolean,
+        releasePlayer: Boolean
+    ) {
+        val snapshot = clearCurrentSession(
+            invalidateOpen = invalidateOpen,
+            releasePlayer = releasePlayer
+        ) ?: return
         reporter.finishSession(snapshot)
     }
 
-    private fun canReuse(
-        who: Long,
-        request: PlaybackRequest
-    ): Boolean {
-        val state = _sessionState.value
-        return ownerId.get() == who &&
-                state.currentRequest == request &&
-                (state.playbackSource != null || state.isPreparing) &&
-                state.error == null
+    private fun clearCurrentSession(
+        invalidateOpen: Boolean,
+        releasePlayer: Boolean
+    ): PlaybackSnapshot? {
+        val snapshot = latestSnapshot()
+        val hadSession = _sessionState.value.playbackSource != null
+        if (invalidateOpen) {
+            openId.incrementAndGet()
+        }
+        ownerId.set(0L)
+        ownerSessionId.value = 0L
+        nextPlayWhenReady = true
+        if (hadSession) {
+            if (releasePlayer) {
+                playerEngine.release()
+            } else {
+                playerEngine.stopForReuse(resetPosition = true)
+            }
+        }
+        _pageMeta.value = null
+        _sessionState.value = PlayerSessionState()
+        return snapshot.takeIf { hadSession }
+    }
+
+    private fun latestSnapshot(): PlaybackSnapshot {
+        val player = playerState.value ?: return playerEngine.snapshot.value
+        val snapshot = playerEngine.snapshot.value
+        return snapshot.copy(
+            isPlaying = player.isPlaying,
+            playWhenReady = player.playWhenReady,
+            positionMs = player.currentPosition.coerceAtLeast(0L),
+            bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
+            totalBufferedDurationMs = player.totalBufferedDuration.coerceAtLeast(0L),
+            durationMs = player.duration.takeIf { it > 0L } ?: snapshot.durationMs,
+            speed = player.playbackParameters.speed
+        )
     }
 
     private fun selectAudio(

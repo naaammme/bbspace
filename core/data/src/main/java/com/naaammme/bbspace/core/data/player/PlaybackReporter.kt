@@ -132,7 +132,12 @@ class PlaybackReporter @Inject constructor(
         active ?: return
 
         if (!active.historyStarted) {
-            mu.withLock { ctx = null }
+            mu.withLock {
+                val current = ctx ?: return@withLock
+                if (current.sessionId == active.sessionId) {
+                    ctx = null
+                }
+            }
             return
         }
 
@@ -141,7 +146,12 @@ class PlaybackReporter @Inject constructor(
             endHeartbeat(active)
         }
 
-        mu.withLock { ctx = null }
+        mu.withLock {
+            val current = ctx ?: return@withLock
+            if (current.sessionId == active.sessionId) {
+                ctx = null
+            }
+        }
     }
 
     private suspend fun startHeartbeat(active: SessionCtx) {

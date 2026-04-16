@@ -43,7 +43,7 @@ import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
 
-private enum class PlayerSheetSection(
+private enum class PlaybackSheetSection(
     val title: String
 ) {
     Info("视频信息"),
@@ -53,7 +53,7 @@ private enum class PlayerSheetSection(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun VideoPlayerBottomSheet(
+internal fun VideoPlaybackSheet(
     state: PlaybackViewState,
     viewModel: VideoViewModel,
     limitUnderPlayer: Boolean,
@@ -61,7 +61,7 @@ internal fun VideoPlayerBottomSheet(
 ) {
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var section by rememberSaveable { mutableStateOf(PlayerSheetSection.Info) }
+    var section by rememberSaveable { mutableStateOf(PlaybackSheetSection.Info) }
     val configuration = LocalConfiguration.current
     val shouldLimitHeight = limitUnderPlayer && configuration.screenHeightDp > configuration.screenWidthDp
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -107,7 +107,7 @@ internal fun VideoPlayerBottomSheet(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                PlayerSheetSection.entries.forEach { item ->
+                PlaybackSheetSection.entries.forEach { item ->
                     FilterChip(
                         selected = item == section,
                         onClick = { section = item },
@@ -117,14 +117,14 @@ internal fun VideoPlayerBottomSheet(
             }
 
             when (section) {
-                PlayerSheetSection.Info -> PlayerInfoSection(state)
-                PlayerSheetSection.Playback -> PlaybackSettingsSection(
+                PlaybackSheetSection.Info -> PlayerInfoSection(state)
+                PlaybackSheetSection.Playback -> PlaybackSettingsSection(
                     state = state,
                     settingsState = settingsState,
                     viewModel = viewModel
                 )
 
-                PlayerSheetSection.Danmaku -> DanmakuSettingsSection(
+                PlaybackSheetSection.Danmaku -> DanmakuSettingsSection(
                     settingsState = settingsState,
                     viewModel = viewModel
                 )
@@ -200,7 +200,7 @@ private fun PlaybackSettingsSection(
 
     SheetSwitchCard(
         title = "后台播放",
-        subtitle = "当前阶段未接入后台播放宿主，暂不生效",
+        subtitle = "退出页面或切到后台后继续播放，并显示系统通知",
         checked = settingsState.playback.backgroundPlayback,
         onCheckedChange = viewModel::updateBackgroundPlayback
     )

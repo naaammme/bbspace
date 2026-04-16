@@ -23,7 +23,7 @@ object DataDbModule {
             context,
             LocalHistoryDb::class.java,
             "local_history.db"
-        ).fallbackToDestructiveMigration()
+        ).fallbackToDestructiveMigration(false)
             .build()
     }
 

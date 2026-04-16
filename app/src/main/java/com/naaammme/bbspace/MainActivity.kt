@@ -6,14 +6,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.designsystem.theme.BiliTheme
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
+import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.navigation.AppNavHost
+import com.naaammme.bbspace.playback.PlaybackLaunchIntents
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlin.math.abs
@@ -24,8 +28,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var appSettings: AppSettings
 
+    private var pendingVideoRoute by mutableStateOf<VideoRoute?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingVideoRoute = if (savedInstanceState == null) {
+            PlaybackLaunchIntents.consumeRoute(intent)
+        } else {
+            null
+        }
         enableEdgeToEdge()
         setContent {
             val themeConfig by appSettings.themeConfig.collectAsState(initial = ThemeConfig())
@@ -36,10 +47,20 @@ class MainActivity : ComponentActivity() {
             // 全局文本选择
             BiliTheme(config = themeConfig) {
                 SelectionContainer {
-                    AppNavHost(themeConfig = themeConfig)
+                    AppNavHost(
+                        themeConfig = themeConfig,
+                        pendingVideoRoute = pendingVideoRoute,
+                        onPendingVideoRouteConsumed = { pendingVideoRoute = null }
+                    )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingVideoRoute = PlaybackLaunchIntents.consumeRoute(intent)
     }
 
     private fun applyFrameRate(mode: FrameRateMode) {

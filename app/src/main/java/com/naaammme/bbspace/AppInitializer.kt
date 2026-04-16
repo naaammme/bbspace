@@ -1,10 +1,12 @@
 package com.naaammme.bbspace
 
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import androidx.core.content.ContextCompat
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.infra.coldstart.ColdStartClient
 import com.naaammme.bbspace.core.data.AppSettings
@@ -15,12 +17,16 @@ import com.naaammme.bbspace.infra.crypto.BuvidFetcher
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
 import com.naaammme.bbspace.infra.crypto.TicketGenerator
 import com.naaammme.bbspace.infra.network.dns.BiliDns
+import com.naaammme.bbspace.playback.VideoPlaybackService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -64,6 +70,7 @@ class AppInitializer @Inject constructor(
                 Logger.w(TAG) { "Player warmup failed: ${error.message}" }
             }
         }
+        observePlaybackService()
 
         initScope.launch {
             try {
@@ -137,5 +144,21 @@ class AppInitializer @Inject constructor(
                 }
             }
         })
+    }
+
+    private fun observePlaybackService() {
+        initScope.launch {
+            playbackController.sessionState
+                .map { it.playbackSource != null }
+                .distinctUntilChanged()
+                .collect { shouldStart ->
+                val intent = Intent(context, VideoPlaybackService::class.java)
+                if (shouldStart) {
+                    ContextCompat.startForegroundService(context, intent)
+                } else {
+                    context.stopService(intent)
+                }
+                }
+        }
     }
 }

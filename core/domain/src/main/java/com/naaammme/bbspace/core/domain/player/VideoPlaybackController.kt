@@ -7,9 +7,9 @@ import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import kotlinx.coroutines.flow.StateFlow
 
 interface VideoPlaybackController {
-    suspend fun connect(): Session
+    suspend fun acquire(): Handle
 
-    interface Session {
+    interface Handle {
         val player: StateFlow<Player?>
         val state: StateFlow<PlaybackViewState>
 

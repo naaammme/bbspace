@@ -71,14 +71,14 @@ internal fun VideoPlayerPane(
     var showQ by remember { mutableStateOf(false) }
     var showA by remember { mutableStateOf(false) }
     var showSp by remember { mutableStateOf(false) }
-    var showSettingsSheet by remember { mutableStateOf(false) }
+    var showPlaybackSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(true) }
     var dragMs by remember { mutableStateOf<Long?>(null) }
     var livePosMs by remember(player) {
         mutableStateOf(0L)
     }
 
-    LaunchedEffect(showCtrl, state.isPlaying, dragMs, showA, showQ, showSp, showSettingsSheet) {
+    LaunchedEffect(showCtrl, state.isPlaying, dragMs, showA, showQ, showSp, showPlaybackSheet) {
         if (
             showCtrl &&
             state.isPlaying &&
@@ -86,7 +86,7 @@ internal fun VideoPlayerPane(
             !showA &&
             !showQ &&
             !showSp &&
-            !showSettingsSheet
+            !showPlaybackSheet
         ) {
             delay(3_000)
             showCtrl = false
@@ -219,7 +219,7 @@ internal fun VideoPlayerPane(
                     IconButton(
                         onClick = {
                             showCtrl = true
-                            showSettingsSheet = true
+                            showPlaybackSheet = true
                         }
                     ) {
                         Icon(
@@ -318,12 +318,12 @@ internal fun VideoPlayerPane(
         )
     }
 
-    if (showSettingsSheet) {
-        VideoPlayerBottomSheet(
+    if (showPlaybackSheet) {
+        VideoPlaybackSheet(
             state = state,
             viewModel = viewModel,
             limitUnderPlayer = !isFull,
-            onDismiss = { showSettingsSheet = false }
+            onDismiss = { showPlaybackSheet = false }
         )
     }
 }
