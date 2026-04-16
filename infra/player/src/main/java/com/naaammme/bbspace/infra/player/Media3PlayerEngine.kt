@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +66,10 @@ class Media3PlayerEngine @Inject constructor(
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            Logger.e(TAG, error) {
+                "player error code=${error.errorCodeName} msg=${error.message} " +
+                        "videoDec=$videoDecoderName audioDec=$audioDecoderName"
+            }
             updateSnapshot(errorMessage = error.message)
         }
 
@@ -348,5 +353,9 @@ class Media3PlayerEngine @Inject constructor(
             Player.DISCONTINUITY_REASON_REMOVE -> EngineDiscontinuityReason.Remove
             else -> EngineDiscontinuityReason.Internal
         }
+    }
+
+    private companion object {
+        const val TAG = "Media3Player"
     }
 }

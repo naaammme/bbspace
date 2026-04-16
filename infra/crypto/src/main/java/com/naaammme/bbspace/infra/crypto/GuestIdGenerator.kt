@@ -29,6 +29,7 @@ class GuestIdGenerator(
         // 端点路径（就近定义，base URL 统一在 BiliConstants）
         private const val GET_KEY_ENDPOINT = "/x/passport-login/web/key"
         private const val GUEST_ID_ENDPOINT = "/x/passport-user/guest/reg"
+        private const val MAX_ERROR_BODY_LOG_BYTES = 4_096L
 
         // AES 加密使用的字符集
         private const val AES_LETTER = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -155,7 +156,8 @@ class GuestIdGenerator(
                         Logger.d(TAG) { "成功获取 RSA 公钥" }
                         true
                     } else {
-                        Logger.e(TAG) { "获取 RSA 密钥失败: ${json.getString("message")}" }
+                        val msg = json.optString("message")
+                        Logger.e(TAG) { "获取 RSA 密钥失败: $msg" }
                         false
                     }
                 } else {
@@ -317,12 +319,17 @@ class GuestIdGenerator(
                         Logger.d(TAG) { "成功获取 guestid: $guestId" }
                         guestId
                     } else {
-                        Logger.e(TAG) { "API 返回错误: code=${json.getInt("code")}, message=${json.getString("message")}" }
+                        val code = json.optInt("code", -1)
+                        val msg = json.optString("message")
+                        Logger.e(TAG) { "API 返回错误: code=$code, message=$msg" }
                         null
                     }
                 } else {
                     Logger.e(TAG) { "HTTP 错误: ${response.code}" }
-                    Logger.e(TAG) { "响应内容: ${response.body?.string()}" }
+                    if (Logger.isDebug) {
+                        val bodyText = response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
+                        Logger.e(TAG) { "响应内容: $bodyText" }
+                    }
                     null
                 }
             }

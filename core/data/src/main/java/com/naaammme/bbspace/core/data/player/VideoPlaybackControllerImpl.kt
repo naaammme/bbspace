@@ -3,6 +3,7 @@ package com.naaammme.bbspace.core.data.player
 import androidx.media3.common.Player
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.data.AppSettings
+import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
 import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
@@ -350,6 +351,12 @@ class VideoPlaybackControllerImpl @Inject constructor(
             }
             if (openId.get() != token) return
             nextPlayWhenReady = true
+            Logger.e(TAG, t) {
+                "load playback source failed biz=${request.playable.biz.biz} " +
+                        "aid=${request.videoId.aid} cid=${request.videoId.cid} " +
+                        "epId=${request.playable.biz.epId} seasonId=${request.playable.biz.seasonId} " +
+                        "q=${request.preferredQuality} msg=${t.message}"
+            }
             _sessionState.value = _sessionState.value.copy(
                 isPreparing = false,
                 error = when (t) {
@@ -539,6 +546,7 @@ class VideoPlaybackControllerImpl @Inject constructor(
     }
 
     private companion object {
+        const val TAG = "VideoPlayback"
         const val COMPLETE_THRESHOLD_MS = 3_000L
     }
 }
