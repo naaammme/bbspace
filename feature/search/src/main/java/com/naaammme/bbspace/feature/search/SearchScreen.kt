@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,14 +25,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,14 +39,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -65,19 +56,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.designsystem.theme.LocalAnimations
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
+import com.naaammme.bbspace.core.designsystem.theme.LocalAnimations
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -191,7 +176,7 @@ fun SearchScreen(
                                 key = { index -> "loading_$index" },
                                 contentType = { "skeleton" }
                             ) {
-                                SearchCardSkeleton()
+                                VideoListCardSkeleton()
                             }
                         }
 
@@ -235,7 +220,7 @@ private fun SearchLoadingList(modifier: Modifier = Modifier) {
             key = { index -> "skeleton_$index" },
             contentType = { "skeleton" }
         ) {
-            SearchCardSkeleton()
+            VideoListCardSkeleton()
         }
     }
 }
@@ -692,190 +677,6 @@ private fun SearchFeedbackMenu(feedbacks: List<SearchFeedbackSec>) {
                 }
             }
         )
-    }
-}
-
-@Composable
-private fun SearchCardSkeleton() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(0.38f)
-                    .aspectRatio(16f / 10f)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
-
-            Column(
-                modifier = Modifier.weight(0.62f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.92f)
-                        .height(18.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.shapes.extraSmall
-                        )
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.75f)
-                        .height(18.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.shapes.extraSmall
-                        )
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.52f)
-                        .height(14.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.shapes.extraSmall
-                        )
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .width(72.dp)
-                            .height(12.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.shapes.extraSmall
-                            )
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(58.dp)
-                            .height(12.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.shapes.extraSmall
-                            )
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .width(88.dp)
-                        .height(20.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.shapes.extraSmall
-                        )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchTopBar(
-    text: String,
-    autoFocus: Boolean,
-    onTextChange: (String) -> Unit,
-    onBack: () -> Unit,
-    onSearch: () -> Unit
-) {
-    val keyboard = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(autoFocus) {
-        if (autoFocus) {
-            focusRequester.requestFocus()
-            keyboard?.show()
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            focusManager.clearFocus(force = true)
-            keyboard?.hide()
-        }
-    }
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            IconButton(
-                onClick = {
-                    focusManager.clearFocus(force = true)
-                    keyboard?.hide()
-                    onBack()
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "返回"
-                )
-            }
-
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
-                shape = MaterialTheme.shapes.large,
-                singleLine = true,
-                placeholder = { Text("搜索视频") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null
-                    )
-                },
-                trailingIcon = {
-                    if (text.isNotEmpty()) {
-                        IconButton(onClick = { onTextChange("") }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "清空"
-                            )
-                        }
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.None,
-                    autoCorrectEnabled = true,
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Search
-                ),
-                keyboardActions = KeyboardActions(
-                    onSearch = {
-                        focusManager.clearFocus(force = true)
-                        keyboard?.hide()
-                        onSearch()
-                    }
-                )
-            )
-        }
     }
 }
 

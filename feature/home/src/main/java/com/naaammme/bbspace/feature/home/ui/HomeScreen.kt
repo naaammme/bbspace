@@ -12,13 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -55,6 +53,8 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleEntry
+import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.FeedItem
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.VideoRoute
@@ -98,7 +98,10 @@ fun HomeScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = {
-                HomeSearchEntry(onClick = onNavigateToSearch)
+                SearchCapsuleEntry(
+                    text = "搜索视频",
+                    onClick = onNavigateToSearch
+                )
             },
             actions = {
                 IconButton(onClick = onNavigateToSettings) {
@@ -123,7 +126,7 @@ fun HomeScreen(
                 )
             ) {
                 if (items.isEmpty() && viewModel.isRefreshing) {
-                    items(10) { FeedCardSkeleton() }
+                    items(10) { VideoGridCardSkeleton() }
                 } else {
                     viewModel.errorMessage?.let { err ->
                         item {
@@ -160,37 +163,6 @@ fun HomeScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun HomeSearchEntry(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "搜索视频",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -356,62 +328,3 @@ private fun MoreMenu(items: List<ThreePointItem>) {
     }
 }
 
-@Composable
-private fun FeedCardSkeleton() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 10f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .height(16.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.shapes.extraSmall
-                        )
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.6f)
-                        .height(14.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.shapes.extraSmall
-                        )
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    Box(
-                        modifier = Modifier
-                            .width(60.dp)
-                            .height(12.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.shapes.extraSmall
-                            )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .width(60.dp)
-                            .height(12.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.shapes.extraSmall
-                            )
-                    )
-                }
-            }
-        }
-    }
-}

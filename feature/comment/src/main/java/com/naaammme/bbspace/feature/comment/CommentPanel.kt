@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.component.CommentCardSkeleton
+import com.naaammme.bbspace.core.designsystem.component.CommentHeaderSkeleton
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
 import kotlinx.coroutines.flow.collectLatest
@@ -44,6 +46,7 @@ fun CommentPanel(
         viewModel.bind(subject)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isInitLoading = subject != null && uiState.loading && uiState.items.isEmpty()
     val context = LocalContext.current
     val listState = rememberLazyListState()
     val shouldLoadMore by remember {
@@ -81,17 +84,21 @@ fun CommentPanel(
             key = "comment_header",
             contentType = "header"
         ) {
-            CommentHeader(
-                state = uiState,
-                onToggleSort = {
-                    val next = if (uiState.sort == CommentSort.HOT) {
-                        CommentSort.TIME
-                    } else {
-                        CommentSort.HOT
+            if (isInitLoading) {
+                CommentHeaderSkeleton()
+            } else {
+                CommentHeader(
+                    state = uiState,
+                    onToggleSort = {
+                        val next = if (uiState.sort == CommentSort.HOT) {
+                            CommentSort.TIME
+                        } else {
+                            CommentSort.HOT
+                        }
+                        viewModel.selectSort(next)
                     }
-                    viewModel.selectSort(next)
-                }
-            )
+                )
+            }
         }
 
         when {
@@ -104,12 +111,13 @@ fun CommentPanel(
                 }
             }
 
-            uiState.loading && uiState.items.isEmpty() -> {
-                item(
-                    key = "comment_loading",
-                    contentType = "state"
+            isInitLoading -> {
+                items(
+                    count = INIT_SKELETON_COUNT,
+                    key = { index -> "comment_skeleton_$index" },
+                    contentType = { "reply_skeleton" }
                 ) {
-                    StateCard(text = "正在加载评论")
+                    CommentCardSkeleton()
                 }
             }
 
@@ -151,11 +159,12 @@ fun CommentPanel(
         }
 
         if (uiState.loadingMore) {
-            item(
-                key = "comment_loading_more",
-                contentType = "footer"
+            items(
+                count = LOAD_MORE_SKELETON_COUNT,
+                key = { index -> "comment_loading_more_$index" },
+                contentType = { "reply_skeleton" }
             ) {
-                StateCard(text = "正在加载更多评论")
+                CommentCardSkeleton()
             }
         } else if (!uiState.loadMoreError.isNullOrBlank()) {
             item(
@@ -293,3 +302,6 @@ private fun RetryCard(
         }
     }
 }
+
+private const val INIT_SKELETON_COUNT = 4
+private const val LOAD_MORE_SKELETON_COUNT = 2

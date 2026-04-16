@@ -57,6 +57,8 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.VideoDetailInfoSkeleton
+import com.naaammme.bbspace.core.designsystem.component.VideoRelateCardSkeleton
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.VideoDetail
@@ -91,7 +93,7 @@ internal fun VideoDetailPage(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MaterialTheme.colorScheme.background)
                 .statusBarsPadding()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -125,7 +127,7 @@ internal fun VideoDetailPage(
         DetailPager(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(top = playerSpaceHeight),
             pageState = pageState,
             commentSubject = commentSubject,
@@ -263,13 +265,17 @@ private fun LazyListScope.detailItems(
     when {
         pageState.detailLoading -> {
             item(
-                key = "detail_loading",
-                contentType = "state"
+                key = "detail_loading_summary",
+                contentType = "skeleton"
             ) {
-                StateCard(
-                    text = "正在加载简介",
-                    modifier = itemMod
-                )
+                VideoDetailInfoSkeleton(modifier = itemMod)
+            }
+            items(
+                count = DETAIL_RELATE_SKELETON_COUNT,
+                key = { index -> "detail_loading_relate_$index" },
+                contentType = { "skeleton" }
+            ) {
+                VideoRelateCardSkeleton(modifier = itemMod)
             }
         }
 
@@ -1175,5 +1181,6 @@ private fun formatPubTime(ts: Long): String {
     return DateFormat.format("yyyy-MM-dd HH:mm", ts * 1000).toString()
 }
 
+private const val DETAIL_RELATE_SKELETON_COUNT = 2
 private const val SHEET_SEASON = "season"
 private const val SHEET_PAGE = "page"

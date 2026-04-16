@@ -36,11 +36,22 @@ fun BiliTheme(
         config.useDynamicColor,
         config.isPureBlack
     ) {
-        when {
+        val base = when {
             config.useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
             else -> createColorScheme(config.seedColor, darkTheme, config.isPureBlack)
+        }
+        if (
+            config.useDynamicColor &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            config.isPureBlack
+        ) {
+            base.copy(
+                background = if (darkTheme) Color.Black else Color.White
+            )
+        } else {
+            base
         }
     }
 
