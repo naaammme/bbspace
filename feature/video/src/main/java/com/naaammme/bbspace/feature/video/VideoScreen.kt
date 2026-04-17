@@ -65,17 +65,18 @@ fun VideoScreen(
     val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
     var isFull by rememberSaveable { mutableStateOf(false) }
 
-    BackHandler(enabled = isFull) {
-        isFull = false
-    }
-
     val toggleFull = { isFull = !isFull }
     val handleBack = {
         if (isFull) {
             isFull = false
         } else {
+            viewModel.closePage()
             onBack()
         }
+    }
+
+    BackHandler {
+        handleBack()
     }
 
     DisposableEffect(viewModel) {

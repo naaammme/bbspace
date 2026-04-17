@@ -39,6 +39,7 @@ class AppSettings @Inject constructor(
     private val cornerStyleKey = stringPreferencesKey("corner_style")
     private val hdFeedKey = booleanPreferencesKey("hd_feed")
     private val personalizedRcmdKey = booleanPreferencesKey("personalized_rcmd")
+    private val autoCheckUpdateKey = booleanPreferencesKey("auto_check_update")
 
     val themeConfig: Flow<ThemeConfig> = context.appSettingsStore.data.map { prefs ->
         ThemeConfig(
@@ -94,6 +95,8 @@ class AppSettings @Inject constructor(
 
     val personalizedRcmd: Flow<Boolean> = context.appSettingsStore.data.map { it[personalizedRcmdKey] ?: true }
 
+    val autoCheckUpdate: Flow<Boolean> = context.appSettingsStore.data.map { it[autoCheckUpdateKey] ?: true }
+
     private val interestDoneKey = booleanPreferencesKey("interest_done")
     val interestDone: Flow<Boolean> = context.appSettingsStore.data.map { it[interestDoneKey] ?: false }
 
@@ -103,6 +106,10 @@ class AppSettings @Inject constructor(
 
     suspend fun updatePersonalizedRcmd(enabled: Boolean) {
         context.appSettingsStore.edit { it[personalizedRcmdKey] = enabled }
+    }
+
+    suspend fun updateAutoCheckEnabled(enabled: Boolean) {
+        context.appSettingsStore.edit { it[autoCheckUpdateKey] = enabled }
     }
 
     suspend fun markInterestDone() {

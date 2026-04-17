@@ -110,10 +110,10 @@ class PlaybackReporter @Inject constructor(
             startHistory(current.ctx, snapshot)
         }
 
-        if (current.paused) {
+        if (current.paused && current.ctx.historyStarted) {
             reportHistory(current.ctx, snapshot, complete = false)
         }
-        if (current.ended) {
+        if (current.ended && current.ctx.historyStarted) {
             reportHistory(current.ctx, snapshot, complete = true)
             endHeartbeat(current.ctx)
             mu.withLock {
@@ -212,6 +212,9 @@ class PlaybackReporter @Inject constructor(
         complete: Boolean
     ) {
         saveLocalHistory(active, snapshot)
+        if (!active.historyStarted && snapshot.firstFrameSeq <= 0L) {
+            return
+        }
         if (active.reportEnabled) {
             request(HISTORY_URL, buildHistoryParams(active, snapshot, complete))
         }

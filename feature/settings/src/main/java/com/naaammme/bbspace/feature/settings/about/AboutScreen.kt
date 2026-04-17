@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
+import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialog as CoreAppUpdateDialog
+import com.naaammme.bbspace.feature.settings.components.SettingSwitch
 import com.naaammme.bbspace.feature.settings.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,6 +32,8 @@ fun AboutScreen(
 ) {
     val context = LocalContext.current
     val updateState by vm.updateState.collectAsStateWithLifecycle()
+    val autoCheckUpdate by vm.autoCheckUpdate.collectAsStateWithLifecycle()
+    val updateDialog by vm.updateDialog.collectAsStateWithLifecycle()
 
     CollapsingTopBarScaffold(
         topBar = { scrollBehavior ->
@@ -79,7 +83,11 @@ fun AboutScreen(
             }
 
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = vm::checkUpdate,
+                    enabled = updateState != UpdateState.Checking
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -88,7 +96,11 @@ fun AboutScreen(
                     ) {
                         Text("检查更新", style = MaterialTheme.typography.titleMedium)
                         when (val s = updateState) {
-                            is UpdateState.Idle -> {}
+                            is UpdateState.Idle -> Text(
+                                "点击这里检查新版本",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             is UpdateState.Checking -> Text(
                                 "正在检查...",
                                 style = MaterialTheme.typography.bodySmall,
@@ -99,31 +111,28 @@ fun AboutScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            is UpdateState.HasUpdate -> {
-                                Text(
-                                    "发现新版本 v${s.version}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                TextButton(
-                                    onClick = {
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(s.url)))
-                                    }
-                                ) { Text("前往下载") }
-                            }
+                            is UpdateState.HasUpdate -> Text(
+                                "发现新版本 v${s.version}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                             is UpdateState.Error -> Text(
-                                "检查失败: ${s.msg}",
+                                "检查失败 点击重试",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
-                        Button(
-                            onClick = { vm.checkUpdate(versionName) },
-                            enabled = updateState != UpdateState.Checking,
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("检查更新") }
                     }
                 }
+            }
+
+            item {
+                SettingSwitch(
+                    title = "自动检查更新",
+                    subtitle = "应用初始化时自动检查并弹出更新说明",
+                    checked = autoCheckUpdate,
+                    onCheckedChange = vm::updateAutoCheckEnabled
+                )
             }
 
             item {
@@ -142,6 +151,17 @@ fun AboutScreen(
                 )
             }
         }
+    }
+
+    updateDialog?.let { release ->
+        CoreAppUpdateDialog(
+            state = release,
+            onDismiss = vm::dismissUpdateDialog,
+            onOpenUrl = {
+                vm.dismissUpdateDialog()
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+            }
+        )
     }
 }
 

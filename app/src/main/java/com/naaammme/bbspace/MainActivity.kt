@@ -1,17 +1,25 @@
 package com.naaammme.bbspace
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.Display
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
 import com.naaammme.bbspace.core.data.AppSettings
+import com.naaammme.bbspace.core.data.update.AppUpdateCheckResult
+import com.naaammme.bbspace.core.data.update.AppUpdateChecker
+import com.naaammme.bbspace.core.data.update.toDialogState
+import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialog
+import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
 import com.naaammme.bbspace.core.designsystem.theme.BiliTheme
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
@@ -19,6 +27,8 @@ import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.navigation.AppNavHost
 import com.naaammme.bbspace.playback.PlaybackLaunchIntents
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.abs
 
@@ -28,7 +38,11 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var appSettings: AppSettings
 
+    @Inject
+    lateinit var updateChecker: AppUpdateChecker
+
     private var pendingVideoRoute by mutableStateOf<VideoRoute?>(null)
+    private var updateDialog by mutableStateOf<AppUpdateDialogState?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,6 +50,9 @@ class MainActivity : ComponentActivity() {
             PlaybackLaunchIntents.consumeRoute(intent)
         } else {
             null
+        }
+        if (savedInstanceState == null) {
+            autoCheckUpdate()
         }
         enableEdgeToEdge()
         setContent {
@@ -53,6 +70,16 @@ class MainActivity : ComponentActivity() {
                         onPendingVideoRouteConsumed = { pendingVideoRoute = null }
                     )
                 }
+                updateDialog?.let { release ->
+                    AppUpdateDialog(
+                        state = release,
+                        onDismiss = { updateDialog = null },
+                        onOpenUrl = {
+                            updateDialog = null
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+                        }
+                    )
+                }
             }
         }
     }
@@ -61,6 +88,16 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingVideoRoute = PlaybackLaunchIntents.consumeRoute(intent)
+    }
+
+    private fun autoCheckUpdate() {
+        lifecycleScope.launch {
+            if (!appSettings.autoCheckUpdate.first()) return@launch
+            val result = updateChecker.check().getOrNull() ?: return@launch
+            if (result is AppUpdateCheckResult.HasUpdate) {
+                updateDialog = result.toDialogState()
+            }
+        }
     }
 
     private fun applyFrameRate(mode: FrameRateMode) {

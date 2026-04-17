@@ -2,61 +2,80 @@ package com.naaammme.bbspace.feature.settings.about
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.naaammme.bbspace.core.data.AppSettings
+import com.naaammme.bbspace.core.data.update.AppUpdateCheckResult
+import com.naaammme.bbspace.core.data.update.AppUpdateChecker
+import com.naaammme.bbspace.core.data.update.toDialogState
+import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 
 sealed interface UpdateState {
     data object Idle : UpdateState
     data object Checking : UpdateState
     data object UpToDate : UpdateState
-    data class HasUpdate(val version: String, val url: String) : UpdateState
-    data class Error(val msg: String) : UpdateState
+    data class HasUpdate(val version: String) : UpdateState
+    data object Error : UpdateState
 }
 
 @HiltViewModel
-class AboutViewModel @Inject constructor() : ViewModel() {
+class AboutViewModel @Inject constructor(
+    private val appSettings: AppSettings,
+    private val updateChecker: AppUpdateChecker
+) : ViewModel() {
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val updateState: StateFlow<UpdateState> = _updateState
 
-    companion object {
-        private const val RELEASES_API = "https://api.github.com/repos/naaammme/bbspace/releases/latest"
-    }
+    private val _updateDialog = MutableStateFlow<AppUpdateDialogState?>(null)
+    val updateDialog: StateFlow<AppUpdateDialogState?> = _updateDialog.asStateFlow()
 
-    fun checkUpdate(currentVersion: String) {
+    val autoCheckUpdate = appSettings.autoCheckUpdate.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        true
+    )
+
+    fun checkUpdate() {
         if (_updateState.value == UpdateState.Checking) return
         _updateState.value = UpdateState.Checking
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val conn = URL(RELEASES_API).openConnection() as HttpURLConnection
-                    conn.setRequestProperty("Accept", "application/vnd.github+json")
-                    conn.connectTimeout = 10_000
-                    conn.readTimeout = 10_000
-                    val body = conn.inputStream.bufferedReader().use { it.readText() }
-                    conn.disconnect()
-                    val json = JSONObject(body)
-                    val tag = json.getString("tag_name").trimStart('v', 'V')
-                    val htmlUrl = json.getString("html_url")
-                    tag to htmlUrl
-                }
-            }
-            result.fold(
-                onSuccess = { (tag, url) ->
-                    val current = currentVersion.trimStart('v', 'V')
-                    _updateState.value = if (tag == current) UpdateState.UpToDate
-                    else UpdateState.HasUpdate(tag, url)
+            updateChecker.check().fold(
+                onSuccess = { result ->
+                    when (result) {
+                        is AppUpdateCheckResult.UpToDate -> {
+                            _updateState.value = UpdateState.UpToDate
+                            _updateDialog.value = result.toDialogState()
+                        }
+                        is AppUpdateCheckResult.HasUpdate -> {
+                            _updateState.value = UpdateState.HasUpdate(
+                                version = result.release.version
+                            )
+                            _updateDialog.value = result.toDialogState()
+                        }
+                    }
                 },
-                onFailure = { _updateState.value = UpdateState.Error(it.message ?: "未知错误") }
+                onFailure = {
+                    _updateState.value = UpdateState.Error
+                    _updateDialog.value = it.toDialogState()
+                }
             )
         }
+    }
+
+    fun updateAutoCheckEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateAutoCheckEnabled(enabled)
+        }
+    }
+
+    fun dismissUpdateDialog() {
+        _updateDialog.value = null
     }
 }
