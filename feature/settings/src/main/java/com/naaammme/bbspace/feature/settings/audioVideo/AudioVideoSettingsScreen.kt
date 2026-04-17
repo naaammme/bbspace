@@ -15,7 +15,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -28,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.feature.settings.components.SettingSwitch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,8 +47,8 @@ fun AudioVideoSettingsScreen(
     var showAudioQualityDialog by remember { mutableStateOf(false) }
     var showCodecDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
                 title = {
                     Text("音视频设置")
@@ -57,7 +57,8 @@ fun AudioVideoSettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->

@@ -17,6 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.feature.settings.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,15 +31,16 @@ fun AboutScreen(
     val context = LocalContext.current
     val updateState by vm.updateState.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
                 title = { Text("关于") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->

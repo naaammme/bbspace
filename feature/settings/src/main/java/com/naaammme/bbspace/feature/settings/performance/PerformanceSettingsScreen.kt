@@ -9,9 +9,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.naaammme.bbspace.feature.settings.SettingsViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
+import com.naaammme.bbspace.feature.settings.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,15 +22,16 @@ fun PerformanceSettingsScreen(
 ) {
     val config by viewModel.themeConfig.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
                 title = { Text("性能设置") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->

@@ -28,7 +28,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,6 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.User
 import com.naaammme.bbspace.feature.user.model.UserViewModel
 
@@ -58,8 +58,8 @@ fun UserScreen(
     val user by vm.user.collectAsStateWithLifecycle()
     val showAccountExpiredDialog by vm.showAccountExpiredDialog.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
                 title = { Text("我的") },
                 actions = {
@@ -69,7 +69,8 @@ fun UserScreen(
                             contentDescription = "账号管理"
                         )
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -110,7 +111,7 @@ fun UserScreen(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "BB空间",
+                        text = "bb空间",
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }

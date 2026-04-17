@@ -151,7 +151,7 @@ class CommentViewModel @Inject constructor(
                 onSuccess = { translated ->
                     when {
                         translated == null -> _msg.tryEmit("评论已不存在")
-                        translated.isBlank() -> _msg.tryEmit("当前语言为中文,故无法翻译中文") // TODO:支持动态 x-bili-locale-bin, 从而实现汉译英汉,英译日等
+                        translated.isBlank() -> _msg.tryEmit("切换语言为英文以支持中文翻译") // TODO:支持动态 x-bili-locale-bin, 从而实现汉译英汉,英译日等
                         else -> {
                             _uiState.update { cur ->
                                 cur.copy(

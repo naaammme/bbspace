@@ -222,40 +222,33 @@ private fun SubReplyCard(
         shape = MaterialTheme.shapes.large
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
+                Text(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = reply.user.name,
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    reply.topLabel?.let { label ->
-                        MiniChip(label)
-                    }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = reply.timeText.ifBlank { "刚刚" },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    ReplyMenuButton(
-                        loading = isLoading(reply.rpid),
-                        onTranslate = { onTranslate(reply.rpid) }
-                    )
-                }
+                    text = reply.user.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = reply.timeText.ifBlank { "刚刚" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                ReplyMenuButton(
+                    loading = isLoading(reply.rpid),
+                    onTranslate = { onTranslate(reply.rpid) }
+                )
+            }
+            reply.topLabel?.let { label ->
+                MiniChip(label)
             }
 
             ReplyMessage(reply)

@@ -29,7 +29,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.VideoHistory
 import com.naaammme.bbspace.feature.bbspace.model.BbSpaceViewModel
 
@@ -60,7 +60,7 @@ fun BbSpaceScreen(
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     var page by rememberSaveable { mutableStateOf(BbSpacePage.Home) }
-    val title = if (page == BbSpacePage.Home) "BB空间" else "播放历史"
+    val title = if (page == BbSpacePage.Home) "bb空间" else "播放历史"
     val handleBack = {
         if (page == BbSpacePage.Home) {
             onBack()
@@ -73,15 +73,16 @@ fun BbSpaceScreen(
         page = BbSpacePage.Home
     }
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = handleBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->

@@ -29,7 +29,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.collectAsState
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -43,8 +42,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.naaammme.bbspace.feature.settings.privacy.PrivacyViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
+import com.naaammme.bbspace.feature.settings.privacy.PrivacyViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -66,15 +66,16 @@ fun PrivacySettingsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
                 title = { Text("隐私安全") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->

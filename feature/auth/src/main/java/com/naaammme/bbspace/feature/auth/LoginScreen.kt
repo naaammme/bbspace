@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.naaammme.bbspace.feature.auth.model.LoginViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.LoginState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,8 +38,8 @@ fun LoginScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
                 title = { Text("登录") },
                 navigationIcon = {
@@ -48,7 +49,8 @@ fun LoginScreen(
                             contentDescription = "返回"
                         )
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { paddingValues ->

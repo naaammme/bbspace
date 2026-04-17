@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -53,6 +54,7 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleEntry
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.FeedItem
@@ -95,24 +97,31 @@ fun HomeScreen(
     LaunchedEffect(shouldLoadMore, viewModel.isRefreshing) {
         if (shouldLoadMore && !viewModel.isRefreshing) viewModel.loadMore()
     }
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                SearchCapsuleEntry(
-                    text = "搜索视频",
-                    onClick = onNavigateToSearch
-                )
-            },
-            actions = {
-                IconButton(onClick = onNavigateToSettings) {
-                    Icon(Icons.Default.Settings, "设置")
-                }
-            }
-        )
+    CollapsingTopBarScaffold(
+        contentWindowInsets = WindowInsets(0),
+        topBar = { scrollBehavior ->
+            TopAppBar(
+                title = {
+                    SearchCapsuleEntry(
+                        text = "搜索视频",
+                        onClick = onNavigateToSearch
+                    )
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, "设置")
+                    }
+                },
+                scrollBehavior = scrollBehavior
+            )
+        }
+    ) { innerPadding ->
         PullToRefreshBox(
             isRefreshing = viewModel.isRefreshing,
             onRefresh = { viewModel.refresh() },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             LazyVerticalStaggeredGrid(
                 state = gridState,

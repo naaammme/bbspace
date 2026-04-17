@@ -39,7 +39,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -61,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
 import com.naaammme.bbspace.core.designsystem.theme.LocalAnimations
 import coil3.compose.AsyncImage
@@ -74,7 +74,7 @@ import com.naaammme.bbspace.core.model.SearchVideo
 import com.naaammme.bbspace.core.model.VideoRoute
 import java.util.Calendar
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
@@ -108,15 +108,16 @@ fun SearchScreen(
         }
     }
 
-    Scaffold(
+    CollapsingTopBarScaffold(
         contentWindowInsets = WindowInsets(0),
-        topBar = {
+        topBar = { scrollBehavior ->
             SearchTopBar(
                 text = viewModel.input,
                 autoFocus = viewModel.keyword.isBlank() && viewModel.input.isBlank(),
                 onTextChange = viewModel::updateInput,
                 onBack = onBack,
-                onSearch = viewModel::submitSearch
+                onSearch = viewModel::submitSearch,
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
