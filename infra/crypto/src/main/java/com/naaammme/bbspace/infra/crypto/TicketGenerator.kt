@@ -10,6 +10,7 @@ import bilibili.metadata.locale.LocaleOuterClass
 import bilibili.metadata.network.NetworkOuterClass
 import com.google.protobuf.ByteString
 import com.naaammme.bbspace.core.common.BiliConstants
+import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.core.common.log.Logger
 import datacenter.hakase.protobuf.AndroidDeviceInfoOuterClass
 import kotlinx.coroutines.CoroutineScope
@@ -286,7 +287,7 @@ class TicketGenerator(
             .addHeader("accept-encoding", "gzip")
             .addHeader(
                 "user-agent",
-                "Dalvik/2.1.0 (Linux; U; Android ${deviceIdentity.osVer}; ${deviceIdentity.model} Build/PQ3A.190605.07021633) ${BiliConstants.VERSION} os/android model/${deviceIdentity.model} mobi_app/${BiliConstants.MOBI_APP} build/${BiliConstants.BUILD_STR} channel/${BiliConstants.CHANNEL} innerVer/${BiliConstants.BUILD_STR} osVer/${deviceIdentity.osVer} network/2"
+                UserAgentBuilder.buildGrpcUserAgent(deviceIdentity.model, deviceIdentity.osVer)
             )
             .addHeader("x-bili-metadata-bin", Base64.encodeToString(metadataBytes, Base64.NO_WRAP or Base64.NO_PADDING))
             .addHeader("x-bili-device-bin", Base64.encodeToString(deviceBytes, Base64.NO_WRAP or Base64.NO_PADDING))

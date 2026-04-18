@@ -2,8 +2,9 @@ package com.naaammme.bbspace.infra.crypto
 
 import android.content.Context
 import android.util.Base64
-import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.common.BiliConstants
+import com.naaammme.bbspace.core.common.UserAgentBuilder
+import com.naaammme.bbspace.core.common.log.Logger
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
@@ -295,7 +296,7 @@ class GuestIdGenerator(
                 .addHeader("buvid", deviceIdentity.buvid)
                 .addHeader("env", BiliConstants.ENV)
                 .addHeader("app-key", BiliConstants.MOBI_APP)
-                .addHeader("user-agent", "Mozilla/5.0 BiliDroid/${BiliConstants.VERSION} (bbcallen@gmail.com) os/${BiliConstants.PLATFORM} model/${deviceIdentity.model} mobi_app/${BiliConstants.MOBI_APP} build/${BiliConstants.BUILD_STR} channel/${BiliConstants.CHANNEL} innerVer/${BiliConstants.BUILD_STR} osVer/${deviceIdentity.osVer} network/2")
+                .addHeader("user-agent", UserAgentBuilder.buildRestfulUserAgent(deviceIdentity.model, deviceIdentity.osVer))
                 .addHeader("x-bili-trace-id", TraceIdGenerator.generate())
                 .addHeader("x-bili-aurora-eid", "")
                 .addHeader("x-bili-mid", "")

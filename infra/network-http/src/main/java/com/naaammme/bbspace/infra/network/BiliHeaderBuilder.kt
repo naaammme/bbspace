@@ -3,6 +3,7 @@ package com.naaammme.bbspace.infra.network
 import android.util.Base64
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.BiliConstants
+import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.infra.crypto.RegionCodeCache
 import com.naaammme.bbspace.infra.crypto.AuroraEidGenerator
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity

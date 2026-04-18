@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -41,7 +42,7 @@ class Media3PlayerEngine @Inject constructor(
     private val appContext = context.applicationContext
 
     private val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-        .setUserAgent("Bilibili Freedoooooom/MarkII")
+        .setUserAgent(UserAgentBuilder.buildPlayerUserAgent())
 
     private val mediaSourceFactory = ProgressiveMediaSource.Factory(dataSourceFactory)
 

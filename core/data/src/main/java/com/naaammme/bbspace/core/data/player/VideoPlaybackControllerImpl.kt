@@ -395,6 +395,9 @@ class VideoPlaybackControllerImpl @Inject constructor(
         ownerId.set(0L)
         ownerSessionId.value = 0L
         nextPlayWhenReady = true
+        // 先清空 session，避免 teardown 期间的 snapshot 继续按旧视频触发上报
+        _pageMeta.value = null
+        _sessionState.value = PlayerSessionState()
         if (hadSession) {
             if (releasePlayer) {
                 playerEngine.release()
@@ -402,8 +405,6 @@ class VideoPlaybackControllerImpl @Inject constructor(
                 playerEngine.stopForReuse(resetPosition = true)
             }
         }
-        _pageMeta.value = null
-        _sessionState.value = PlayerSessionState()
         return snapshot.takeIf { hadSession }
     }
 

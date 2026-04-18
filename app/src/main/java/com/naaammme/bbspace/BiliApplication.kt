@@ -14,8 +14,8 @@ import coil3.request.crossfade
 import coil3.util.DebugLogger
 import okio.Path.Companion.toOkioPath
 import com.naaammme.bbspace.core.common.log.Logger
+import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
-import com.naaammme.bbspace.infra.network.UserAgentBuilder
 import dagger.hilt.android.HiltAndroidApp
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
