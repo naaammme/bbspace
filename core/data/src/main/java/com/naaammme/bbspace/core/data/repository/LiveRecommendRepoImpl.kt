@@ -89,7 +89,7 @@ class LiveRecommendRepoImpl @Inject constructor(
             ?: return null
         val link = card.optString("link")
         val jumpFrom = parseQueryInt(link, "live_from")
-            ?: LiveRouteTool.JUMP_FROM_HOME_RECOMMEND
+            ?: LiveRouteTool.JUMP_FROM_LIVE_RECOMMEND
         val cover = card.optString("cover")
             .ifBlank { card.optString("system_cover") }
             .replace("http://", "https://")

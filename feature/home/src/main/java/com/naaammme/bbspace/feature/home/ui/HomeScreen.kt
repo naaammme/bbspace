@@ -142,7 +142,7 @@ private fun HomeTopBar(
                 onClick = onNavigateToSearch,
                 modifier = Modifier.weight(1f),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    MaterialTheme.colorScheme.surface
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {

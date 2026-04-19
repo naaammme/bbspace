@@ -114,6 +114,7 @@ internal fun VideoDetailPage(
                 pageState = pageState,
                 commentSubject = commentSubject,
                 horizontalPad = 0.dp,
+                infoTopPad = 0.dp,
                 descOn = descOn,
                 tagOn = tagOn,
                 onToggleDesc = { descOn = !descOn },
@@ -132,6 +133,7 @@ internal fun VideoDetailPage(
             pageState = pageState,
             commentSubject = commentSubject,
             horizontalPad = 16.dp,
+            infoTopPad = 16.dp,
             descOn = descOn,
             tagOn = tagOn,
             onToggleDesc = { descOn = !descOn },
@@ -174,6 +176,7 @@ private fun DetailPager(
     pageState: VideoPageState,
     commentSubject: CommentSubject?,
     horizontalPad: Dp,
+    infoTopPad: Dp,
     descOn: Boolean,
     tagOn: Boolean,
     onToggleDesc: () -> Unit,
@@ -197,6 +200,7 @@ private fun DetailPager(
             0 -> VideoInfoList(
                 pageState = pageState,
                 itemMod = itemMod,
+                topPad = infoTopPad,
                 descOn = descOn,
                 tagOn = tagOn,
                 onToggleDesc = onToggleDesc,
@@ -224,6 +228,7 @@ private fun DetailPager(
 private fun VideoInfoList(
     pageState: VideoPageState,
     itemMod: Modifier,
+    topPad: Dp,
     descOn: Boolean,
     tagOn: Boolean,
     onToggleDesc: () -> Unit,
@@ -234,7 +239,7 @@ private fun VideoInfoList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 20.dp),
+        contentPadding = PaddingValues(top = topPad, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         detailItems(

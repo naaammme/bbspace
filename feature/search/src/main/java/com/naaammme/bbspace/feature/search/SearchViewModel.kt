@@ -82,23 +82,32 @@ class SearchViewModel @Inject constructor(
 
     fun applyFilter(key: String, params: Set<String>, nextTime: SearchTime = time) {
         val filter = filters.find { it.key == key } ?: return
-        val nextSel = normalizeSel(filter, params)
-        val oldSel = selectedOf(key)
-        val timeValue = if (key == SINCE_KEY && nextSel.singleOrNull() == CUSTOM_TIME) {
+        val nextSel = sel.toMutableMap().apply {
+            val valid = normalizeSel(filter, params)
+            if (valid.isEmpty()) remove(key) else put(key, valid)
+        }
+        val timeValue = if (key == SINCE_KEY) nextTime else time
+        applyFilters(nextSel, timeValue)
+    }
+
+    fun applyFilters(nextSel: Map<String, Set<String>>, nextTime: SearchTime = time) {
+        val normalizedSel = buildMap {
+            filters.forEach { filter ->
+                val valid = normalizeSel(filter, nextSel[filter.key].orEmpty())
+                if (valid.isEmpty()) return@forEach
+                put(filter.key, valid)
+            }
+        }
+        val timeValue = if (normalizedSel[SINCE_KEY]?.singleOrNull() == CUSTOM_TIME) {
             nextTime
         } else {
             SearchTime()
         }
-        if (oldSel == nextSel && (key != SINCE_KEY || time == timeValue)) return
-        sel = sel.toMutableMap().apply {
-            if (nextSel.isEmpty()) remove(key) else put(key, nextSel)
-        }
-        if (key == SINCE_KEY) {
-            time = timeValue
-        }
-        if (key == SORT_KEY) {
-            order = SearchOrder.fromParam(nextSel.firstOrNull())
-        }
+        val nextOrder = SearchOrder.fromParam(normalizedSel[SORT_KEY]?.firstOrNull())
+        if (sel == normalizedSel && time == timeValue && order == nextOrder) return
+        sel = normalizedSel
+        time = timeValue
+        order = nextOrder
         if (keyword.isBlank()) return
         viewModelScope.launch {
             search(keyword, reset = true)
@@ -107,13 +116,7 @@ class SearchViewModel @Inject constructor(
 
     fun clearFilters() {
         if (!hasActiveFilter) return
-        sel = emptyMap()
-        time = SearchTime()
-        order = SearchOrder.DEFAULT
-        if (keyword.isBlank()) return
-        viewModelScope.launch {
-            search(keyword, reset = true)
-        }
+        applyFilters(emptyMap(), SearchTime())
     }
 
     fun loadMore() {

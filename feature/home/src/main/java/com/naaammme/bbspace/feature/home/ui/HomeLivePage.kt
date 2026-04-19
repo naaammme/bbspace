@@ -11,22 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,11 +28,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.window.core.layout.WindowWidthSizeClass
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.AdaptiveMediaGrid
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.LiveRecommendItem
 import com.naaammme.bbspace.core.model.LiveRoute
@@ -54,90 +45,31 @@ fun HomeLivePage(
     viewModel: HomeLiveViewModel = hiltViewModel()
 ) {
     val items = viewModel.items.collectAsStateWithLifecycle().value
-    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val columnCount = when (windowSizeClass.windowWidthSizeClass) {
-        WindowWidthSizeClass.COMPACT -> 2
-        WindowWidthSizeClass.MEDIUM -> 3
-        WindowWidthSizeClass.EXPANDED -> 4
-        else -> 2
-    }
-    val gridState = rememberLazyStaggeredGridState()
-    val shouldLoadMore by remember(gridState, items) {
-        derivedStateOf {
-            !gridState.canScrollForward && items.isNotEmpty()
-        }
-    }
 
     LaunchedEffect(isActive) {
         if (isActive) viewModel.ensureLoaded()
     }
-    LaunchedEffect(isActive, shouldLoadMore, viewModel.isRefreshing, viewModel.isLoadingMore) {
-        if (isActive && shouldLoadMore && !viewModel.isRefreshing && !viewModel.isLoadingMore) {
-            viewModel.loadMore()
-        }
-    }
-
-    PullToRefreshBox(
+    AdaptiveMediaGrid(
+        items = items,
         isRefreshing = viewModel.isRefreshing,
+        isLoadingMore = viewModel.isLoadingMore,
         onRefresh = viewModel::refresh,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        LazyVerticalStaggeredGrid(
-            state = gridState,
-            columns = StaggeredGridCells.Fixed(columnCount),
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalItemSpacing = 6.dp,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 6.dp,
-                top = 0.dp,
-                end = 6.dp,
-                bottom = 4.dp
-            )
-        ) {
-            if (items.isEmpty() && viewModel.isRefreshing) {
-                items(10) { VideoGridCardSkeleton() }
-            } else if (items.isEmpty()) {
-                item {
-                    LiveEmptyState(viewModel.errorMessage)
-                }
-            } else {
-                viewModel.errorMessage?.let { err ->
-                    item {
-                        Text(
-                            text = "加载失败: $err",
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
-                items(
-                    count = items.size,
-                    key = { index ->
-                        val item = items[index]
-                        "${item.roomId}_${item.sessionId ?: index}"
-                    }
-                ) { index ->
-                    val item = items[index]
-                    LiveRecommendCard(
-                        item = item,
-                        onClick = { onOpenLive(item.route) }
-                    )
-                }
-                if (viewModel.isLoadingMore) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-                    }
-                }
-            }
+        onLoadMore = viewModel::loadMore,
+        modifier = Modifier.fillMaxSize(),
+        errorMessage = viewModel.errorMessage,
+        loadMoreEnabled = isActive,
+        key = { index, item -> "${item.roomId}_${item.sessionId ?: index}" },
+        loadingContent = {
+            VideoGridCardSkeleton()
+        },
+        emptyContent = {
+            LiveEmptyState(viewModel.errorMessage)
         }
+    ) { item ->
+        LiveRecommendCard(
+            item = item,
+            onClick = { onOpenLive(item.route) }
+        )
     }
 }
 

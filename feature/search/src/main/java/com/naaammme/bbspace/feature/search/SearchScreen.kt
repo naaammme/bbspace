@@ -18,14 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -55,14 +52,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
+import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
-import com.naaammme.bbspace.core.designsystem.theme.LocalAnimations
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -83,8 +82,9 @@ fun SearchScreen(
 ) {
     val videos by viewModel.videos.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    var sheetKey by remember { mutableStateOf<String?>(null) }
-    val sheetFilter = viewModel.filters.firstOrNull { it.key == sheetKey }
+    val sortFilter = viewModel.filters.firstOrNull { it.key == SORT_KEY }
+    val filters = viewModel.filters.filterNot { it.key == SORT_KEY }
+    val hasActiveExtraFilter = filters.any { viewModel.selectedOf(it.key).isNotEmpty() } || viewModel.time.isActive
     val shouldLoadMore by remember(
         listState,
         videos,
@@ -126,15 +126,55 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (viewModel.filters.isNotEmpty()) {
-                SearchFilterRow(
-                    filters = viewModel.filters,
-                    time = viewModel.time,
-                    hasActive = viewModel.hasActiveFilter,
-                    selectedOf = viewModel::selectedOf,
-                    onOpen = { sheetKey = it },
-                    onClear = viewModel::clearFilters
+            sortFilter?.takeIf { it.ops.size > 1 }?.let { filter ->
+                SearchSortRow(
+                    filter = filter,
+                    selected = viewModel.selectedOf(filter.key),
+                    trailing = if (filters.isNotEmpty()) {
+                        {
+                            SearchFilterAction(
+                                filters = filters,
+                                sortSelected = viewModel.selectedOf(SORT_KEY),
+                                selectedMap = buildMap {
+                                    filters.forEach { extraFilter ->
+                                        val picked = viewModel.selectedOf(extraFilter.key)
+                                        if (picked.isEmpty()) return@forEach
+                                        put(extraFilter.key, picked)
+                                    }
+                                },
+                                time = viewModel.time,
+                                active = hasActiveExtraFilter,
+                                onApply = viewModel::applyFilters
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    onSelect = { params -> viewModel.applyFilter(filter.key, params) }
                 )
+            }
+            if (sortFilter == null && filters.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    SearchFilterAction(
+                        filters = filters,
+                        sortSelected = viewModel.selectedOf(SORT_KEY),
+                        selectedMap = buildMap {
+                            filters.forEach { extraFilter ->
+                                val picked = viewModel.selectedOf(extraFilter.key)
+                                if (picked.isEmpty()) return@forEach
+                                put(extraFilter.key, picked)
+                            }
+                        },
+                        time = viewModel.time,
+                        active = hasActiveExtraFilter,
+                        onApply = viewModel::applyFilters
+                    )
+                }
             }
 
             when {
@@ -194,16 +234,102 @@ fun SearchScreen(
             }
         }
     }
+}
 
-    sheetFilter?.let { filter ->
-        SearchFilterSheet(
-            filter = filter,
-            selected = viewModel.selectedOf(filter.key),
-            time = viewModel.time,
-            onDismiss = { sheetKey = null },
+@Composable
+private fun SearchSortRow(
+    filter: SearchFilter,
+    selected: Set<String>,
+    trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)?,
+    onSelect: (Set<String>) -> Unit
+) {
+    val selectedIndex = remember(filter, selected) {
+        val pickedIndex = filter.ops.indexOfFirst { op ->
+            if (selected.isEmpty()) op.isDefault else op.param in selected
+        }
+        if (pickedIndex >= 0) pickedIndex else 0
+    }
+    FilledTabRow(
+        tabs = filter.ops.map { it.label },
+        selectedIndex = selectedIndex,
+        onSelect = { index ->
+            val op = filter.ops[index]
+            onSelect(if (op.isDefault) emptySet() else setOf(op.param))
+        },
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        trailing = trailing
+    )
+}
+
+@Composable
+private fun SearchFilterAction(
+    filters: List<SearchFilter>,
+    sortSelected: Set<String>,
+    selectedMap: Map<String, Set<String>>,
+    time: SearchTime,
+    active: Boolean,
+    onApply: (Map<String, Set<String>>, SearchTime) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    var showFilterSheet by remember { mutableStateOf(false) }
+
+    SearchFilterButton(
+        active = active,
+        onClick = {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+            showFilterSheet = true
+        }
+    )
+
+    if (showFilterSheet) {
+        SearchFiltersSheet(
+            filters = filters,
+            selectedMap = selectedMap,
+            time = time,
+            onDismiss = { showFilterSheet = false },
             onApply = { picked, pickedTime ->
-                viewModel.applyFilter(filter.key, picked, pickedTime)
-                sheetKey = null
+                val nextSel = buildMap {
+                    if (sortSelected.isNotEmpty()) {
+                        put(SORT_KEY, sortSelected)
+                    }
+                    picked.forEach { (key, value) ->
+                        if (value.isEmpty()) return@forEach
+                        put(key, value)
+                    }
+                }
+                onApply(nextSel, pickedTime)
+                showFilterSheet = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun SearchFilterButton(
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (active) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.MoreVert,
+            contentDescription = "筛选",
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            tint = if (active) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
             }
         )
     }
@@ -264,148 +390,148 @@ private fun SearchError(message: String, onRetry: () -> Unit) {
     }
 }
 
-@Composable
-private fun SearchFilterRow(
-    filters: List<SearchFilter>,
-    time: SearchTime,
-    hasActive: Boolean,
-    selectedOf: (String) -> Set<String>,
-    onOpen: (String) -> Unit,
-    onClear: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        LazyRow(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(filters, key = { it.key }) { filter ->
-                val selected = selectedOf(filter.key)
-                FilterChip(
-                    selected = selected.isNotEmpty(),
-                    onClick = { onOpen(filter.key) },
-                    label = { Text(filterLabel(filter, selected, time)) }
-                )
-            }
-        }
-
-        if (hasActive) {
-            TextButton(onClick = onClear) {
-                Text("清空")
-            }
-        }
-    }
-}
-
-private data class FilterDraft(
-    val selected: Set<String>,
-    val time: SearchTime
-)
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun SearchFilterSheet(
-    filter: SearchFilter,
-    selected: Set<String>,
+private fun SearchFiltersSheet(
+    filters: List<SearchFilter>,
+    selectedMap: Map<String, Set<String>>,
     time: SearchTime,
     onDismiss: () -> Unit,
-    onApply: (Set<String>, SearchTime) -> Unit
+    onApply: (Map<String, Set<String>>, SearchTime) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var draft by remember(filter.key, selected, time) {
+    var draftSel by remember(filters, selectedMap) {
+        mutableStateOf(selectedMap.filterValues { it.isNotEmpty() })
+    }
+    var draftTime by remember(filters, selectedMap, time) {
         mutableStateOf(
-            FilterDraft(
-                selected = selected,
-                time = if (selected.singleOrNull() == CUSTOM_TIME) time else SearchTime()
-            )
+            if (selectedMap[SINCE_KEY]?.singleOrNull() == CUSTOM_TIME) {
+                time
+            } else {
+                SearchTime()
+            }
         )
     }
-    val showCustomTime = filter.key == SINCE_KEY && draft.selected.singleOrNull() == CUSTOM_TIME
-    val canApply = !showCustomTime || draft.time.isActive
+    val canApply = draftSel[SINCE_KEY]?.singleOrNull() != CUSTOM_TIME || draftTime.isActive
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars)
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = filter.title,
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = if (filter.single) "单选" else "多选",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            item(
+                key = "title",
+                contentType = "title"
             ) {
-                filter.ops.forEach { op ->
-                    FilterChip(
-                        selected = isPicked(op, draft.selected),
-                        onClick = {
-                            val nextSel = togglePick(filter, op, draft.selected)
-                            val nextTime = if (
-                                filter.key == SINCE_KEY &&
-                                nextSel.singleOrNull() != CUSTOM_TIME
-                            ) {
-                                SearchTime()
-                            } else {
-                                draft.time
-                            }
-                            draft = FilterDraft(nextSel, nextTime)
-                        },
-                        label = { Text(op.label) }
-                    )
-                }
-            }
-
-            if (showCustomTime) {
-                CustomTimePanel(
-                    time = draft.time,
-                    onChange = { nextTime ->
-                        draft = draft.copy(time = nextTime)
-                    }
+                Text(
+                    text = "筛选",
+                    style = MaterialTheme.typography.titleLarge
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        draft = FilterDraft(emptySet(), SearchTime())
+            itemsIndexed(
+                items = filters,
+                key = { _, filter -> filter.key },
+                contentType = { _, _ -> "filter" }
+            ) { index, filter ->
+                val picked = draftSel[filter.key].orEmpty()
+                SearchFilterSection(
+                    filter = filter,
+                    picked = picked,
+                    time = draftTime,
+                    onToggle = { op ->
+                        val nextSel = togglePick(filter, op, picked)
+                        draftSel = draftSel.toMutableMap().apply {
+                            if (nextSel.isEmpty()) remove(filter.key) else put(filter.key, nextSel)
+                        }
+                        if (filter.key == SINCE_KEY && nextSel.singleOrNull() != CUSTOM_TIME) {
+                            draftTime = SearchTime()
+                        }
                     },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("重置")
-                }
-                TextButton(
-                    onClick = { onApply(draft.selected, draft.time) },
-                    enabled = canApply,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("确定")
+                    onTimeChange = { nextTime ->
+                        draftTime = nextTime
+                    }
+                )
+                if (index != filters.lastIndex) {
+                    HorizontalDivider()
                 }
             }
+
+            item(
+                key = "actions",
+                contentType = "actions"
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            draftSel = emptyMap()
+                            draftTime = SearchTime()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("重置")
+                    }
+                    TextButton(
+                        onClick = { onApply(draftSel, draftTime) },
+                        enabled = canApply,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("确定")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SearchFilterSection(
+    filter: SearchFilter,
+    picked: Set<String>,
+    time: SearchTime,
+    onToggle: (SearchOp) -> Unit,
+    onTimeChange: (SearchTime) -> Unit
+) {
+    Column {
+        Text(
+            text = filter.title,
+            style = MaterialTheme.typography.titleMedium
+        )
+        Text(
+            text = if (filter.single) "单选" else "多选",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            filter.ops.forEach { op ->
+                FilterChip(
+                    selected = isPicked(op, picked),
+                    onClick = { onToggle(op) },
+                    label = { Text(op.label) }
+                )
+            }
+        }
+        if (filter.key == SINCE_KEY && picked.singleOrNull() == CUSTOM_TIME) {
+            CustomTimePanel(
+                time = time,
+                onChange = onTimeChange
+            )
         }
     }
 }
@@ -681,26 +807,6 @@ private fun SearchFeedbackMenu(feedbacks: List<SearchFeedbackSec>) {
     }
 }
 
-private fun filterLabel(
-    filter: SearchFilter,
-    selected: Set<String>,
-    time: SearchTime
-): String {
-    if (selected.isEmpty()) return filter.title
-    val labels = filter.ops
-        .filter { it.param in selected }
-        .map {
-            if (filter.key == SINCE_KEY && it.param == CUSTOM_TIME && time.isActive) {
-                timeText(time)
-            } else {
-                it.label
-            }
-        }
-    if (labels.isEmpty()) return filter.title
-    val summary = if (labels.size == 1) labels.first() else "${labels.first()} +${labels.size - 1}"
-    return "${filter.title}: $summary"
-}
-
 private fun isPicked(op: SearchOp, picked: Set<String>): Boolean {
     return if (op.isDefault) picked.isEmpty() else op.param in picked
 }
@@ -747,5 +853,6 @@ private fun endOfDay(timeS: Long): Long {
 
 private const val INIT_SKELETON_COUNT = 8
 private const val LOAD_MORE_SKELETON_COUNT = 2
+private const val SORT_KEY = "sort"
 private const val SINCE_KEY = "since"
 private const val CUSTOM_TIME = "custom"
