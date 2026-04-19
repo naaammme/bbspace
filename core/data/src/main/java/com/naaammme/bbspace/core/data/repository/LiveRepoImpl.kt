@@ -9,6 +9,8 @@ import com.naaammme.bbspace.core.model.LiveQualityOption
 import com.naaammme.bbspace.core.model.LiveStatus
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.network.BiliRestClient
+import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
+import com.naaammme.bbspace.infra.network.BiliRestProfile
 import javax.inject.Inject
 import javax.inject.Singleton
 import org.json.JSONArray
@@ -18,7 +20,8 @@ import org.json.JSONObject
 class LiveRepoImpl @Inject constructor(
     private val restClient: BiliRestClient,
     private val authStore: AuthStore,
-    private val deviceIdentity: DeviceIdentity
+    private val deviceIdentity: DeviceIdentity,
+    private val restParamBuilder: BiliRestParamBuilder
 ) : LiveRepository {
 
     override suspend fun fetchPlaybackSource(
@@ -27,18 +30,38 @@ class LiveRepoImpl @Inject constructor(
     ): LivePlaybackSource {
         val json = restClient.getSigned(
             url = "${BiliConstants.BASE_URL_LIVE_API}$ROOM_PLAY_INFO_ENDPOINT",
-            params = buildParams(roomId, qn)
+            params = buildParams(roomId, qn),
+            profile = BiliRestProfile.APP
         )
         return parsePlaybackSource(roomId, json)
+    }
+
+    override suspend fun reportRoomEntryAction(
+        roomId: Long,
+        jumpFrom: Int
+    ) {
+        val token = authStore.accessToken.takeIf(String::isNotBlank) ?: return
+        val ts = System.currentTimeMillis() / 1000L
+        restClient.postSigned(
+            url = "${BiliConstants.BASE_URL_LIVE_API}$ROOM_ENTRY_ACTION_ENDPOINT",
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, token) + buildMap {
+                put("actionKey", "appkey")
+                put("device", BiliConstants.PLATFORM)
+                put("jumpFrom", jumpFrom.toString())
+                put("noHistory", "0") // 常规进房按默认历史逻辑处理
+                put("room_id", roomId.toString())
+                put("version", BiliConstants.VERSION)
+            },
+            profile = BiliRestProfile.APP
+        )
     }
 
     private fun buildParams(
         roomId: Long,
         qn: Int
     ): Map<String, String> {
-        val ts = (System.currentTimeMillis() / 1000L).toString()
-        return buildMap {
-            put("build", BiliConstants.BUILD_STR)
+        val ts = System.currentTimeMillis() / 1000L
+        return restParamBuilder.app(BiliRestProfile.APP, ts, authStore.accessToken) + buildMap {
             put("buvid", deviceIdentity.buvid)
             put("device", BiliConstants.PLATFORM)
             put("device_name", Build.MODEL)
@@ -46,12 +69,10 @@ class LiveRepoImpl @Inject constructor(
             put("free_type", "0")
             put("hdr_type", "0")
             put("http", "0")
-            put("mobi_app", BiliConstants.MOBI_APP)
             put("network", "wifi")
             put("no_playurl", "0")
             put("only_audio", "0")
             put("only_video", "0")
-            put("platform", BiliConstants.PLATFORM)
             put("play_type", "0")
             put("protocol", "0")
             put("qn", qn.coerceAtLeast(0).toString())
@@ -60,11 +81,8 @@ class LiveRepoImpl @Inject constructor(
             put("mask", "0")
             put("dolby", "0")
             put("special_scenario", "2")
-            put("statistics", BiliConstants.STATISTICS_JSON)
             put("supported_drms", "0,3")
-            put("ts", ts)
             put("version", BiliConstants.VERSION)
-            authStore.accessToken.takeIf(String::isNotBlank)?.let { put("access_key", it) }
         }
     }
 
@@ -188,6 +206,7 @@ class LiveRepoImpl @Inject constructor(
 
     private companion object {
         const val ROOM_PLAY_INFO_ENDPOINT = "/xlive/app-room/v2/index/getRoomPlayInfo"
+        const val ROOM_ENTRY_ACTION_ENDPOINT = "/xlive/app-room/v1/index/roomEntryAction"
     }
 }
 

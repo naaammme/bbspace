@@ -5,6 +5,7 @@ import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.domain.live.LivePlaybackController
 import com.naaammme.bbspace.core.domain.live.LiveRepository
+import com.naaammme.bbspace.core.model.LiveRouteTool
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.PlaybackState
@@ -46,6 +47,7 @@ class LivePlaybackControllerImpl @Inject constructor(
     private val prepMu = Mutex()
     private val openId = AtomicLong(0L)
     private var currentRoomId: Long? = null
+    private var currentJumpFrom: Int = LiveRouteTool.JUMP_FROM_UNKNOWN
 
     init {
         runtimeScope.launch {
@@ -65,12 +67,17 @@ class LivePlaybackControllerImpl @Inject constructor(
 
     override suspend fun open(
         roomId: Long,
-        preferredQuality: Int
+        preferredQuality: Int,
+        jumpFrom: Int,
+        reportEntry: Boolean
     ) {
+        currentJumpFrom = LiveRouteTool.normalizeJumpFrom(jumpFrom)
         load(
             roomId = roomId,
             qn = preferredQuality,
-            playWhenReady = true
+            playWhenReady = true,
+            jumpFrom = currentJumpFrom,
+            reportEntry = reportEntry
         )
     }
 
@@ -90,7 +97,9 @@ class LivePlaybackControllerImpl @Inject constructor(
             load(
                 roomId = roomId,
                 qn = quality,
-                playWhenReady = playWhenReady
+                playWhenReady = playWhenReady,
+                jumpFrom = currentJumpFrom,
+                reportEntry = false
             )
         }
     }
@@ -98,6 +107,7 @@ class LivePlaybackControllerImpl @Inject constructor(
     override fun release() {
         openId.incrementAndGet()
         currentRoomId = null
+        currentJumpFrom = LiveRouteTool.JUMP_FROM_UNKNOWN
         playerEngine.release()
         _state.value = LivePlaybackViewState()
     }
@@ -105,7 +115,9 @@ class LivePlaybackControllerImpl @Inject constructor(
     private suspend fun load(
         roomId: Long,
         qn: Int,
-        playWhenReady: Boolean
+        playWhenReady: Boolean,
+        jumpFrom: Int,
+        reportEntry: Boolean
     ) {
         val token = openId.incrementAndGet()
         currentRoomId = roomId
@@ -127,6 +139,12 @@ class LivePlaybackControllerImpl @Inject constructor(
                 playbackSource = source,
                 error = null
             )
+            if (reportEntry) {
+                reportRoomEntryAction(
+                    roomId = roomId,
+                    jumpFrom = jumpFrom
+                )
+            }
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
             if (openId.get() != token) return
@@ -138,6 +156,22 @@ class LivePlaybackControllerImpl @Inject constructor(
                 error = t.toLiveError(),
                 playbackSource = _state.value.playbackSource.takeIf { it?.roomId == roomId }
             )
+        }
+    }
+
+    private suspend fun reportRoomEntryAction(
+        roomId: Long,
+        jumpFrom: Int
+    ) {
+        runCatching {
+            repository.reportRoomEntryAction(
+                roomId = roomId,
+                jumpFrom = jumpFrom
+            )
+        }.onFailure { error ->
+            Logger.w(TAG) {
+                "report room entry failed roomId=$roomId jumpFrom=$jumpFrom msg=${error.message}"
+            }
         }
     }
 

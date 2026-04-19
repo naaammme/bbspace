@@ -15,6 +15,8 @@ import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.infra.network.BiliRestClient
+import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
+import com.naaammme.bbspace.infra.network.BiliRestProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,7 @@ class AuthRepoImpl @Inject constructor(
     private val authStore: AuthStore,
     private val guestIdGenerator: GuestIdGenerator,
     private val deviceIdentity: DeviceIdentity,
+    private val restParamBuilder: BiliRestParamBuilder,
     private val cacheManager: CacheManager
 ) : AuthRepository {
 
@@ -61,10 +64,10 @@ class AuthRepoImpl @Inject constructor(
         val loginSessionId = cacheManager.generateLoginSessionId()
         cacheManager.saveSession(guestId, sessionId, loginSessionId)
 
-        val ts = (System.currentTimeMillis() / 1000).toString()
-        val json = restClient.postSignedHd(
+        val ts = System.currentTimeMillis() / 1000
+        val json = restClient.postSigned(
             url = "${BiliConstants.BASE_URL_PASSPORT}$QR_AUTH_CODE_ENDPOINT",
-            params = buildHdParams(ts) + mapOf(
+            params = restParamBuilder.passport(BiliRestProfile.HD, ts) + mapOf(
                 "app_id" to "",
                 "code" to "",
                 "device_tourist_id" to guestId,
@@ -72,7 +75,8 @@ class AuthRepoImpl @Inject constructor(
                 "gourl" to "",
                 "login_session_id" to loginSessionId,
                 "spm_id" to "from_spmid"
-            )
+            ),
+            profile = BiliRestProfile.HD
         )
 
         val data = json.getJSONObject("data")
@@ -80,7 +84,7 @@ class AuthRepoImpl @Inject constructor(
     }
 
     override suspend fun pollQrCode(authCode: String): Result<Pair<Int, HdAccessGrant?>> = runCatching {
-        val ts = (System.currentTimeMillis() / 1000).toString()
+        val ts = System.currentTimeMillis() / 1000
 
         val deviceInfoJson = org.json.JSONObject().apply {
             put("DeviceType", "Android")
@@ -97,16 +101,17 @@ class AuthRepoImpl @Inject constructor(
         val (dt, _) = guestIdGenerator.generateDtAndDeviceInfo(deviceInfoJson)
             ?: throw Exception("生成 dt 和 device_info 失败")
 
-        val json = restClient.postSignedRawHd(
+        val json = restClient.postSignedRaw(
             url = "${BiliConstants.BASE_URL_PASSPORT}$QR_POLL_ENDPOINT",
-            params = buildHdParams(ts) + mapOf(
+            params = restParamBuilder.passport(BiliRestProfile.HD, ts) + mapOf(
                 "auth_code" to authCode,
                 "device_tourist_id" to cacheManager.guestId,
                 "dt" to dt,
                 "extend" to "",
                 "login_session_id" to cacheManager.loginSessionId,
                 "spm_id" to "from_spmid"
-            )
+            ),
+            profile = BiliRestProfile.HD
         )
 
         val code = json.getInt("code")
@@ -133,55 +138,17 @@ class AuthRepoImpl @Inject constructor(
         }
     }
 
-    private fun buildHdParams(ts: String): Map<String, String> = mapOf(
-        "bili_local_id" to deviceIdentity.fp,
-        "build" to BiliConstants.BUILD_STR_HD,
-        "buvid" to deviceIdentity.buvid,
-        "c_locale" to "zh-Hans_CN",
-        "channel" to BiliConstants.CHANNEL,
-        "device" to "phone",
-        "device_id" to deviceIdentity.fp,
-        "device_name" to "${deviceIdentity.brand}${deviceIdentity.model}",
-        "device_platform" to "Android${deviceIdentity.osVer}${deviceIdentity.brand}${deviceIdentity.model}",
-        "disable_rcmd" to "0",
-        "local_id" to deviceIdentity.buvid,
-        "mobi_app" to BiliConstants.MOBI_APP_HD,
-        "platform" to BiliConstants.PLATFORM,
-        "s_locale" to "zh-Hans_CN",
-        "statistics" to BiliConstants.STATISTICS_JSON_HD,
-        "ts" to ts
-    )
-
-    private fun buildCommonParams(ts: String): Map<String, String> = mapOf(
-        "bili_local_id" to deviceIdentity.fp,
-        "build" to BiliConstants.BUILD_STR,
-        "buvid" to deviceIdentity.buvid,
-        "c_locale" to "zh-Hans_CN",
-        "channel" to BiliConstants.CHANNEL,
-        "device" to "phone",
-        "device_id" to deviceIdentity.fp,
-        "device_name" to "${deviceIdentity.brand}${deviceIdentity.model}",
-        "device_platform" to "Android${deviceIdentity.osVer}${deviceIdentity.brand}${deviceIdentity.model}",
-        "disable_rcmd" to "0",
-        "local_id" to deviceIdentity.buvid,
-        "mobi_app" to BiliConstants.MOBI_APP,
-        "platform" to BiliConstants.PLATFORM,
-        "s_locale" to "zh-Hans_CN",
-        "statistics" to BiliConstants.STATISTICS_JSON,
-        "ts" to ts
-    )
-
     override suspend fun logout(credential: LoginCredential): Result<Unit> = runCatching {
-        val ts = (System.currentTimeMillis() / 1000).toString()
+        val ts = System.currentTimeMillis() / 1000
 
         restClient.postSigned(
             url = "${BiliConstants.BASE_URL_PASSPORT}$REVOKE_ENDPOINT",
-            params = buildCommonParams(ts) + mapOf(
-                "access_key" to credential.accessToken,
+            params = restParamBuilder.passport(BiliRestProfile.APP, ts, credential.accessToken) + mapOf(
                 "from_access_key" to credential.accessToken,
                 "mid" to credential.mid.toString(),
                 "revoke_type" to "2"
-            )
+            ),
+            profile = BiliRestProfile.APP
         )
 
         Logger.d(TAG) { "退出登录成功" }
@@ -215,24 +182,14 @@ class AuthRepoImpl @Inject constructor(
     override fun getAllUserInfos(): Map<Long, User> = authStore.getAllUserInfos()
 
     override suspend fun fetchMyInfo(credential: LoginCredential): Result<User> = runCatching {
-        val ts = (System.currentTimeMillis() / 1000).toString()
+        val ts = System.currentTimeMillis() / 1000
         val json = restClient.getSigned(
             url = "${BiliConstants.BASE_URL_APP}$MY_INFO_ENDPOINT",
-            params = mapOf(
-                "access_key" to credential.accessToken,
-                "appkey" to BiliConstants.APP_KEY,
-                "build" to BiliConstants.BUILD_STR,
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, credential.accessToken) + mapOf(
                 "buvid" to deviceIdentity.buvid,
-                "c_locale" to "zh-Hans_CN",
-                "channel" to BiliConstants.CHANNEL,
-                "disable_rcmd" to "0",
-                "local_id" to deviceIdentity.buvid,
-                "mobi_app" to BiliConstants.MOBI_APP,
-                "platform" to BiliConstants.PLATFORM,
-                "s_locale" to "zh-Hans_CN",
-                "statistics" to BiliConstants.STATISTICS_JSON,
-                "ts" to ts
-            )
+                "local_id" to deviceIdentity.buvid
+            ),
+            profile = BiliRestProfile.APP
         )
         val data = json.getJSONObject("data")
         val vip = data.optJSONObject("vip")
@@ -259,22 +216,11 @@ class AuthRepoImpl @Inject constructor(
     }
 
     override suspend fun fetchMineInfo(credential: LoginCredential): Result<User> = runCatching {
-        val ts = (System.currentTimeMillis() / 1000).toString()
+        val ts = System.currentTimeMillis() / 1000
         val json = restClient.getSigned(
             url = "${BiliConstants.BASE_URL_APP}$MINE_IPAD_ENDPOINT",
-            params = mapOf(
-                "access_key" to credential.accessToken,
-                "appkey" to BiliConstants.APP_KEY,
-                "build" to BiliConstants.BUILD_STR,
-                "c_locale" to "zh-Hans_CN",
-                "channel" to BiliConstants.CHANNEL,
-                "disable_rcmd" to "0",
-                "mobi_app" to BiliConstants.MOBI_APP,
-                "platform" to BiliConstants.PLATFORM,
-                "s_locale" to "zh-Hans_CN",
-                "statistics" to BiliConstants.STATISTICS_JSON,
-                "ts" to ts
-            )
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, credential.accessToken),
+            profile = BiliRestProfile.APP
         )
         val data = json.getJSONObject("data")
         val vip = data.optJSONObject("vip")
@@ -302,10 +248,10 @@ class AuthRepoImpl @Inject constructor(
         geeValidate: String, geeSeccode: String,
         geeChallenge: String, recaptchaToken: String
     ): Result<SmsCodeResult> = runCatching {
-        val ts = (System.currentTimeMillis() / 1000).toString()
+        val ts = System.currentTimeMillis() / 1000
         val loginSessionId = generateLoginSessionId()
 
-        val params = buildCommonParams(ts) + buildMap {
+        val params = restParamBuilder.passport(BiliRestProfile.SMS, ts) + buildMap {
             put("cid", cid.toString())
             put("tel", tel)
             put("login_session_id", loginSessionId)
@@ -315,9 +261,10 @@ class AuthRepoImpl @Inject constructor(
             if (recaptchaToken.isNotEmpty()) put("recaptcha_token", recaptchaToken)
         }
 
-        val json = restClient.postSignedRawSms(
+        val json = restClient.postSignedRaw(
             url = "${BiliConstants.BASE_URL_PASSPORT}$SMS_SEND_ENDPOINT",
-            params = params
+            params = params,
+            profile = BiliRestProfile.SMS
         )
 
         val code = json.optInt("code", -1)
@@ -359,10 +306,11 @@ class AuthRepoImpl @Inject constructor(
     }
 
     private suspend fun preCapture(): SmsCodeResult {
-        val ts = (System.currentTimeMillis() / 1000).toString()
-        val json = restClient.postSignedSms(
+        val ts = System.currentTimeMillis() / 1000
+        val json = restClient.postSigned(
             url = "${BiliConstants.BASE_URL_PASSPORT}$PRE_CAPTURE_ENDPOINT",
-            params = buildCommonParams(ts)
+            params = restParamBuilder.passport(BiliRestProfile.SMS, ts),
+            profile = BiliRestProfile.SMS
         )
         val data = json.getJSONObject("data")
         return SmsCodeResult(
@@ -376,7 +324,7 @@ class AuthRepoImpl @Inject constructor(
     override suspend fun loginBySms(
         tel: String, cid: Int, code: String, captchaKey: String
     ): Result<LoginCredential> = runCatching {
-        val ts = (System.currentTimeMillis() / 1000).toString()
+        val ts = System.currentTimeMillis() / 1000
 
         val deviceInfoJson = org.json.JSONObject().apply {
             put("DeviceType", "Android")
@@ -393,7 +341,7 @@ class AuthRepoImpl @Inject constructor(
         val (dt, _) = guestIdGenerator.generateDtAndDeviceInfo(deviceInfoJson)
             ?: throw Exception("生成 dt 失败")
 
-        val params = buildCommonParams(ts) + mapOf(
+        val params = restParamBuilder.passport(BiliRestProfile.SMS, ts) + mapOf(
             "captcha_key" to captchaKey,
             "cid" to cid.toString(),
             "code" to code,
@@ -405,9 +353,10 @@ class AuthRepoImpl @Inject constructor(
             "tel" to tel
         )
 
-        val json = restClient.postSignedSms(
+        val json = restClient.postSigned(
             url = "${BiliConstants.BASE_URL_PASSPORT}$SMS_LOGIN_ENDPOINT",
-            params = params
+            params = params,
+            profile = BiliRestProfile.SMS
         )
 
         val data = json.getJSONObject("data")

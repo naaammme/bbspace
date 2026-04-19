@@ -17,6 +17,8 @@ import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.infra.crypto.BiliSessionId
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.network.BiliRestClient
+import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
+import com.naaammme.bbspace.infra.network.BiliRestProfile
 import com.naaammme.bbspace.infra.player.EnginePlaybackState
 import com.naaammme.bbspace.infra.player.PlaybackSnapshot
 import java.util.Locale
@@ -32,6 +34,7 @@ class PlaybackReporter @Inject constructor(
     private val restClient: BiliRestClient,
     private val authProvider: AuthProvider,
     private val deviceIdentity: DeviceIdentity,
+    private val restParamBuilder: BiliRestParamBuilder,
     private val localHistoryRepo: LocalHistoryRepository
 ) {
     private val mu = Mutex()
@@ -262,7 +265,7 @@ class PlaybackReporter @Inject constructor(
         params: Map<String, String>
     ): JSONObject? {
         return runCatching {
-            restClient.postSignedRaw(url, params).also { json ->
+            restClient.postSignedRaw(url, params, BiliRestProfile.APP).also { json ->
                 val code = json.optInt("code", 0)
                 if (code != 0) {
                     Logger.w(TAG) { "report code=$code msg=${json.optString("message")}" }
@@ -390,21 +393,7 @@ class PlaybackReporter @Inject constructor(
     }
 
     private fun buildCommonParams(ts: Long): Map<String, String> {
-        val token = authProvider.accessToken
-        return buildMap {
-            put("build", BiliConstants.BUILD_STR)
-            put("c_locale", LOCALE)
-            put("channel", BiliConstants.CHANNEL)
-            put("disable_rcmd", ZERO)
-            put("mobi_app", BiliConstants.MOBI_APP)
-            put("platform", BiliConstants.PLATFORM)
-            put("s_locale", LOCALE)
-            put("statistics", BiliConstants.STATISTICS_JSON)
-            put("ts", ts.toString())
-            if (token.isNotBlank()) {
-                put("access_key", token)
-            }
-        }
+        return restParamBuilder.app(BiliRestProfile.APP, ts, authProvider.accessToken)
     }
 
     private fun playType(request: PlaybackRequest): Int {
@@ -510,7 +499,6 @@ class PlaybackReporter @Inject constructor(
         const val TAG = "PlaybackReporter"
         const val HISTORY_SOURCE = "player-old"
         const val HISTORY_SCENE_FRONT = "front"
-        const val LOCALE = "zh-Hans_CN"
         const val DEFAULT_QN = 64
         const val ZERO = "0"
         const val ONE = "1"

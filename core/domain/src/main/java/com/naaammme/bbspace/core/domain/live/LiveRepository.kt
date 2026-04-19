@@ -7,4 +7,9 @@ interface LiveRepository {
         roomId: Long,
         qn: Int = 0
     ): LivePlaybackSource
+
+    suspend fun reportRoomEntryAction(
+        roomId: Long,
+        jumpFrom: Int
+    )
 }

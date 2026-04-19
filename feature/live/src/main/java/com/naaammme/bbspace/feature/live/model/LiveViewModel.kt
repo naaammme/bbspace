@@ -7,6 +7,7 @@ import com.naaammme.bbspace.core.domain.live.LivePlaybackController
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.LiveRouteTool
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -30,7 +31,10 @@ class LiveViewModel @Inject constructor(
         if (playbackState.value.playbackSource?.roomId == target.roomId) return
         if (startJob?.isActive == true) return
         startJob = viewModelScope.launch {
-            playbackController.open(target.roomId)
+            playbackController.open(
+                roomId = target.roomId,
+                jumpFrom = target.jumpFrom
+            )
         }
     }
 
@@ -52,7 +56,9 @@ class LiveViewModel @Inject constructor(
         startJob = viewModelScope.launch {
             playbackController.open(
                 roomId = target.roomId,
-                preferredQuality = playbackState.value.playbackSource?.currentQn ?: 0
+                preferredQuality = playbackState.value.playbackSource?.currentQn ?: 0,
+                jumpFrom = target.jumpFrom,
+                reportEntry = false
             )
         }
     }
@@ -80,7 +86,8 @@ private fun SavedStateHandle.toLiveRoute(): LiveRoute? {
         title = get<String>("title")?.takeIf(String::isNotBlank),
         cover = get<String>("cover")?.takeIf(String::isNotBlank),
         ownerName = get<String>("ownerName")?.takeIf(String::isNotBlank),
-        onlineText = get<String>("onlineText")?.takeIf(String::isNotBlank)
+        onlineText = get<String>("onlineText")?.takeIf(String::isNotBlank),
+        jumpFrom = LiveRouteTool.normalizeJumpFrom(get<Int>("jumpFrom"))
     )
 }
 

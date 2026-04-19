@@ -1,6 +1,5 @@
 package com.naaammme.bbspace.infra.network
 
-import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.infra.crypto.AppSigner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,7 +12,12 @@ import javax.inject.Singleton
 
 /**
  * B站 RESTful API 客户端
- * 封装签名、Header 注入、请求执行、响应检查
+ *
+ * 按显式传入的 profile 选择 appkey 和 appsec
+ * 对参数做签名并按 GET/POST 的协议形态发送
+ * 统一注入 Header 并检查 code
+ *
+ * 公参不在这里隐式补，调用方先通过参数构建器准备好业务参数
  */
 @Singleton
 class BiliRestClient @Inject constructor(
@@ -21,61 +25,52 @@ class BiliRestClient @Inject constructor(
     private val headerBuilder: BiliHeaderBuilder
 ) {
     /**
-     * 发送签名后的 POST 请求, 检查 code==0
-     * @throws BiliApiException 当 API 返回非 0 code 时
+     * 发送签名后的 POST 请求并要求 code == 0
+     *
+     * POST 参数会被签名后直接写入请求体
      */
     suspend fun postSigned(
         url: String,
-        params: Map<String, String>
+        params: Map<String, String>,
+        profile: BiliRestProfile = BiliRestProfile.APP
     ): JSONObject {
-        val json = postSignedRaw(url, params)
-        val code = json.optInt("code", -1)
-        if (code != 0) {
-            throw BiliApiException(code, json.optString("message", "Unknown error"))
-        }
-        return json
+        return requireSuccess(postSignedRaw(url, params, profile))
     }
 
     /**
-     * 发送 GET 请求（URL 已含完整 query，调用方自行签名），检查 code==0
-     */
-    suspend fun getUrl(fullUrl: String): JSONObject {
-        val headers = headerBuilder.build()
-        val requestBuilder = Request.Builder().url(fullUrl).get()
-        headers.forEach { (key, value) -> requestBuilder.addHeader(key, value) }
-        val response = withContext(Dispatchers.IO) {
-            val resp = okHttpClient.newCall(requestBuilder.build()).execute()
-            val body = resp.body?.string() ?: throw BiliApiException(-1, "Empty response")
-            JSONObject(body)
-        }
-        val code = response.optInt("code", -1)
-        if (code != 0) throw BiliApiException(code, response.optString("message", "Unknown error"))
-        return response
-    }
-
-    /**
-     * 发送签名后的 GET 请求, 检查 code==0
-     * 参数拼接在 URL query string 中
+     * 发送签名后的 GET 请求并要求 code == 0
+     *
+     * GET 参数会被签名后直接拼进 URL query。
      */
     suspend fun getSigned(
         url: String,
-        params: Map<String, String>
+        params: Map<String, String>,
+        profile: BiliRestProfile = BiliRestProfile.APP
     ): JSONObject {
-        val signedQuery = AppSigner.sign(params)
+        val signedQuery = AppSigner.sign(params, profile.appKey, profile.appSec)
         val fullUrl = "$url?$signedQuery"
+        return requireSuccess(executeJson(Request.Builder().url(fullUrl).get().withHeaders().build()))
+    }
 
-        val headers = headerBuilder.build()
+    /**
+     * 发送签名后的 POST 请求但不检查业务 code
+     *
+     * 用于二维码轮询这类需要调用方自行处理特殊返回码的接口
+     */
+    suspend fun postSignedRaw(
+        url: String,
+        params: Map<String, String>,
+        profile: BiliRestProfile = BiliRestProfile.APP
+    ): JSONObject {
+        val signedBody = AppSigner.sign(params, profile.appKey, profile.appSec)
+        val requestBody = signedBody.toRequestBody(null)
+        return executeJson(Request.Builder().url(url).post(requestBody).withHeaders().build())
+    }
 
-        val requestBuilder = Request.Builder().url(fullUrl).get()
-        headers.forEach { (key, value) -> requestBuilder.addHeader(key, value) }
-
-        val response = withContext(Dispatchers.IO) {
-            okHttpClient.newCall(requestBuilder.build()).execute()
-        }
-
-        val json = withContext(Dispatchers.IO) {
-            JSONObject(response.body?.string() ?: throw BiliApiException(-1, "Empty response"))
-        }
+    /**
+     * 检查 B站标准 JSON 响应的 code 字段
+     */
+    private fun requireSuccess(json: JSONObject): JSONObject {
         val code = json.optInt("code", -1)
         if (code != 0) {
             throw BiliApiException(code, json.optString("message", "Unknown error"))
@@ -83,63 +78,21 @@ class BiliRestClient @Inject constructor(
         return json
     }
 
-    suspend fun postSignedHd(url: String, params: Map<String, String>): JSONObject {
-        val json = postSignedRawHd(url, params)
-        val code = json.optInt("code", -1)
-        if (code != 0) throw BiliApiException(code, json.optString("message", "Unknown error"))
-        return json
-    }
-
-    suspend fun postSignedRawHd(url: String, params: Map<String, String>): JSONObject {
-        val signedBody = AppSigner.sign(params, BiliConstants.APP_KEY_HD, BiliConstants.APP_SEC_HD)
-        val requestBody = signedBody.toRequestBody(null)
-        val headers = headerBuilder.build()
-        val requestBuilder = Request.Builder().url(url).post(requestBody)
-        headers.forEach { (key, value) -> requestBuilder.addHeader(key, value) }
+    /**
+     * 在 IO 线程执行请求并解析 JSON 响应体
+     */
+    private suspend fun executeJson(request: Request): JSONObject {
         return withContext(Dispatchers.IO) {
-            val resp = okHttpClient.newCall(requestBuilder.build()).execute()
-            JSONObject(resp.body?.string() ?: throw BiliApiException(-1, "Empty response"))
-        }
-    }
-
-    suspend fun postSignedSms(url: String, params: Map<String, String>): JSONObject {
-        val json = postSignedRawSms(url, params)
-        val code = json.optInt("code", -1)
-        if (code != 0) throw BiliApiException(code, json.optString("message", "Unknown error"))
-        return json
-    }
-
-    suspend fun postSignedRawSms(url: String, params: Map<String, String>): JSONObject {
-        val signedBody = AppSigner.sign(params, BiliConstants.APP_KEY_SMS, BiliConstants.APP_SEC_SMS)
-        val requestBody = signedBody.toRequestBody(null)
-        val headers = headerBuilder.build()
-        val requestBuilder = Request.Builder().url(url).post(requestBody)
-        headers.forEach { (key, value) -> requestBuilder.addHeader(key, value) }
-        return withContext(Dispatchers.IO) {
-            val resp = okHttpClient.newCall(requestBuilder.build()).execute()
+            val resp = okHttpClient.newCall(request).execute()
             JSONObject(resp.body?.string() ?: throw BiliApiException(-1, "Empty response"))
         }
     }
 
     /**
-     * 发送签名后的 POST 请求（不检查 code，原样返回 JSON）
-     * 用于需要处理特殊 code 的场景（如轮询 86039/86090）
+     * 统一附加 RESTful 请求 Header
      */
-    suspend fun postSignedRaw(
-        url: String,
-        params: Map<String, String>
-    ): JSONObject {
-        val signedBody = AppSigner.sign(params)
-        val requestBody = signedBody.toRequestBody(null)
-
-        val headers = headerBuilder.build()
-
-        val requestBuilder = Request.Builder().url(url).post(requestBody)
-        headers.forEach { (key, value) -> requestBuilder.addHeader(key, value) }
-
-        return withContext(Dispatchers.IO) {
-            val resp = okHttpClient.newCall(requestBuilder.build()).execute()
-            JSONObject(resp.body?.string() ?: throw BiliApiException(-1, "Empty response"))
-        }
+    private fun Request.Builder.withHeaders(): Request.Builder {
+        headerBuilder.build().forEach { (key, value) -> addHeader(key, value) }
+        return this
     }
 }

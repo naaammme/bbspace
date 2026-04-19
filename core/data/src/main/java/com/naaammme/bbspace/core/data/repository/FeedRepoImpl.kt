@@ -15,15 +15,17 @@ import com.naaammme.bbspace.core.model.InterestGender
 import com.naaammme.bbspace.core.model.InterestItem
 import com.naaammme.bbspace.core.model.InterestSubItem
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.LiveRouteTool
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.RcmdReason
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.ThreePointReason
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
-import com.naaammme.bbspace.infra.network.BiliRestClient
-import com.naaammme.bbspace.infra.crypto.AppSigner
 import java.net.URI
+import com.naaammme.bbspace.infra.network.BiliRestClient
+import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
+import com.naaammme.bbspace.infra.network.BiliRestProfile
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
@@ -34,6 +36,7 @@ import javax.inject.Singleton
 @Singleton
 class FeedRepoImpl @Inject constructor(
     private val restClient: BiliRestClient,
+    private val restParamBuilder: BiliRestParamBuilder,
     private val authStore: AuthStore,
     private val appSettings: AppSettings
 ) : FeedRepository {
@@ -47,13 +50,12 @@ class FeedRepoImpl @Inject constructor(
 
     override suspend fun fetchFeed(idx: Long, pull: Boolean, flush: Int): FeedResult {
         val hdFeed = appSettings.hdFeed.first()
-        val appKey = if (hdFeed) BiliConstants.APP_KEY_HD else BiliConstants.APP_KEY
-        val appSec = if (hdFeed) BiliConstants.APP_SEC_HD else BiliConstants.APP_SEC
-        val reqParams = buildParams(idx, pull, flush, hdFeed)
-        val signedQuery = AppSigner.sign(reqParams, appKey, appSec)
-        val url ="${BiliConstants.BASE_URL_APP}$FEED_ENDPOINT?$signedQuery"
-
-        val json = restClient.getUrl(fullUrl = url)
+        val profile = if (hdFeed) BiliRestProfile.HD else BiliRestProfile.APP
+        val json = restClient.getSigned(
+            url = "${BiliConstants.BASE_URL_APP}$FEED_ENDPOINT",
+            params = buildParams(idx, pull, flush, profile, hdFeed),
+            profile = profile
+        )
 
         return parseResponse(json)
     }
@@ -67,17 +69,16 @@ class FeedRepoImpl @Inject constructor(
         interestPosIds: String
     ): FeedResult {
         val hdFeed = appSettings.hdFeed.first()
-        val appKey = if (hdFeed) BiliConstants.APP_KEY_HD else BiliConstants.APP_KEY
-        val appSec = if (hdFeed) BiliConstants.APP_SEC_HD else BiliConstants.APP_SEC
-        val reqParams = buildParams(idx, pull, flush, hdFeed) + mapOf(
-            "interest_id" to interestId.toString(),
-            "interest_result" to interestResult,
-            "interest_pos_ids" to interestPosIds
+        val profile = if (hdFeed) BiliRestProfile.HD else BiliRestProfile.APP
+        val json = restClient.getSigned(
+            url = "${BiliConstants.BASE_URL_APP}$FEED_ENDPOINT",
+            params = buildParams(idx, pull, flush, profile, hdFeed) + mapOf(
+                "interest_id" to interestId.toString(),
+                "interest_result" to interestResult,
+                "interest_pos_ids" to interestPosIds
+            ),
+            profile = profile
         )
-        val signedQuery = AppSigner.sign(reqParams, appKey, appSec)
-        val url = "${BiliConstants.BASE_URL_APP}$FEED_ENDPOINT?$signedQuery"
-
-        val json = restClient.getUrl(fullUrl = url)
 
         return parseResponse(json)
     }
@@ -103,22 +104,22 @@ class FeedRepoImpl @Inject constructor(
 
     类型 picture,av,live,vertical_av,bangumi
      */
-    private suspend fun buildParams(idx: Long, pull: Boolean, flush: Int, hdFeed: Boolean): Map<String, String> {
+    private suspend fun buildParams(
+        idx: Long,
+        pull: Boolean,
+        flush: Int,
+        profile: BiliRestProfile,
+        hdFeed: Boolean
+    ): Map<String, String> {
         val personalizedRcmd = appSettings.personalizedRcmd.first()
-        val ts = (System.currentTimeMillis() / 1000).toString()
+        val ts = System.currentTimeMillis() / 1000
         val normalToken = authStore.accessToken
         val hdToken = authStore.getHdAccessKeyForCurrent()
         val token = if (hdFeed) hdToken else normalToken
-        val mobiApp = if (hdFeed) BiliConstants.MOBI_APP_HD else BiliConstants.MOBI_APP
-        val buildStr = if (hdFeed) BiliConstants.BUILD_STR_HD else BiliConstants.BUILD_STR
-        val statistics = if (hdFeed) BiliConstants.STATISTICS_JSON_HD else BiliConstants.STATISTICS_JSON
-        return buildMap { // TODO:feed首页获取视频流
+        return restParamBuilder.app(profile, ts, token) + buildMap { // TODO:feed首页获取视频流
             put("auto_refresh_state", "1")
             // put("autoplay_card", "2")
             // put("autoplay_timestamp", ts)
-            put("build", buildStr)
-            put("c_locale", "zh-Hans_CN")
-            put("channel", BiliConstants.CHANNEL)
             put("client_attr", "0")
             put("column", "2")
             put("column_timestamp", "0")
@@ -135,27 +136,19 @@ class FeedRepoImpl @Inject constructor(
             put("idx", idx.toString())
             put("interest_id", "0")
             put("login_event", if (token.isNotEmpty()) "0" else "1") // 会显著影响feed结果
-            put("mobi_app", mobiApp)
             put("network", "wifi")
             put("open_event", if (idx == 0L) "cold" else "")
-            put("platform", BiliConstants.PLATFORM)
             // player_extra_content
             put("player_net", "1")
             put("pull", pull.toString())
             // put("qn", "32")
             // qn_policy
             put("recsys_mode", "0")
-            put("s_locale", "zh-Hans_CN")
             put("splash_creative_id", "0")
             put("splash_id", "")
-            put("statistics", statistics)
-            put("ts", ts)
             // video_mode
             // voice_balance
             // put("volume_balance", "1")
-            if (token.isNotEmpty()) {
-                put("access_key", token)
-            }
         }
     }
 
@@ -282,7 +275,8 @@ class FeedRepoImpl @Inject constructor(
                     ownerName = ownerName,
                     onlineText = card.optString("cover_left_text_1")
                         .takeIf { it.isNotEmpty() }
-                        ?: obj.optString("cover_left_text_1").takeIf { it.isNotEmpty() }
+                        ?: obj.optString("cover_left_text_1").takeIf { it.isNotEmpty() },
+                    jumpFrom = LiveRouteTool.JUMP_FROM_HOME_RECOMMEND
                 )
             }
         } else {

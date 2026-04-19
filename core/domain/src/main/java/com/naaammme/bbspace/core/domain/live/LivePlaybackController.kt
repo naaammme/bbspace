@@ -10,7 +10,9 @@ interface LivePlaybackController {
 
     suspend fun open(
         roomId: Long,
-        preferredQuality: Int = 0
+        preferredQuality: Int = 0,
+        jumpFrom: Int,
+        reportEntry: Boolean = true
     )
 
     fun play()
