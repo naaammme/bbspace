@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -16,7 +17,6 @@ import androidx.media3.exoplayer.source.ConcatenatingMediaSource2
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.core.common.log.Logger
@@ -273,6 +273,16 @@ class Media3PlayerEngine @Inject constructor(
 
     private fun buildMediaSource(source: EngineSource): MediaSource {
         return when (source) {
+            is EngineSource.LiveFlv -> {
+                val mediaItem = MediaItem.Builder()
+                    .setUri(source.url)
+                    .setLiveConfiguration(
+                        MediaItem.LiveConfiguration.Builder().build()
+                    )
+                    .build()
+                mediaSourceFactory.createMediaSource(mediaItem)
+            }
+
             is EngineSource.Dash -> {
                 val video = mediaSourceFactory.createMediaSource(MediaItem.fromUri(source.videoUrl))
                 if (source.audioUrl.isNullOrBlank()) {

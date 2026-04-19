@@ -58,6 +58,7 @@ import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleEntry
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.FeedItem
+import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.VideoRoute
 
@@ -67,6 +68,7 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onOpenVideo: (VideoRoute) -> Unit = {},
+    onOpenLive: (LiveRoute) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
@@ -154,7 +156,8 @@ fun HomeScreen(
                         FeedCard(
                             item = items[index],
                             onClick = {
-                                items[index].route?.let(onOpenVideo)
+                                items[index].liveRoute?.let(onOpenLive)
+                                    ?: items[index].route?.let(onOpenVideo)
                             }
                         )
                     }
@@ -188,7 +191,7 @@ private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
     }
     Card(
         onClick = onClick,
-        enabled = item.route != null,
+        enabled = item.route != null || item.liveRoute != null,
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {

@@ -14,6 +14,7 @@ import com.naaammme.bbspace.core.model.InterestChoose
 import com.naaammme.bbspace.core.model.InterestGender
 import com.naaammme.bbspace.core.model.InterestItem
 import com.naaammme.bbspace.core.model.InterestSubItem
+import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.RcmdReason
 import com.naaammme.bbspace.core.model.ThreePointItem
@@ -22,6 +23,7 @@ import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.crypto.AppSigner
+import java.net.URI
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
@@ -189,6 +191,17 @@ class FeedRepoImpl @Inject constructor(
         val cardGoto = card.optString("card_goto").ifBlank { obj.optString("card_goto") }
         val goto = card.optString("goto").ifBlank { obj.optString("goto") }
         val param = card.optString("param").ifBlank { obj.optString("param") }
+        val title = card.optString("title")
+            .ifBlank { item?.optString("subtitle").orEmpty() }
+            .ifBlank { obj.optString("title") }
+        val cover = card.optString("cover")
+            .ifBlank { item?.optString("large_cover").orEmpty() }
+            .ifBlank { obj.optString("cover") }
+            .replace("http://", "https://")
+        val ownerName = descBtn?.optString("text")
+            ?.takeIf { it.isNotEmpty() }
+            ?: args?.optString("up_name")?.takeIf { it.isNotEmpty() }
+        val isLive = isLiveCard(cardGoto, goto, uri, player)
         val biz = when {
             cardGoto == "ketang" || goto == "ketang" ||
                     uri.contains("/cheese/play/") -> PlayBiz.PUGV
@@ -260,6 +273,21 @@ class FeedRepoImpl @Inject constructor(
                 }
             }
         }
+        val liveRoute = if (isLive) {
+            resolveLiveRoomId(param, uri, player, args)?.let { roomId ->
+                LiveRoute(
+                    roomId = roomId,
+                    title = title.takeIf { it.isNotBlank() },
+                    cover = cover.takeIf { it.isNotBlank() },
+                    ownerName = ownerName,
+                    onlineText = card.optString("cover_left_text_1")
+                        .takeIf { it.isNotEmpty() }
+                        ?: obj.optString("cover_left_text_1").takeIf { it.isNotEmpty() }
+                )
+            }
+        } else {
+            null
+        }
 
         return FeedItem(
             cardType = card.optString("card_type").ifBlank { obj.optString("card_type") },
@@ -267,13 +295,8 @@ class FeedRepoImpl @Inject constructor(
             goto = goto,
             param = param,
             uri = uri,
-            title = card.optString("title")
-                .ifBlank { item?.optString("subtitle").orEmpty() }
-                .ifBlank { obj.optString("title") },
-            cover = card.optString("cover")
-                .ifBlank { item?.optString("large_cover").orEmpty() }
-                .ifBlank { obj.optString("cover") }
-                .replace("http://", "https://"),
+            title = title,
+            cover = cover,
             coverLeftText1 = card.optString("cover_left_text_1")
                 .takeIf { it.isNotEmpty() }
                 ?: obj.optString("cover_left_text_1").takeIf { it.isNotEmpty() },
@@ -285,6 +308,7 @@ class FeedRepoImpl @Inject constructor(
                 ?: obj.optString("cover_right_text").takeIf { it.isNotEmpty() },
             idx = obj.optLong("idx"),
             route = route,
+            liveRoute = liveRoute,
             descButton = descBtn?.let {
                 DescButton(
                     text = it.optString("text"),
@@ -379,5 +403,24 @@ class FeedRepoImpl @Inject constructor(
                 player?.optString("type") == "live" ||
                 player?.optLong("room_id")?.takeIf { it > 0L } != null ||
                 uri.contains("live.bilibili.com")
+    }
+
+    private fun resolveLiveRoomId(
+        param: String,
+        uri: String,
+        player: JSONObject?,
+        args: JSONObject?
+    ): Long? {
+        return player?.optLong("room_id")?.takeIf { it > 0L }
+            ?: args?.optLong("room_id")?.takeIf { it > 0L }
+            ?: param.toLongOrNull()
+            ?: VideoRouteTool.arg(uri, "room_id")?.toLongOrNull()
+            ?: runCatching {
+                URI(uri).path
+                    .orEmpty()
+                    .trimEnd('/')
+                    .substringAfterLast('/')
+                    .toLongOrNull()
+            }.getOrNull()
     }
 }

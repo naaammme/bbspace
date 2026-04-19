@@ -65,4 +65,5 @@ include(":feature:user")
 include(":feature:auth")
 include(":feature:settings")
 include(":feature:bbspace")
+include(":feature:live")
 

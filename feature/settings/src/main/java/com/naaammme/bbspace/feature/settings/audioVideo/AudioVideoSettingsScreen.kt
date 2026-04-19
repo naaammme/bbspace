@@ -40,7 +40,7 @@ fun AudioVideoSettingsScreen(
     val defaultVideoQuality by viewModel.defaultVideoQuality.collectAsStateWithLifecycle()
     val defaultAudioQuality by viewModel.defaultAudioQuality.collectAsStateWithLifecycle()
     val forceHost by viewModel.forceHost.collectAsStateWithLifecycle()
-    // val needTrial by viewModel.needTrial.collectAsStateWithLifecycle()
+    val needTrial by viewModel.needTrial.collectAsStateWithLifecycle()
     val preferredCodec by viewModel.preferredCodec.collectAsStateWithLifecycle()
 
     var showVideoQualityDialog by remember { mutableStateOf(false) }
@@ -108,11 +108,11 @@ fun AudioVideoSettingsScreen(
                 onCheckedChange = { viewModel.updateForceHost(if (it) 1 else 0) }
             )
 
-//            SettingSwitch(
-//                title = "需要4k",
-//                checked = needTrial,
-//                onCheckedChange = { viewModel.updateNeedTrial(it) }
-//            )
+            SettingSwitch(
+                title = "需要4k",
+                checked = needTrial,
+                onCheckedChange = { viewModel.updateNeedTrial(it) }
+            )
         }
 
         if (showVideoQualityDialog) {

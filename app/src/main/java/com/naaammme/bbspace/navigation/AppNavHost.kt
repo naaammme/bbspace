@@ -25,6 +25,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
+import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.feature.auth.navigation.ACCOUNT_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.LOGIN_ROUTE
@@ -35,6 +36,8 @@ import com.naaammme.bbspace.feature.auth.navigation.smsLoginScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.bbSpaceScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.navigateToBbSpace
 import com.naaammme.bbspace.feature.home.ui.HomeScreen
+import com.naaammme.bbspace.feature.live.navigation.liveScreen
+import com.naaammme.bbspace.feature.live.navigation.navigateToLive
 import com.naaammme.bbspace.feature.search.navigation.navigateToSearch
 import com.naaammme.bbspace.feature.search.navigation.searchScreen
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
@@ -83,7 +86,8 @@ fun AppNavHost(
                 onNavigateToSettings = { rootNavController.navigate(SETTINGS_ROUTE) },
                 onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
                 onNavigateToBbSpace = { rootNavController.navigateToBbSpace() },
-                onNavigateToVideo = rootNavController::navigateToVideo
+                onNavigateToVideo = rootNavController::navigateToVideo,
+                onNavigateToLive = rootNavController::navigateToLive
             )
         }
 
@@ -123,6 +127,9 @@ fun AppNavHost(
             onBack = { rootNavController.popBackStack() },
             onOpenVideo = rootNavController::navigateToVideo
         )
+        liveScreen(
+            onBack = { rootNavController.popBackStack() }
+        )
     }
 }
 
@@ -132,7 +139,8 @@ private fun MainTabsScaffold(
     onNavigateToSettings: () -> Unit,
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
-    onNavigateToVideo: (VideoRoute) -> Unit
+    onNavigateToVideo: (VideoRoute) -> Unit,
+    onNavigateToLive: (LiveRoute) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -160,7 +168,8 @@ private fun MainTabsScaffold(
                             TopLevelRoute.HOME -> HomeScreen(
                                 onNavigateToSearch = onNavigateToSearch,
                                 onNavigateToSettings = onNavigateToSettings,
-                                onOpenVideo = onNavigateToVideo
+                                onOpenVideo = onNavigateToVideo,
+                                onOpenLive = onNavigateToLive
                             )
                             TopLevelRoute.DYNAMIC -> PlaceholderScreen("动态")
                             TopLevelRoute.MESSAGE -> PlaceholderScreen("消息")
