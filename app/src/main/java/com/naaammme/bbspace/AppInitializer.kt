@@ -17,6 +17,7 @@ import com.naaammme.bbspace.infra.crypto.BuvidFetcher
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
 import com.naaammme.bbspace.infra.crypto.TicketGenerator
 import com.naaammme.bbspace.infra.network.dns.BiliDns
+import com.naaammme.bbspace.infra.player.PlayerEngine
 import com.naaammme.bbspace.playback.VideoPlaybackService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -45,7 +46,8 @@ class AppInitializer @Inject constructor(
     private val gaiaReporter: GaiaReporter,
     private val appSettings: AppSettings,
     private val cacheManager: CacheManager,
-    private val playbackController: VideoPlaybackControllerImpl
+    private val playbackController: VideoPlaybackControllerImpl,
+    private val playerEngine: PlayerEngine
 ) {
     companion object {
         private const val TAG = "AppInitializer"
@@ -148,8 +150,8 @@ class AppInitializer @Inject constructor(
 
     private fun observePlaybackService() {
         initScope.launch {
-            playbackController.sessionState
-                .map { it.playbackSource != null }
+            playerEngine.currentSource
+                .map { it != null }
                 .distinctUntilChanged()
                 .collect { shouldStart ->
                 val intent = Intent(context, VideoPlaybackService::class.java)

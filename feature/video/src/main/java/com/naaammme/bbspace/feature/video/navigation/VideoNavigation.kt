@@ -53,14 +53,6 @@ private const val PUGV_VIDEO_ROUTE =
             "&$TRACK_ID_ARG={$TRACK_ID_ARG}" +
             "&$REPORT_ARG={$REPORT_ARG}"
 
-private const val VIDEO_ROUTE_PREFIX = "video/"
-
-fun isVideoRoutePattern(route: String?): Boolean {
-    return route
-        ?.substringBefore('?')
-        ?.startsWith(VIDEO_ROUTE_PREFIX) == true
-}
-
 fun NavController.navigateToVideo(route: VideoRoute) {
     when (route) {
         is VideoRoute.Ugc -> navigateToUgcVideo(route)

@@ -101,6 +101,7 @@ dependencies {
     implementation(project(":infra:crypto"))
     implementation(project(":infra:network-http"))
     implementation(project(":infra:network-grpc"))
+    implementation(project(":infra:player"))
 
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)

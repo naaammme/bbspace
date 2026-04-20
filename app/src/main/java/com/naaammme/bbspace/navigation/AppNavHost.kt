@@ -9,7 +9,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,33 +42,19 @@ import com.naaammme.bbspace.feature.search.navigation.searchScreen
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
 import com.naaammme.bbspace.feature.user.UserScreen
-import com.naaammme.bbspace.feature.video.navigation.isVideoRoutePattern
 import com.naaammme.bbspace.feature.video.navigation.navigateToVideo
 import com.naaammme.bbspace.feature.video.navigation.videoScreen
 
 private const val MAIN_ROUTE = "main"
 
 @Composable
-fun AppNavHost(
-    themeConfig: ThemeConfig = ThemeConfig(),
-    pendingVideoRoute: VideoRoute? = null,
-    onPendingVideoRouteConsumed: () -> Unit = {}
-) {
+fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
     val rootNavController = rememberNavController()
     val transitions = remember(themeConfig.transitionStyle, themeConfig.animationSpeed) {
         buildNavTransitions<NavBackStackEntry>(
             themeConfig.transitionStyle,
             themeConfig.animationSpeed
         )
-    }
-
-    LaunchedEffect(rootNavController, pendingVideoRoute) {
-        val route = pendingVideoRoute ?: return@LaunchedEffect
-        val topRoute = rootNavController.currentBackStackEntry?.destination?.route
-        if (!isVideoRoutePattern(topRoute)) {
-            rootNavController.navigateToVideo(route)
-        }
-        onPendingVideoRouteConsumed()
     }
 
     NavHost(

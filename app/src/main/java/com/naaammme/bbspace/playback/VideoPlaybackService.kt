@@ -2,6 +2,7 @@ package com.naaammme.bbspace.playback
 
 import android.annotation.SuppressLint
 import android.app.Notification
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
@@ -12,8 +13,12 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
+import com.naaammme.bbspace.MainActivity
 import com.naaammme.bbspace.R
 import com.naaammme.bbspace.core.data.player.VideoPlaybackControllerImpl
+import com.naaammme.bbspace.core.domain.live.LivePlaybackController
+import com.naaammme.bbspace.infra.player.EngineSource
+import com.naaammme.bbspace.infra.player.PlayerEngine
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +35,12 @@ class VideoPlaybackService : Service() {
     @Inject
     lateinit var playbackController: VideoPlaybackControllerImpl
 
+    @Inject
+    lateinit var livePlaybackController: LivePlaybackController
+
+    @Inject
+    lateinit var playerEngine: PlayerEngine
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var mediaSession: MediaSession? = null
     private var notificationManager: PlayerNotificationManager? = null
@@ -39,19 +50,17 @@ class VideoPlaybackService : Service() {
         super.onCreate()
         notificationManager = buildNotificationManager()
         scope.launch {
-            playbackController.playerState.collect(::bindPlayer)
+            playerEngine.player.collect(::bindPlayer)
         }
         scope.launch {
             combine(
+                playerEngine.currentSource,
                 playbackController.sessionState,
-                playbackController.pageMeta
-            ) { _, _ -> Unit }.collect {
-                mediaSession?.setSessionActivity(
-                    PlaybackLaunchIntents.createContentIntent(
-                        context = this@VideoPlaybackService,
-                        route = playbackController.currentRoute()
-                    )
-                )
+                playbackController.pageMeta,
+                livePlaybackController.state
+            ) { _, _, _, _ -> Unit }.collect {
+                mediaSession?.setSessionActivity(createContentIntent())
+                updateActionMode()
                 notificationManager?.invalidate()
             }
         }
@@ -62,21 +71,14 @@ class VideoPlaybackService : Service() {
         flags: Int,
         startId: Int
     ): Int {
-        if (!isForeground && !playbackController.playbackState.value.isPlaying) {
+        if (!isForeground && !playerEngine.snapshot.value.isPlaying) {
             val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_monochrome)
-                .setContentTitle(
-                    playbackController.pageMeta.value?.title
-                        ?.takeIf(String::isNotBlank)
-                        ?: "视频播放"
-                )
-                .setContentText("后台待播")
+                .setContentTitle(currentTitle())
+                .setContentText(currentSubText())
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-            PlaybackLaunchIntents.createContentIntent(
-                context = this,
-                route = playbackController.currentRoute()
-            )?.let(builder::setContentIntent)
+            createContentIntent()?.let(builder::setContentIntent)
             startForeground(NOTIFICATION_ID, builder.build())
             isForeground = true
         }
@@ -85,7 +87,7 @@ class VideoPlaybackService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (!playbackController.playbackState.value.isPlaying) {
+        if (!playerEngine.snapshot.value.isPlaying) {
             stopSelf()
         }
     }
@@ -113,10 +115,7 @@ class VideoPlaybackService : Service() {
             return
         }
         val currentSession = mediaSession
-        val contentIntent = PlaybackLaunchIntents.createContentIntent(
-            context = this,
-            route = playbackController.currentRoute()
-        )
+        val contentIntent = createContentIntent()
         if (currentSession == null) {
             val builder = MediaSession.Builder(this, player)
             if (contentIntent != null) {
@@ -156,31 +155,25 @@ class VideoPlaybackService : Service() {
 
     private inner class NotificationTextAdapter : PlayerNotificationManager.MediaDescriptionAdapter {
         override fun getCurrentContentTitle(player: Player): CharSequence {
-            return playbackController.pageMeta.value?.title
-                ?.takeIf(String::isNotBlank)
-                ?: "视频播放"
+            return currentTitle()
         }
 
-        override fun createCurrentContentIntent(player: Player) =
-            PlaybackLaunchIntents.createContentIntent(
-                context = this@VideoPlaybackService,
-                route = playbackController.currentRoute()
-            )
+        override fun createCurrentContentIntent(player: Player) = createContentIntent()
 
         override fun getCurrentContentText(player: Player): CharSequence? {
+            if (isLivePlayback()) {
+                return livePlaybackController.state.value.playbackSource?.currentDescription
+            }
             val meta = playbackController.pageMeta.value
-            val owner = meta?.ownerName?.takeIf(String::isNotBlank)
-            val part = meta?.partTitle?.takeIf(String::isNotBlank)
-            val text = listOfNotNull(owner, part).joinToString(" · ")
+            val text = listOfNotNull(
+                meta?.ownerName?.takeIf(String::isNotBlank),
+                meta?.partTitle?.takeIf(String::isNotBlank)
+            ).joinToString(" · ")
             return text.takeIf { it.isNotBlank() }
         }
 
         override fun getCurrentSubText(player: Player): CharSequence? {
-            return if (playbackController.playbackState.value.isPlaying) {
-                "后台播放中"
-            } else {
-                "后台待播"
-            }
+            return currentSubText()
         }
 
         override fun getCurrentLargeIcon(
@@ -220,14 +213,71 @@ class VideoPlaybackService : Service() {
                 isForeground = false
             }
             if (dismissedByUser) {
-                playbackController.stopPlayback()
+                if (isLivePlayback()) {
+                    livePlaybackController.release()
+                } else {
+                    playbackController.stopPlayback()
+                }
             }
             stopSelf()
         }
     }
 
+    private fun createContentIntent(): PendingIntent? {
+        if (isLivePlayback()) {
+            return PendingIntent.getActivity(
+                this,
+                LIVE_REQ_OPEN,
+                Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+        return PendingIntent.getActivity(
+            this,
+            VIDEO_REQ_OPEN,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun currentTitle(): String {
+        if (isLivePlayback()) {
+            val roomId = livePlaybackController.state.value.playbackSource?.roomId
+            return roomId?.let { "直播间 $it" } ?: "直播播放"
+        }
+        return playbackController.pageMeta.value?.title
+            ?.takeIf(String::isNotBlank)
+            ?: "视频播放"
+    }
+
+    private fun currentSubText(): String {
+        val isPlaying = playerEngine.snapshot.value.isPlaying
+        return if (isLivePlayback()) {
+            if (isPlaying) "后台直播中" else "后台待播"
+        } else {
+            if (isPlaying) "后台播放中" else "后台待播"
+        }
+    }
+
+    private fun updateActionMode() {
+        val isLive = isLivePlayback()
+        notificationManager?.setUseFastForwardAction(!isLive)
+        notificationManager?.setUseRewindAction(!isLive)
+        notificationManager?.setUseChronometer(!isLive)
+    }
+
+    private fun isLivePlayback(): Boolean {
+        return playerEngine.currentSource.value is EngineSource.LiveFlv
+    }
+
     private companion object {
         const val NOTIFICATION_ID = 1001
         const val NOTIFICATION_CHANNEL_ID = "video_playback"
+        const val VIDEO_REQ_OPEN = 1001
+        const val LIVE_REQ_OPEN = 1002
     }
 }

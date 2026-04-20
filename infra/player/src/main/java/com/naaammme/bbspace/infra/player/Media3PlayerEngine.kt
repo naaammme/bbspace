@@ -48,6 +48,8 @@ class Media3PlayerEngine @Inject constructor(
 
     private val _player = MutableStateFlow<Player?>(null)
     override val player: StateFlow<Player?> = _player.asStateFlow()
+    private val _currentSource = MutableStateFlow<EngineSource?>(null)
+    override val currentSource: StateFlow<EngineSource?> = _currentSource.asStateFlow()
     private val _snapshot = MutableStateFlow(PlaybackSnapshot())
     override val snapshot: StateFlow<PlaybackSnapshot> = _snapshot.asStateFlow()
     private var playerConfig = PlayerConfig()
@@ -133,6 +135,7 @@ class Media3PlayerEngine @Inject constructor(
         val prev = exoPlayer
         playerConfig = next
         resetRuntimeState()
+        _currentSource.value = null
         val nextPlayer = buildPlayer(appContext, next)
         exoPlayer = nextPlayer
         _player.value = nextPlayer
@@ -155,6 +158,7 @@ class Media3PlayerEngine @Inject constructor(
         }
         player.playWhenReady = playWhenReady
         player.prepare()
+        _currentSource.value = source
         updateSnapshot(errorMessage = null)
     }
 
@@ -185,6 +189,7 @@ class Media3PlayerEngine @Inject constructor(
             return
         }
         resetRuntimeState()
+        _currentSource.value = null
         player.playWhenReady = false
         player.stop()
         player.clearMediaItems()
@@ -199,6 +204,7 @@ class Media3PlayerEngine @Inject constructor(
         resetRuntimeState()
         exoPlayer = null
         _player.value = null
+        _currentSource.value = null
         _snapshot.value = PlaybackSnapshot()
         player.release()
     }

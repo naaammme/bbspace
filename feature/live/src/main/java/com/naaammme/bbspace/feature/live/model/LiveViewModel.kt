@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.domain.live.LivePlaybackController
+import com.naaammme.bbspace.core.domain.player.VideoPlaybackSettings
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
@@ -11,18 +12,29 @@ import com.naaammme.bbspace.core.model.LiveRouteTool
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class LiveViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val playbackController: LivePlaybackController
+    private val playbackController: LivePlaybackController,
+    playbackSettings: VideoPlaybackSettings
 ) : ViewModel() {
 
     val route: LiveRoute? = savedStateHandle.toLiveRoute()
     val player = playbackController.player
     val playbackState: StateFlow<LivePlaybackViewState> = playbackController.state
+    val backgroundPlaybackEnabled = playbackSettings.state
+        .map { it.playback.backgroundPlayback }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false
+        )
 
     private var startJob: Job? = null
 

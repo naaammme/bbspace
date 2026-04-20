@@ -23,9 +23,7 @@ import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
 import com.naaammme.bbspace.core.designsystem.theme.BiliTheme
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
-import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.navigation.AppNavHost
-import com.naaammme.bbspace.playback.PlaybackLaunchIntents
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -41,16 +39,10 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var updateChecker: AppUpdateChecker
 
-    private var pendingVideoRoute by mutableStateOf<VideoRoute?>(null)
     private var updateDialog by mutableStateOf<AppUpdateDialogState?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pendingVideoRoute = if (savedInstanceState == null) {
-            PlaybackLaunchIntents.consumeRoute(intent)
-        } else {
-            null
-        }
         if (savedInstanceState == null) {
             autoCheckUpdate()
         }
@@ -64,11 +56,7 @@ class MainActivity : ComponentActivity() {
             // 全局文本选择
             BiliTheme(config = themeConfig) {
                 SelectionContainer {
-                    AppNavHost(
-                        themeConfig = themeConfig,
-                        pendingVideoRoute = pendingVideoRoute,
-                        onPendingVideoRouteConsumed = { pendingVideoRoute = null }
-                    )
+                    AppNavHost(themeConfig = themeConfig)
                 }
                 updateDialog?.let { release ->
                     AppUpdateDialog(
@@ -82,12 +70,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onNewIntent(intent: android.content.Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        pendingVideoRoute = PlaybackLaunchIntents.consumeRoute(intent)
     }
 
     private fun autoCheckUpdate() {

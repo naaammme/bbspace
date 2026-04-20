@@ -8,7 +8,6 @@ import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
 import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
 import com.naaammme.bbspace.core.model.LocalHistoryKey
-import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
@@ -18,7 +17,6 @@ import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerSessionState
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
-import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineDiscontinuityReason
@@ -102,44 +100,6 @@ class VideoPlaybackControllerImpl @Inject constructor(
             val config = withContext(Dispatchers.IO) { buildPlayerConfig() }
             withContext(Dispatchers.Main.immediate) {
                 playerEngine.updateConfig(config)
-            }
-        }
-    }
-
-    fun currentRoute(): VideoRoute? {
-        val state = _sessionState.value
-        val request = state.currentRequest ?: return null
-        val src = request.playable.src
-        val videoId = state.playbackSource?.videoId ?: request.videoId
-        return when (request.playable.biz.biz) {
-            PlayBiz.UGC -> {
-                val aid = videoId.aid.takeIf { it > 0L } ?: return null
-                val cid = videoId.cid.takeIf { it > 0L } ?: return null
-                VideoRoute.Ugc(
-                    aid = aid,
-                    cid = cid,
-                    bvid = videoId.bvid,
-                    src = src
-                )
-            }
-
-            PlayBiz.PGC -> {
-                val epId = request.playable.biz.epId?.takeIf { it > 0L } ?: return null
-                VideoRoute.Pgc(
-                    epId = epId,
-                    seasonId = request.playable.biz.seasonId,
-                    subType = request.playable.biz.subType,
-                    src = src
-                )
-            }
-
-            PlayBiz.PUGV -> {
-                val epId = request.playable.biz.epId?.takeIf { it > 0L } ?: return null
-                VideoRoute.Pugv(
-                    epId = epId,
-                    seasonId = request.playable.biz.seasonId,
-                    src = src
-                )
             }
         }
     }

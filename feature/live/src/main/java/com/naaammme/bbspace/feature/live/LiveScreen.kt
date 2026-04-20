@@ -48,6 +48,7 @@ fun LiveScreen(
     val route = viewModel.route
     val player by viewModel.player.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
+    val backgroundPlaybackEnabled by viewModel.backgroundPlaybackEnabled.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     val procOwner = remember { ProcessLifecycleOwner.get() }
 
@@ -73,10 +74,10 @@ fun LiveScreen(
         }
     }
 
-    DisposableEffect(procOwner, viewModel) {
+    DisposableEffect(procOwner, viewModel, backgroundPlaybackEnabled) {
         val lifecycle = procOwner.lifecycle
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
+            if (event == Lifecycle.Event.ON_STOP && !backgroundPlaybackEnabled) {
                 viewModel.pause()
             }
         }
