@@ -204,6 +204,13 @@ private fun PlaybackSettingsSection(
     )
 
     SheetSwitchCard(
+        title = "播放行为上报",
+        subtitle = "向服务端上报播放心跳和历史，关闭影响个性化推荐和历史记录",
+        checked = settingsState.playback.reportPlayback,
+        onCheckedChange = viewModel::updateReportPlayback
+    )
+
+    SheetSwitchCard(
         title = "软解优先",
         subtitle = "优先使用软件解码",
         checked = settingsState.playback.preferSoftwareDecode,

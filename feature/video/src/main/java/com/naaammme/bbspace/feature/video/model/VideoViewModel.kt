@@ -181,6 +181,10 @@ class VideoViewModel @Inject constructor(
         updatePlayback { copy(backgroundPlayback = enabled) }
     }
 
+    fun updateReportPlayback(enabled: Boolean) {
+        updatePlayback { copy(reportPlayback = enabled) }
+    }
+
     fun updateMinBufferMs(value: Int) {
         updateBuffer { copy(minBufferMs = value) }
     }

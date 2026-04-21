@@ -5,6 +5,7 @@ import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
+import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.model.LocalHistoryKey
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlayReportParams
@@ -35,6 +36,7 @@ class PlaybackReporter @Inject constructor(
     private val authProvider: AuthProvider,
     private val deviceIdentity: DeviceIdentity,
     private val restParamBuilder: BiliRestParamBuilder,
+    private val playerSettings: PlayerSettings,
     private val localHistoryRepo: LocalHistoryRepository
 ) {
     private val mu = Mutex()
@@ -60,7 +62,6 @@ class PlaybackReporter @Inject constructor(
         state: PlayerSessionState,
         startPositionMs: Long
     ) {
-        val token = authProvider.accessToken
         val source = state.playbackSource ?: return
         val quality = state.currentStream?.quality ?: DEFAULT_QN
         val startSec = msToSec(startPositionMs)
@@ -73,7 +74,7 @@ class PlaybackReporter @Inject constructor(
                 report = source.report,
                 sessionId = BiliSessionId.view(deviceIdentity.buvid),
                 polarisActionId = pagePolarisId.ifBlank(BiliSessionId::polarisAction),
-                reportEnabled = token.isNotBlank(),
+                reportEnabled = playerSettings.state.value.playback.reportPlayback,
                 historyStartTs = nowSec(),
                 startElapsedMs = nowElapsed,
                 lastSampleElapsedMs = nowElapsed,
@@ -97,7 +98,9 @@ class PlaybackReporter @Inject constructor(
             SnapshotEdge(
                 ctx = active.copy(),
                 firstFrame = !active.heartbeatStarted && snapshot.firstFrameSeq > 0L,
-                paused = prev.isPlaying && !snapshot.isPlaying && snapshot.playbackState != EnginePlaybackState.Ended,
+                paused = prev.playWhenReady &&
+                        !snapshot.playWhenReady &&
+                        snapshot.playbackState == EnginePlaybackState.Ready,
                 ended = !active.finalized &&
                         snapshot.playbackState == EnginePlaybackState.Ended &&
                         prev.playbackState != EnginePlaybackState.Ended,
@@ -158,7 +161,7 @@ class PlaybackReporter @Inject constructor(
     }
 
     private suspend fun startHeartbeat(active: SessionCtx) {
-        val ts = if (active.reportEnabled) {
+        val ts = if (canReport(active)) {
             val params = buildHeartbeatParams(
                 active = active,
                 startPacket = true
@@ -218,7 +221,7 @@ class PlaybackReporter @Inject constructor(
         if (!active.historyStarted && snapshot.firstFrameSeq <= 0L) {
             return
         }
-        if (active.reportEnabled) {
+        if (canReport(active)) {
             request(HISTORY_URL, buildHistoryParams(active, snapshot, complete))
         }
         mu.withLock {
@@ -450,6 +453,10 @@ class PlaybackReporter @Inject constructor(
 
     private fun nowSec(): Long {
         return System.currentTimeMillis() / 1000L
+    }
+
+    private fun canReport(active: SessionCtx): Boolean {
+        return active.reportEnabled && playerSettings.state.value.playback.reportPlayback
     }
 
     private fun sameSource(

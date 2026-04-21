@@ -39,11 +39,13 @@ class PlayerSettingsImpl @Inject constructor(
         },
         combine(
             store.backgroundPlayback,
+            store.reportPlayback,
             store.preferSoftwareDecode,
             store.decoderFallback
-        ) { backgroundPlayback, preferSoftwareDecode, decoderFallback ->
+        ) { backgroundPlayback, reportPlayback, preferSoftwareDecode, decoderFallback ->
             PlayerPlaybackPrefs(
                 backgroundPlayback = backgroundPlayback,
+                reportPlayback = reportPlayback,
                 preferSoftwareDecode = preferSoftwareDecode,
                 decoderFallback = decoderFallback
             )
@@ -115,6 +117,7 @@ class PlayerSettingsImpl @Inject constructor(
 
     override suspend fun updatePlayback(settings: PlayerPlaybackPrefs) {
         store.updateBackgroundPlayback(settings.backgroundPlayback)
+        store.updateReportPlayback(settings.reportPlayback)
         store.updatePreferSoftwareDecode(settings.preferSoftwareDecode)
         store.updateDecoderFallback(settings.decoderFallback)
     }

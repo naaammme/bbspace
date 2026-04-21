@@ -14,6 +14,7 @@ data class PlayerBufferSettings(
 @Immutable
 data class PlayerPlaybackPrefs(
     val backgroundPlayback: Boolean = false,
+    val reportPlayback: Boolean = true,
     val preferSoftwareDecode: Boolean = false,
     val decoderFallback: Boolean = true
 )
