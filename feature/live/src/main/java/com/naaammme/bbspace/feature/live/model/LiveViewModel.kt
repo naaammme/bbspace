@@ -4,7 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.domain.live.LivePlaybackController
-import com.naaammme.bbspace.core.domain.player.VideoPlaybackSettings
+import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
@@ -22,13 +22,13 @@ import kotlinx.coroutines.launch
 class LiveViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playbackController: LivePlaybackController,
-    playbackSettings: VideoPlaybackSettings
+    playerSettings: PlayerSettings
 ) : ViewModel() {
 
     val route: LiveRoute? = savedStateHandle.toLiveRoute()
     val player = playbackController.player
     val playbackState: StateFlow<LivePlaybackViewState> = playbackController.state
-    val backgroundPlaybackEnabled = playbackSettings.state
+    val backgroundPlaybackEnabled = playerSettings.state
         .map { it.playback.backgroundPlayback }
         .stateIn(
             scope = viewModelScope,

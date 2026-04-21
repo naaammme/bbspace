@@ -47,6 +47,8 @@ import androidx.media3.ui.R as Media3UiR
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.naaammme.bbspace.feature.danmaku.DanmakuLayer
+import com.naaammme.bbspace.feature.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.QualityOption
@@ -67,6 +69,7 @@ internal fun VideoPlayerPane(
     val state by viewModel.playerState.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
+    val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val tapSrc = remember { MutableInteractionSource() }
     var showQ by remember { mutableStateOf(false) }
     var showA by remember { mutableStateOf(false) }
@@ -133,6 +136,13 @@ internal fun VideoPlayerPane(
             setEnableComposeSurfaceSyncWorkaround(true)
         }
     }
+    val danmakuOverlayState = rememberDanmakuOverlayState(
+        initialConfig = settingsState.danmaku,
+        initialPositionMs = state.positionMs,
+        initialIsPlaying = state.isPlaying,
+        initialSpeed = state.speed,
+        onDanmakuTick = viewModel::onDanmakuTick
+    )
     var lastWarmAspect by remember(playerView) { mutableStateOf<Float?>(null) }
 
     DisposableEffect(playerView) {
@@ -161,11 +171,16 @@ internal fun VideoPlayerPane(
             modifier = Modifier.fillMaxSize()
         )
 
-        VideoDanmakuLayer(
+        DanmakuLayer(
             playerView = playerView,
-            viewModel = viewModel,
-            playbackState = state,
-            danmakuConfig = settingsState.danmaku
+            overlayState = danmakuOverlayState,
+            danmakuState = danmakuState,
+            danmakuConfig = settingsState.danmaku,
+            positionMs = state.positionMs,
+            isPlaying = state.isPlaying,
+            speed = state.speed,
+            seekEventId = state.seekEventId,
+            hasSource = state.playbackSource != null
         )
 
         Box(
@@ -206,7 +221,9 @@ internal fun VideoPlayerPane(
                             .clip(CircleShape)
                             .clickable {
                                 showCtrl = true
-                                viewModel.updateDanmakuEnabled(!settingsState.danmaku.enabled)
+                                viewModel.updateDanmaku(
+                                    settingsState.danmaku.copy(enabled = !settingsState.danmaku.enabled)
+                                )
                             }
                     ) {
                         Text(

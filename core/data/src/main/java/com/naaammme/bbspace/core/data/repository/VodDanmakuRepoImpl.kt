@@ -3,10 +3,10 @@ package com.naaammme.bbspace.core.data.repository
 import com.bapis.bilibili.community.service.dm.v1.DmSegMobileReply
 import com.bapis.bilibili.community.service.dm.v1.DmSegMobileReq
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
-import com.naaammme.bbspace.core.model.DanmakuElem
-import com.naaammme.bbspace.core.model.DanmakuRequest
-import com.naaammme.bbspace.core.model.DanmakuSegment
+import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
+import com.naaammme.bbspace.core.model.DanmakuItem
+import com.naaammme.bbspace.core.model.VodDanmakuRequest
+import com.naaammme.bbspace.core.model.VodDanmakuSegment
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,11 +14,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Singleton
-class DanmakuRepoImpl @Inject constructor(
+class VodDanmakuRepoImpl @Inject constructor(
     private val grpcClient: BiliGrpcClient
-) : DanmakuRepository {
+) : VodDanmakuRepository {
 
-    override suspend fun fetchSegment(request: DanmakuRequest): DanmakuSegment {
+    override suspend fun fetchSegment(request: VodDanmakuRequest): VodDanmakuSegment {
         val reply = withContext(Dispatchers.IO) {
             grpcClient.call(
                 endpoint = ENDPOINT,
@@ -31,7 +31,7 @@ class DanmakuRepoImpl @Inject constructor(
         }
     }
 
-    private fun buildRequest(request: DanmakuRequest): DmSegMobileReq {
+    private fun buildRequest(request: VodDanmakuRequest): DmSegMobileReq {
         return DmSegMobileReq.newBuilder()
             .setPid(request.videoId.aid)
             .setOid(request.videoId.cid)
@@ -48,11 +48,11 @@ class DanmakuRepoImpl @Inject constructor(
     }
 
     private fun mapReply(
-        request: DanmakuRequest,
+        request: VodDanmakuRequest,
         reply: DmSegMobileReply
-    ): DanmakuSegment {
+    ): VodDanmakuSegment {
         val elems = reply.elemsList.map { elem ->
-            DanmakuElem(
+            DanmakuItem(
                 id = elem.id,
                 idStr = elem.idStr,
                 progressMs = elem.progress,
@@ -80,9 +80,9 @@ class DanmakuRepoImpl @Inject constructor(
             "Loaded danmaku segment aid=${request.videoId.aid}, cid=${request.videoId.cid}, segment=${request.segmentIndex}, elems=${elems.size}"
         }
 
-        return DanmakuSegment(
+        return VodDanmakuSegment(
             request = request,
-            elems = elems,
+            items = elems,
             state = reply.state,
             segmentRules = reply.segmentRulesList,
             colorfulSources = reply.colorfulSrcList.associate { colorful ->
@@ -93,7 +93,7 @@ class DanmakuRepoImpl @Inject constructor(
     }
 
     private companion object {
-        const val TAG = "DanmakuRepo"
+        const val TAG = "VodDanmakuRepo"
         const val ENDPOINT = "bilibili.community.service.dm.v1.DM/DmSegMobile"
         const val TYPE_VIDEO = 1
         const val PULL_MODE = 1

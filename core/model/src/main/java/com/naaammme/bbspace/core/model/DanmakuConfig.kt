@@ -3,7 +3,7 @@ package com.naaammme.bbspace.core.model
 import androidx.compose.runtime.Immutable
 
 @Immutable
-data class VideoDanmakuConfig(
+data class DanmakuConfig(
     val enabled: Boolean = true,
     val areaPercent: Int = 100,
     val opacity: Float = 1f,

@@ -1,46 +1,44 @@
-package com.naaammme.bbspace.feature.video
+package com.naaammme.bbspace.feature.danmaku
 
 import android.view.View
-import com.naaammme.bbspace.core.model.DanmakuElem
-import com.naaammme.bbspace.core.model.DanmakuSegment
-import com.naaammme.bbspace.core.model.PlaybackViewState
-import com.naaammme.bbspace.core.model.VIDEO_DANMAKU_SEGMENT_DURATION_MS
-import com.naaammme.bbspace.core.model.VideoDanmakuConfig
-import com.naaammme.bbspace.core.model.VideoPlaybackId
-import com.naaammme.bbspace.feature.video.model.VideoDanmakuState
-import master.flame.danmaku.controller.DrawHandler
-import master.flame.danmaku.controller.IDanmakuView
+import com.naaammme.bbspace.core.model.DanmakuConfig
+import com.naaammme.bbspace.core.model.DanmakuItem
+import com.naaammme.bbspace.core.model.VOD_DANMAKU_SEGMENT_DURATION_MS
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 import master.flame.danmaku.api.DanmakuSegmentData
 import master.flame.danmaku.api.SegmentDanmakuSession
+import master.flame.danmaku.controller.DrawHandler
+import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.danmaku.model.BaseDanmaku
 import master.flame.danmaku.danmaku.model.DanmakuTimer
 import master.flame.danmaku.danmaku.model.android.DanmakuContext
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.concurrent.thread
 
-internal class VideoDanmakuOverlayState(
+class DanmakuOverlayState internal constructor(
     internal val danmakuView: View,
     private val danmakuCtrl: IDanmakuView,
     private val danmakuContext: DanmakuContext,
-    private val timeProvider: PlayerSessionTimeProvider,
-    private val session: SegmentDanmakuSession<DanmakuElem>,
+    private val timeProvider: DanmakuPlayerTimeProvider,
+    private val session: SegmentDanmakuSession<DanmakuItem>,
     private val onDanmakuTick: (Long) -> Unit
 ) {
     private val released = AtomicBoolean(false)
-    private var lastVideoId: VideoPlaybackId? = null
-    private var lastObservedPositionMs: Long? = null
+    private var lastSourceKey: String? = null
     private var pendingSeek = true
     private var lastCfgState: DanmakuCfgState? = null
     private var lastPlayState: DanmakuPlayState? = null
     private var lastPlaybackSpeed = 1f
     private var lastSeekEventId = 0L
-    private val appliedSegmentIndices = linkedSetOf<Long>()
+    private val appliedWindowIds = linkedSetOf<Long>()
     private val callback = object : DrawHandler.Callback {
         override fun prepared() = Unit
+
         override fun updateTimer(timer: DanmakuTimer) {
             onDanmakuTick(timer.currMillisecond.coerceAtLeast(0L))
         }
+
         override fun danmakuShown(danmaku: BaseDanmaku) = Unit
+
         override fun drawingFinished() = Unit
     }
 
@@ -51,29 +49,32 @@ internal class VideoDanmakuOverlayState(
     }
 
     fun sync(
-        danmakuState: VideoDanmakuState,
-        config: VideoDanmakuConfig,
-        playbackState: PlaybackViewState,
-        hasSource: Boolean,
+        danmakuState: DanmakuSessionState,
+        config: DanmakuConfig,
+        positionMs: Long,
+        isPlaying: Boolean,
+        speed: Float,
+        seekEventId: Long,
+        hasSource: Boolean
     ) {
         if (released.get()) return
-        val clampedPositionMs = playbackState.positionMs.coerceAtLeast(0L)
-        val clampedSpeed = playbackState.speed.coerceIn(0.25f, 3f)
-        val currentSegmentIndex = clampedPositionMs.toDanmakuSegmentIndex()
-        syncVideo(danmakuState.videoId)
-        val hasSeek = consumeSeekEvent(playbackState)
+        val clampedPositionMs = positionMs.coerceAtLeast(0L)
+        val clampedSpeed = speed.coerceIn(0.25f, 3f)
+        val requiredWindowId = clampedPositionMs.toDanmakuWindowId()
+        syncSource(danmakuState.sourceKey)
+        val hasSeek = consumeSeekEvent(seekEventId)
         val hasSpeedChange = lastPlaybackSpeed != clampedSpeed
         lastPlaybackSpeed = clampedSpeed
         if (hasSeek) {
             pendingSeek = true
         }
         applyConfig(config)
-        syncSegments(
-            loadedSegments = danmakuState.loadedSegments,
-            currentSegmentIndex = currentSegmentIndex,
-            requireCurrentSegment = pendingSeek || hasSeek
+        syncWindows(
+            windows = danmakuState.windows,
+            targetWindowId = requiredWindowId,
+            requireTargetWindow = pendingSeek || hasSeek
         )
-        val curReady = currentSegmentIndex in appliedSegmentIndices
+        val curReady = appliedWindowIds.contains(requiredWindowId)
         if (config.enabled && hasSource) {
             syncPosition(
                 positionMs = clampedPositionMs,
@@ -81,12 +82,12 @@ internal class VideoDanmakuOverlayState(
                 curReady = curReady
             )
         }
-        val canPlay = playbackState.isPlaying && !pendingSeek
+        val canPlay = isPlaying && !pendingSeek
         val needStateOverride = hasSeek ||
-                hasSpeedChange ||
-                !canPlay ||
-                !hasSource ||
-                (canPlay && lastPlayState?.isPlaying != true)
+            hasSpeedChange ||
+            !canPlay ||
+            !hasSource ||
+            (canPlay && lastPlayState?.isPlaying != true)
         if (needStateOverride) {
             val anchorMs = if (hasSeek) {
                 clampedPositionMs
@@ -117,7 +118,6 @@ internal class VideoDanmakuOverlayState(
             session.hide()
             session.pause()
             danmakuCtrl.clearDanmakusOnScreen()
-            lastObservedPositionMs = null
             pendingSeek = true
             return
         }
@@ -136,7 +136,6 @@ internal class VideoDanmakuOverlayState(
         curReady: Boolean
     ) {
         val shouldSeek = pendingSeek || hasDiscontinuity
-        lastObservedPositionMs = positionMs
         if (!shouldSeek) return
 
         if (!curReady) {
@@ -149,7 +148,7 @@ internal class VideoDanmakuOverlayState(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        appliedSegmentIndices.clear()
+        appliedWindowIds.clear()
         session.setCallback(null)
         session.setPlayerTimeProvider(null)
         session.pause()
@@ -163,19 +162,18 @@ internal class VideoDanmakuOverlayState(
         }
     }
 
-    private fun syncVideo(videoId: VideoPlaybackId?) {
-        if (lastVideoId == videoId) return
+    private fun syncSource(sourceKey: String?) {
+        if (lastSourceKey == sourceKey) return
 
-        lastVideoId = videoId
-        lastObservedPositionMs = null
+        lastSourceKey = sourceKey
         lastSeekEventId = 0L
         pendingSeek = true
-        appliedSegmentIndices.clear()
+        appliedWindowIds.clear()
         session.clearSegments()
     }
 
     private fun applyConfig(
-        config: VideoDanmakuConfig
+        config: DanmakuConfig
     ) {
         val nextState = DanmakuCfgState(config)
         if (lastCfgState == nextState) return
@@ -185,52 +183,51 @@ internal class VideoDanmakuOverlayState(
         danmakuCtrl.forceRender()
     }
 
-    private fun syncSegments(
-        loadedSegments: Map<Long, DanmakuSegment>,
-        currentSegmentIndex: Long,
-        requireCurrentSegment: Boolean
+    private fun syncWindows(
+        windows: Map<Long, DanmakuWindow>,
+        targetWindowId: Long,
+        requireTargetWindow: Boolean
     ) {
-        val nextSegments = loadedSegments.entries.sortedBy { it.key }
-        if (nextSegments.isEmpty()) {
-            if (appliedSegmentIndices.isEmpty()) return
+        val nextWindows = windows.entries.sortedBy { it.key }
+        if (nextWindows.isEmpty()) {
+            if (appliedWindowIds.isEmpty()) return
 
-            appliedSegmentIndices.clear()
+            appliedWindowIds.clear()
             session.clearSegments()
             return
         }
 
-        val curReady = nextSegments.any { it.key == currentSegmentIndex }
-        if (requireCurrentSegment && !curReady) {
-            if (appliedSegmentIndices.isNotEmpty()) {
-                appliedSegmentIndices.clear()
+        val curReady = nextWindows.any { it.key == targetWindowId }
+        if (requireTargetWindow && !curReady) {
+            if (appliedWindowIds.isNotEmpty()) {
+                appliedWindowIds.clear()
                 session.clearSegments()
             }
             return
         }
 
-        val nextSegmentIndices = linkedSetOf<Long>().apply {
-            addAll(nextSegments.map { it.key })
+        val nextWindowIds = linkedSetOf<Long>().apply {
+            addAll(nextWindows.map { it.key })
         }
-        if (appliedSegmentIndices.any { it !in nextSegmentIndices }) {
+        if (appliedWindowIds.any { it !in nextWindowIds }) {
             session.replaceSegments(
-                nextSegments.map { (segmentIndex, segment) ->
-                    DanmakuSegmentData(segmentIndex, segment.elems)
+                nextWindows.map { (windowId, window) ->
+                    DanmakuSegmentData(windowId, window.items)
                 }
             )
-            appliedSegmentIndices.clear()
-            appliedSegmentIndices.addAll(nextSegmentIndices)
+            appliedWindowIds.clear()
+            appliedWindowIds.addAll(nextWindowIds)
             return
         }
 
-        nextSegments.forEach { (segmentIndex, segment) ->
-            if (appliedSegmentIndices.add(segmentIndex)) {
-                session.appendSegment(DanmakuSegmentData(segmentIndex, segment.elems))
+        nextWindows.forEach { (windowId, window) ->
+            if (appliedWindowIds.add(windowId)) {
+                session.appendSegment(DanmakuSegmentData(windowId, window.items))
             }
         }
     }
 
-    private fun consumeSeekEvent(playbackState: PlaybackViewState): Boolean {
-        val seekEventId = playbackState.seekEventId
+    private fun consumeSeekEvent(seekEventId: Long): Boolean {
         if (seekEventId == 0L || seekEventId == lastSeekEventId) {
             return false
         }
@@ -240,7 +237,7 @@ internal class VideoDanmakuOverlayState(
 }
 
 private data class DanmakuCfgState(
-    val config: VideoDanmakuConfig
+    val config: DanmakuConfig
 )
 
 private data class DanmakuPlayState(
@@ -249,6 +246,6 @@ private data class DanmakuPlayState(
     val isPlaying: Boolean
 )
 
-private fun Long.toDanmakuSegmentIndex(): Long {
-    return (coerceAtLeast(0L) / VIDEO_DANMAKU_SEGMENT_DURATION_MS) + 1L
+private fun Long.toDanmakuWindowId(): Long {
+    return (coerceAtLeast(0L) / VOD_DANMAKU_SEGMENT_DURATION_MS) + 1L
 }

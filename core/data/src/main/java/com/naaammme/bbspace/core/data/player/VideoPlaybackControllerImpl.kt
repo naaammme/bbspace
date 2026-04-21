@@ -51,6 +51,7 @@ import kotlinx.coroutines.withContext
 class VideoPlaybackControllerImpl @Inject constructor(
     private val repository: VideoPlayerRepository,
     private val appSettings: AppSettings,
+    private val playerSettingsStore: PlayerSettingsStore,
     private val reporter: PlaybackReporter,
     private val authProvider: AuthProvider,
     private val localHistoryRepo: LocalHistoryRepository,
@@ -202,7 +203,7 @@ class VideoPlaybackControllerImpl @Inject constructor(
             playerEngine.setSource(engineSource.first, snapshot.positionMs, snapshot.playWhenReady)
             _sessionState.value = state.copy(cdnIndex = engineSource.second)
             runtimeScope.launch {
-                appSettings.updatePlayerCdnIndex(engineSource.second)
+                playerSettingsStore.updatePlayerCdnIndex(engineSource.second)
             }
         }
 
@@ -263,7 +264,7 @@ class VideoPlaybackControllerImpl @Inject constructor(
                     request.preferredQuality ?: appSettings.defaultVideoQuality.first()
                 }
                 val audioJob = async { appSettings.defaultAudioQuality.first() }
-                val cdnJob = async { appSettings.playerCdnIndex.first() }
+                val cdnJob = async { playerSettingsStore.playerCdnIndex.first() }
 
                 prepareJob.await()
                 OpenConfig(
@@ -419,17 +420,17 @@ class VideoPlaybackControllerImpl @Inject constructor(
 
     private suspend fun buildPlayerConfig(): PlayerConfig {
         return PlayerConfig(
-            minBufferMs = appSettings.playerMinBufferMs.first(),
-            maxBufferMs = appSettings.playerMaxBufferMs.first(),
-            playBufferMs = appSettings.playerPlaybackBufferMs.first(),
-            rebufferMs = appSettings.playerRebufferMs.first(),
-            backBufferMs = appSettings.playerBackBufferMs.first(),
-            decoderMode = if (appSettings.preferSoftwareDecode.first()) {
+            minBufferMs = playerSettingsStore.playerMinBufferMs.first(),
+            maxBufferMs = playerSettingsStore.playerMaxBufferMs.first(),
+            playBufferMs = playerSettingsStore.playerPlaybackBufferMs.first(),
+            rebufferMs = playerSettingsStore.playerRebufferMs.first(),
+            backBufferMs = playerSettingsStore.playerBackBufferMs.first(),
+            decoderMode = if (playerSettingsStore.preferSoftwareDecode.first()) {
                 DecoderMode.Soft
             } else {
                 DecoderMode.Hard
             },
-            decoderFallback = appSettings.decoderFallback.first()
+            decoderFallback = playerSettingsStore.decoderFallback.first()
         )
     }
 

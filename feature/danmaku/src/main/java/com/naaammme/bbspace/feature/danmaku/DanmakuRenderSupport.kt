@@ -1,9 +1,9 @@
-package com.naaammme.bbspace.feature.video
+package com.naaammme.bbspace.feature.danmaku
 
 import android.graphics.Color
 import android.os.SystemClock
-import com.naaammme.bbspace.core.model.DanmakuElem
-import com.naaammme.bbspace.core.model.VideoDanmakuConfig
+import com.naaammme.bbspace.core.model.DanmakuConfig
+import com.naaammme.bbspace.core.model.DanmakuItem
 import master.flame.danmaku.api.DanmakuItemMapper
 import master.flame.danmaku.api.DanmakuItemUtils
 import master.flame.danmaku.api.PlayerTimeProvider
@@ -17,10 +17,10 @@ internal fun createDanmakuContext(): DanmakuContext {
         .setDanmakuMargin(24)
 }
 
-internal class BbspaceDanmakuMapper : DanmakuItemMapper<DanmakuElem> {
+internal class DefaultDanmakuItemMapper : DanmakuItemMapper<DanmakuItem> {
 
     override fun map(
-        item: DanmakuElem,
+        item: DanmakuItem,
         danmakuContext: DanmakuContext
     ): BaseDanmaku? {
         val text = item.content.trim()
@@ -46,7 +46,7 @@ internal class BbspaceDanmakuMapper : DanmakuItemMapper<DanmakuElem> {
     }
 }
 
-internal class PlayerSessionTimeProvider(
+internal class DanmakuPlayerTimeProvider(
     positionMs: Long = 0L,
     isPlaying: Boolean = false,
     speed: Float = 1f
@@ -125,7 +125,7 @@ private fun resolveDanmakuTextSize(
     return fontSize.coerceIn(18, 36).toFloat() * (density - 0.6f).coerceAtLeast(1f)
 }
 
-internal fun DanmakuContext.applyConfig(config: VideoDanmakuConfig) {
+internal fun DanmakuContext.applyConfig(config: DanmakuConfig) {
     setDanmakuTransparency(config.opacity)
     setScaleTextSize(config.textScale.coerceIn(0.5f, 2f) * 0.6f)
     setScrollSpeedFactor(2f / config.speed.coerceIn(0.5f, 2f))
@@ -139,14 +139,14 @@ internal fun DanmakuContext.applyConfig(config: VideoDanmakuConfig) {
     setFBDanmakuVisibility(config.showBottom)
 }
 
-private val VideoDanmakuConfig.maximumVisibleSize: Int
+private val DanmakuConfig.maximumVisibleSize: Int
     get() = when (densityLevel) {
         0 -> 20
         2 -> 0
         else -> -1
     }
 
-private val VideoDanmakuConfig.maximumLines: Map<Int, Int>
+private val DanmakuConfig.maximumLines: Map<Int, Int>
     get() {
         val lines = when (areaPercent) {
             25 -> 3
@@ -160,7 +160,7 @@ private val VideoDanmakuConfig.maximumLines: Map<Int, Int>
         )
     }
 
-private val VideoDanmakuConfig.overlappingRules: Map<Int, Boolean>?
+private val DanmakuConfig.overlappingRules: Map<Int, Boolean>?
     get() = when (densityLevel) {
         0 -> hashMapOf(
             BaseDanmaku.TYPE_SCROLL_RL to true,

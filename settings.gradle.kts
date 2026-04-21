@@ -58,6 +58,7 @@ include(":core:navigation")
 // Feature 层
 include(":feature:home")
 include(":feature:video")
+include(":feature:danmaku")
 include(":feature:comment")
 include(":feature:dynamic")
 include(":feature:search")

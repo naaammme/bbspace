@@ -3,7 +3,7 @@ package com.naaammme.bbspace.core.model
 import androidx.compose.runtime.Immutable
 
 @Immutable
-data class VideoBufferSettings(
+data class PlayerBufferSettings(
     val minBufferMs: Int = 2_000,
     val maxBufferMs: Int = 15_000,
     val playbackBufferMs: Int = 250,
@@ -12,15 +12,15 @@ data class VideoBufferSettings(
 )
 
 @Immutable
-data class VideoPlaybackPrefs(
+data class PlayerPlaybackPrefs(
     val backgroundPlayback: Boolean = false,
     val preferSoftwareDecode: Boolean = false,
     val decoderFallback: Boolean = true
 )
 
 @Immutable
-data class VideoPlaybackSettingsState(
-    val buffer: VideoBufferSettings = VideoBufferSettings(),
-    val playback: VideoPlaybackPrefs = VideoPlaybackPrefs(),
-    val danmaku: VideoDanmakuConfig = VideoDanmakuConfig()
+data class PlayerSettingsState(
+    val buffer: PlayerBufferSettings = PlayerBufferSettings(),
+    val playback: PlayerPlaybackPrefs = PlayerPlaybackPrefs(),
+    val danmaku: DanmakuConfig = DanmakuConfig()
 )

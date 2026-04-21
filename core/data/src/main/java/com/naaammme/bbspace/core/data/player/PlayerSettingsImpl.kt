@@ -1,11 +1,10 @@
 package com.naaammme.bbspace.core.data.player
 
-import com.naaammme.bbspace.core.data.AppSettings
-import com.naaammme.bbspace.core.domain.player.VideoPlaybackSettings
-import com.naaammme.bbspace.core.model.VideoBufferSettings
-import com.naaammme.bbspace.core.model.VideoDanmakuConfig
-import com.naaammme.bbspace.core.model.VideoPlaybackPrefs
-import com.naaammme.bbspace.core.model.VideoPlaybackSettingsState
+import com.naaammme.bbspace.core.domain.player.PlayerSettings
+import com.naaammme.bbspace.core.model.DanmakuConfig
+import com.naaammme.bbspace.core.model.PlayerBufferSettings
+import com.naaammme.bbspace.core.model.PlayerPlaybackPrefs
+import com.naaammme.bbspace.core.model.PlayerSettingsState
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -17,20 +16,20 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 @Singleton
-class VideoPlaybackSettingsImpl @Inject constructor(
-    private val appSettings: AppSettings
-) : VideoPlaybackSettings {
+class PlayerSettingsImpl @Inject constructor(
+    private val store: PlayerSettingsStore
+) : PlayerSettings {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    override val state: StateFlow<VideoPlaybackSettingsState> = combine(
+    override val state: StateFlow<PlayerSettingsState> = combine(
         combine(
-            appSettings.playerMinBufferMs,
-            appSettings.playerMaxBufferMs,
-            appSettings.playerPlaybackBufferMs,
-            appSettings.playerRebufferMs,
-            appSettings.playerBackBufferMs
+            store.playerMinBufferMs,
+            store.playerMaxBufferMs,
+            store.playerPlaybackBufferMs,
+            store.playerRebufferMs,
+            store.playerBackBufferMs
         ) { minBufferMs, maxBufferMs, playbackBufferMs, rebufferMs, backBufferMs ->
-            VideoBufferSettings(
+            PlayerBufferSettings(
                 minBufferMs = minBufferMs,
                 maxBufferMs = maxBufferMs,
                 playbackBufferMs = playbackBufferMs,
@@ -39,11 +38,11 @@ class VideoPlaybackSettingsImpl @Inject constructor(
             )
         },
         combine(
-            appSettings.backgroundPlayback,
-            appSettings.preferSoftwareDecode,
-            appSettings.decoderFallback
+            store.backgroundPlayback,
+            store.preferSoftwareDecode,
+            store.decoderFallback
         ) { backgroundPlayback, preferSoftwareDecode, decoderFallback ->
-            VideoPlaybackPrefs(
+            PlayerPlaybackPrefs(
                 backgroundPlayback = backgroundPlayback,
                 preferSoftwareDecode = preferSoftwareDecode,
                 decoderFallback = decoderFallback
@@ -51,11 +50,11 @@ class VideoPlaybackSettingsImpl @Inject constructor(
         },
         combine(
             combine(
-                appSettings.danmakuEnabled,
-                appSettings.danmakuAreaPercent,
-                appSettings.danmakuOpacity,
-                appSettings.danmakuTextScale,
-                appSettings.danmakuSpeed
+                store.danmakuEnabled,
+                store.danmakuAreaPercent,
+                store.danmakuOpacity,
+                store.danmakuTextScale,
+                store.danmakuSpeed
             ) { enabled, areaPercent, opacity, textScale, speed ->
                 DanmakuDisplay(
                     enabled = enabled,
@@ -66,11 +65,11 @@ class VideoPlaybackSettingsImpl @Inject constructor(
                 )
             },
             combine(
-                appSettings.danmakuDensity,
-                appSettings.danmakuMergeDuplicates,
-                appSettings.danmakuShowTop,
-                appSettings.danmakuShowBottom,
-                appSettings.danmakuShowScrollRl
+                store.danmakuDensity,
+                store.danmakuMergeDuplicates,
+                store.danmakuShowTop,
+                store.danmakuShowBottom,
+                store.danmakuShowScrollRl
             ) { densityLevel, mergeDuplicates, showTop, showBottom, showScrollRl ->
                 DanmakuBehavior(
                     densityLevel = densityLevel,
@@ -81,7 +80,7 @@ class VideoPlaybackSettingsImpl @Inject constructor(
                 )
             }
         ) { display, behavior ->
-            VideoDanmakuConfig(
+            DanmakuConfig(
                 enabled = display.enabled,
                 areaPercent = display.areaPercent,
                 opacity = display.opacity,
@@ -95,7 +94,7 @@ class VideoPlaybackSettingsImpl @Inject constructor(
             )
         }
     ) { buffer, playback, danmaku ->
-        VideoPlaybackSettingsState(
+        PlayerSettingsState(
             buffer = buffer,
             playback = playback,
             danmaku = danmaku
@@ -103,34 +102,34 @@ class VideoPlaybackSettingsImpl @Inject constructor(
     }.stateIn(
         scope = scope,
         started = SharingStarted.Eagerly,
-        initialValue = VideoPlaybackSettingsState()
+        initialValue = PlayerSettingsState()
     )
 
-    override suspend fun updateBuffer(settings: VideoBufferSettings) {
-        appSettings.updatePlayerMinBufferMs(settings.minBufferMs)
-        appSettings.updatePlayerMaxBufferMs(settings.maxBufferMs)
-        appSettings.updatePlayerPlaybackBufferMs(settings.playbackBufferMs)
-        appSettings.updatePlayerRebufferMs(settings.rebufferMs)
-        appSettings.updatePlayerBackBufferMs(settings.backBufferMs)
+    override suspend fun updateBuffer(settings: PlayerBufferSettings) {
+        store.updatePlayerMinBufferMs(settings.minBufferMs)
+        store.updatePlayerMaxBufferMs(settings.maxBufferMs)
+        store.updatePlayerPlaybackBufferMs(settings.playbackBufferMs)
+        store.updatePlayerRebufferMs(settings.rebufferMs)
+        store.updatePlayerBackBufferMs(settings.backBufferMs)
     }
 
-    override suspend fun updatePlayback(settings: VideoPlaybackPrefs) {
-        appSettings.updateBackgroundPlayback(settings.backgroundPlayback)
-        appSettings.updatePreferSoftwareDecode(settings.preferSoftwareDecode)
-        appSettings.updateDecoderFallback(settings.decoderFallback)
+    override suspend fun updatePlayback(settings: PlayerPlaybackPrefs) {
+        store.updateBackgroundPlayback(settings.backgroundPlayback)
+        store.updatePreferSoftwareDecode(settings.preferSoftwareDecode)
+        store.updateDecoderFallback(settings.decoderFallback)
     }
 
-    override suspend fun updateDanmaku(config: VideoDanmakuConfig) {
-        appSettings.updateDanmakuEnabled(config.enabled)
-        appSettings.updateDanmakuAreaPercent(config.areaPercent)
-        appSettings.updateDanmakuOpacity(config.opacity)
-        appSettings.updateDanmakuTextScale(config.textScale)
-        appSettings.updateDanmakuSpeed(config.speed)
-        appSettings.updateDanmakuDensity(config.densityLevel)
-        appSettings.updateDanmakuMergeDuplicates(config.mergeDuplicates)
-        appSettings.updateDanmakuShowTop(config.showTop)
-        appSettings.updateDanmakuShowBottom(config.showBottom)
-        appSettings.updateDanmakuShowScrollRl(config.showScrollRl)
+    override suspend fun updateDanmaku(config: DanmakuConfig) {
+        store.updateDanmakuEnabled(config.enabled)
+        store.updateDanmakuAreaPercent(config.areaPercent)
+        store.updateDanmakuOpacity(config.opacity)
+        store.updateDanmakuTextScale(config.textScale)
+        store.updateDanmakuSpeed(config.speed)
+        store.updateDanmakuDensity(config.densityLevel)
+        store.updateDanmakuMergeDuplicates(config.mergeDuplicates)
+        store.updateDanmakuShowTop(config.showTop)
+        store.updateDanmakuShowBottom(config.showBottom)
+        store.updateDanmakuShowScrollRl(config.showScrollRl)
     }
 }
 

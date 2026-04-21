@@ -1,28 +1,11 @@
 package com.naaammme.bbspace.core.model
 
 import androidx.compose.runtime.Immutable
-import kotlin.math.min
 
-const val VIDEO_DANMAKU_SEGMENT_DURATION_MS = 360_000L
-
-@Immutable
-data class DanmakuRequest(
-    val videoId: VideoPlaybackId,
-    val positionMs: Long,
-    val durationMs: Long
-) {
-    val segmentIndex: Long
-        get() = (positionMs.coerceAtLeast(0L) / VIDEO_DANMAKU_SEGMENT_DURATION_MS) + 1L
-
-    val segmentStartMs: Long
-        get() = (segmentIndex - 1L) * VIDEO_DANMAKU_SEGMENT_DURATION_MS
-
-    val segmentEndMsExclusive: Long
-        get() = min(durationMs.coerceAtLeast(0L), segmentStartMs + VIDEO_DANMAKU_SEGMENT_DURATION_MS)
-}
+const val VOD_DANMAKU_SEGMENT_DURATION_MS = 360_000L
 
 @Immutable
-data class DanmakuElem(
+data class DanmakuItem(
     val id: Long,
     val idStr: String,
     val progressMs: Int,
@@ -46,9 +29,22 @@ data class DanmakuElem(
 )
 
 @Immutable
-data class DanmakuSegment(
-    val request: DanmakuRequest,
-    val elems: List<DanmakuElem>,
+data class VodDanmakuRequest(
+    val videoId: VideoPlaybackId,
+    val positionMs: Long,
+    val durationMs: Long
+) {
+    val segmentIndex: Long
+        get() = (positionMs.coerceAtLeast(0L) / VOD_DANMAKU_SEGMENT_DURATION_MS) + 1L
+
+    val segmentStartMs: Long
+        get() = (segmentIndex - 1L) * VOD_DANMAKU_SEGMENT_DURATION_MS
+}
+
+@Immutable
+data class VodDanmakuSegment(
+    val request: VodDanmakuRequest,
+    val items: List<DanmakuItem>,
     val state: Int,
     val segmentRules: List<Long>,
     val colorfulSources: Map<Int, String>,

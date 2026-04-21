@@ -112,17 +112,6 @@ data class PlayableParams(
         )
     }
 
-    fun getDanmakuResolveParams(
-        positionMs: Long,
-        durationMs: Long
-    ): DanmakuRequest {
-        return DanmakuRequest(
-            videoId = videoId,
-            positionMs = positionMs,
-            durationMs = durationMs
-        )
-    }
-
     private companion object {
         const val DEFAULT_FROM_SCENE = "normal"
     }

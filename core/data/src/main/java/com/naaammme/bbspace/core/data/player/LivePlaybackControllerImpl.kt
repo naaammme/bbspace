@@ -2,7 +2,6 @@ package com.naaammme.bbspace.core.data.player
 
 import androidx.media3.common.Player
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.domain.live.LivePlaybackController
 import com.naaammme.bbspace.core.domain.live.LiveRepository
 import com.naaammme.bbspace.core.model.LiveRouteTool
@@ -34,7 +33,7 @@ import kotlinx.coroutines.withContext
 @Singleton
 class LivePlaybackControllerImpl @Inject constructor(
     private val repository: LiveRepository,
-    private val appSettings: AppSettings,
+    private val playerSettingsStore: PlayerSettingsStore,
     private val playerEngine: PlayerEngine
 ) : LivePlaybackController {
 
@@ -179,17 +178,17 @@ class LivePlaybackControllerImpl @Inject constructor(
         prepMu.withLock {
             val config = withContext(Dispatchers.IO) {
                 PlayerConfig(
-                    minBufferMs = appSettings.playerMinBufferMs.first(),
-                    maxBufferMs = appSettings.playerMaxBufferMs.first(),
-                    playBufferMs = appSettings.playerPlaybackBufferMs.first(),
-                    rebufferMs = appSettings.playerRebufferMs.first(),
-                    backBufferMs = appSettings.playerBackBufferMs.first(),
-                    decoderMode = if (appSettings.preferSoftwareDecode.first()) {
+                    minBufferMs = playerSettingsStore.playerMinBufferMs.first(),
+                    maxBufferMs = playerSettingsStore.playerMaxBufferMs.first(),
+                    playBufferMs = playerSettingsStore.playerPlaybackBufferMs.first(),
+                    rebufferMs = playerSettingsStore.playerRebufferMs.first(),
+                    backBufferMs = playerSettingsStore.playerBackBufferMs.first(),
+                    decoderMode = if (playerSettingsStore.preferSoftwareDecode.first()) {
                         DecoderMode.Soft
                     } else {
                         DecoderMode.Hard
                     },
-                    decoderFallback = appSettings.decoderFallback.first()
+                    decoderFallback = playerSettingsStore.decoderFallback.first()
                 )
             }
             withContext(Dispatchers.Main.immediate) {

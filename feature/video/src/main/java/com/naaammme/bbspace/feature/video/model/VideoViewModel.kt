@@ -3,21 +3,21 @@ package com.naaammme.bbspace.feature.video.model
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.danmaku.DanmakuRepository
+import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
+import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
-import com.naaammme.bbspace.core.domain.player.VideoPlaybackSettings
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
+import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackViewState
+import com.naaammme.bbspace.core.model.PlayerBufferSettings
+import com.naaammme.bbspace.core.model.PlayerPlaybackPrefs
 import com.naaammme.bbspace.core.model.VideoDetail
-import com.naaammme.bbspace.core.model.VideoDanmakuConfig
-import com.naaammme.bbspace.core.model.VideoBufferSettings
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
-import com.naaammme.bbspace.core.model.VideoPlaybackPrefs
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.core.model.toPlayableParams
@@ -27,10 +27,10 @@ import androidx.media3.common.Player
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -43,9 +43,9 @@ import kotlinx.coroutines.launch
 class VideoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playbackController: VideoPlaybackController,
-    private val playbackSettings: VideoPlaybackSettings,
+    private val playerSettings: PlayerSettings,
     private val detailRepo: VideoDetailRepository,
-    danmakuRepository: DanmakuRepository
+    vodDanmakuRepository: VodDanmakuRepository
 ) : ViewModel() {
 
     private val src = VideoRouteTool.custom(
@@ -70,9 +70,9 @@ class VideoViewModel @Inject constructor(
         ?.toPlayableParams()
         ?.getResolveParams()
     private val _req = MutableStateFlow(initReq)
-    private val danmakuController = VideoDanmakuController(
+    private val danmakuSession = VodDanmakuSession(
         scope = viewModelScope,
-        repository = danmakuRepository
+        repository = vodDanmakuRepository
     )
     private val handle = MutableStateFlow<VideoPlaybackController.Handle?>(null)
     private var startJob: Job? = null
@@ -92,7 +92,7 @@ class VideoViewModel @Inject constructor(
         initialValue = PlaybackViewState()
     )
 
-    val settingsState = playbackSettings.state
+    val settingsState = playerSettings.state
 
     val pageState = combine(
         playerState,
@@ -121,7 +121,7 @@ class VideoViewModel @Inject constructor(
             return CommentSubjectTool.video(targetAid, src)
         }
 
-    internal val danmakuState = danmakuController.state
+    internal val danmakuState = danmakuSession.state
 
     init {
         acquireHandle()
@@ -130,7 +130,7 @@ class VideoViewModel @Inject constructor(
 
     fun ensureStarted() {
         handle.value?.let { playbackHandle ->
-            danmakuController.bind(
+            danmakuSession.bind(
                 playbackStateFlow = playbackHandle.state,
                 enabledFlow = settingsState.map { it.danmaku.enabled }
             )
@@ -150,7 +150,7 @@ class VideoViewModel @Inject constructor(
     }
 
     fun onDanmakuTick(positionMs: Long) {
-        danmakuController.onTick(positionMs)
+        danmakuSession.onTick(positionMs)
     }
 
     fun switchQuality(quality: Int) {
@@ -209,44 +209,10 @@ class VideoViewModel @Inject constructor(
         updatePlayback { copy(decoderFallback = enabled) }
     }
 
-    fun updateDanmakuEnabled(enabled: Boolean) {
-        updateDanmaku { copy(enabled = enabled) }
-    }
-
-    fun updateDanmakuAreaPercent(percent: Int) {
-        updateDanmaku { copy(areaPercent = percent) }
-    }
-
-    fun updateDanmakuOpacity(value: Float) {
-        updateDanmaku { copy(opacity = value) }
-    }
-
-    fun updateDanmakuTextScale(value: Float) {
-        updateDanmaku { copy(textScale = value) }
-    }
-
-    fun updateDanmakuSpeed(value: Float) {
-        updateDanmaku { copy(speed = value) }
-    }
-
-    fun updateDanmakuDensity(level: Int) {
-        updateDanmaku { copy(densityLevel = level) }
-    }
-
-    fun updateDanmakuMergeDuplicates(enabled: Boolean) {
-        updateDanmaku { copy(mergeDuplicates = enabled) }
-    }
-
-    fun updateDanmakuShowTop(enabled: Boolean) {
-        updateDanmaku { copy(showTop = enabled) }
-    }
-
-    fun updateDanmakuShowBottom(enabled: Boolean) {
-        updateDanmaku { copy(showBottom = enabled) }
-    }
-
-    fun updateDanmakuShowScrollRl(enabled: Boolean) {
-        updateDanmaku { copy(showScrollRl = enabled) }
+    fun updateDanmaku(config: DanmakuConfig) {
+        viewModelScope.launch {
+            playerSettings.updateDanmaku(config)
+        }
     }
 
     fun switchPage(cid: Long) {
@@ -266,7 +232,7 @@ class VideoViewModel @Inject constructor(
         startJob?.cancel()
         startJob = null
         openingRequest = null
-        danmakuController.clear()
+        danmakuSession.clear()
         handle.value?.release()
     }
 
@@ -275,12 +241,12 @@ class VideoViewModel @Inject constructor(
         startJob = null
         openingRequest = null
         val playbackHandle = handle.value ?: run {
-            danmakuController.clear()
+            danmakuSession.clear()
             super.onCleared()
             return
         }
         playbackHandle.release()
-        danmakuController.clear()
+        danmakuSession.clear()
         super.onCleared()
     }
 
@@ -349,21 +315,15 @@ class VideoViewModel @Inject constructor(
         }
     }
 
-    private fun updateBuffer(transform: VideoBufferSettings.() -> VideoBufferSettings) {
+    private fun updateBuffer(transform: PlayerBufferSettings.() -> PlayerBufferSettings) {
         viewModelScope.launch {
-            playbackSettings.updateBuffer(settingsState.value.buffer.transform())
+            playerSettings.updateBuffer(settingsState.value.buffer.transform())
         }
     }
 
-    private fun updatePlayback(transform: VideoPlaybackPrefs.() -> VideoPlaybackPrefs) {
+    private fun updatePlayback(transform: PlayerPlaybackPrefs.() -> PlayerPlaybackPrefs) {
         viewModelScope.launch {
-            playbackSettings.updatePlayback(settingsState.value.playback.transform())
-        }
-    }
-
-    private fun updateDanmaku(transform: VideoDanmakuConfig.() -> VideoDanmakuConfig) {
-        viewModelScope.launch {
-            playbackSettings.updateDanmaku(settingsState.value.danmaku.transform())
+            playerSettings.updatePlayback(settingsState.value.playback.transform())
         }
     }
 

@@ -18,13 +18,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,10 +36,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.core.model.PlaybackViewState
-import com.naaammme.bbspace.core.model.VideoPlaybackSettingsState
+import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
+import com.naaammme.bbspace.feature.danmaku.DanmakuSettingsSection
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
-import java.util.Locale
 
 private enum class PlaybackSheetSection(
     val title: String
@@ -125,8 +123,8 @@ internal fun VideoPlaybackSheet(
                 )
 
                 PlaybackSheetSection.Danmaku -> DanmakuSettingsSection(
-                    settingsState = settingsState,
-                    viewModel = viewModel
+                    config = settingsState.danmaku,
+                    onConfigChange = viewModel::updateDanmaku
                 )
             }
         }
@@ -136,7 +134,7 @@ internal fun VideoPlaybackSheet(
 @Composable
 private fun PlaybackSettingsSection(
     state: PlaybackViewState,
-    settingsState: VideoPlaybackSettingsState,
+    settingsState: PlayerSettingsState,
     viewModel: VideoViewModel
 ) {
     SheetSectionTitle("播放设置")
@@ -217,90 +215,6 @@ private fun PlaybackSettingsSection(
         subtitle = "允许切换到低优先级解码器",
         checked = settingsState.playback.decoderFallback,
         onCheckedChange = viewModel::updateDecoderFallback
-    )
-}
-
-@Composable
-private fun DanmakuSettingsSection(
-    settingsState: VideoPlaybackSettingsState,
-    viewModel: VideoViewModel
-) {
-    SheetSectionTitle("弹幕设置")
-
-    SheetChoiceCard(
-        title = "显示区域",
-        subtitle = "控制滚动弹幕可使用的纵向区域",
-        currentValue = settingsState.danmaku.areaPercent,
-        options = listOf(25, 50, 75, 100),
-        label = ::formatDanmakuArea,
-        onSelect = viewModel::updateDanmakuAreaPercent
-    )
-
-    SheetSliderCard(
-        title = "不透明度",
-        subtitle = "调低后更不挡画面",
-        value = settingsState.danmaku.opacity,
-        valueRange = 0.1f..1f,
-        steps = 8,
-        valueLabel = ::formatPercent,
-        onValueChangeCommitted = viewModel::updateDanmakuOpacity
-    )
-
-    SheetSliderCard(
-        title = "字体大小",
-        subtitle = "对原始弹幕字号做整体缩放",
-        value = settingsState.danmaku.textScale,
-        valueRange = 0.5f..2f,
-        steps = 14,
-        valueLabel = ::formatMultiple,
-        onValueChangeCommitted = viewModel::updateDanmakuTextScale
-    )
-
-    SheetSliderCard(
-        title = "弹幕速度",
-        subtitle = "数值越大，弹幕滚动越快",
-        value = settingsState.danmaku.speed,
-        valueRange = 0.5f..2f,
-        steps = 14,
-        valueLabel = ::formatMultiple,
-        onValueChangeCommitted = viewModel::updateDanmakuSpeed
-    )
-
-    SheetChoiceCard(
-        title = "弹幕密度",
-        subtitle = "控制同屏弹幕数量和防重叠策略",
-        currentValue = settingsState.danmaku.densityLevel,
-        options = listOf(0, 1, 2),
-        label = ::formatDanmakuDensity,
-        onSelect = viewModel::updateDanmakuDensity
-    )
-
-    SheetSwitchCard(
-        title = "重复弹幕合并",
-        subtitle = "合并短时间内重复出现的相同内容",
-        checked = settingsState.danmaku.mergeDuplicates,
-        onCheckedChange = viewModel::updateDanmakuMergeDuplicates
-    )
-
-    SheetSwitchCard(
-        title = "滚动弹幕",
-        subtitle = "控制右向左滚动弹幕显示",
-        checked = settingsState.danmaku.showScrollRl,
-        onCheckedChange = viewModel::updateDanmakuShowScrollRl
-    )
-
-    SheetSwitchCard(
-        title = "顶部弹幕",
-        subtitle = "固定显示在顶部",
-        checked = settingsState.danmaku.showTop,
-        onCheckedChange = viewModel::updateDanmakuShowTop
-    )
-
-    SheetSwitchCard(
-        title = "底部弹幕",
-        subtitle = "固定显示在底部",
-        checked = settingsState.danmaku.showBottom,
-        onCheckedChange = viewModel::updateDanmakuShowBottom
     )
 }
 
@@ -424,59 +338,6 @@ private fun SheetSwitchCard(
 }
 
 @Composable
-private fun SheetSliderCard(
-    title: String,
-    subtitle: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    valueLabel: (Float) -> String,
-    onValueChangeCommitted: (Float) -> Unit
-) {
-    var sliderValue by remember(value) { mutableFloatStateOf(value) }
-
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    text = valueLabel(sliderValue),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Slider(
-                value = sliderValue,
-                onValueChange = { sliderValue = it },
-                onValueChangeFinished = { onValueChangeCommitted(sliderValue) },
-                valueRange = valueRange,
-                steps = steps
-            )
-        }
-    }
-}
-
-@Composable
 private fun SheetChoiceCard(
     title: String,
     subtitle: String,
@@ -556,23 +417,6 @@ private fun SheetInfoGroup(
     }
 }
 
-private fun formatDanmakuArea(value: Int): String {
-    return when (value) {
-        25 -> "1/4 屏"
-        50 -> "半屏"
-        75 -> "3/4 屏"
-        else -> "满屏"
-    }
-}
-
-private fun formatDanmakuDensity(value: Int): String {
-    return when (value) {
-        0 -> "稀疏"
-        2 -> "密集"
-        else -> "标准"
-    }
-}
-
 private fun formatBufferMs(value: Int): String {
     return when {
         value == 0 -> "关闭"
@@ -580,19 +424,6 @@ private fun formatBufferMs(value: Int): String {
         value % 1_000 == 0 -> "${value / 1_000}s"
         else -> "${value / 1_000f}s"
     }
-}
-
-private fun formatPercent(value: Float): String {
-    return "${(value * 100).toInt()}%"
-}
-
-private fun formatMultiple(value: Float): String {
-    val normalized = if (value % 1f == 0f) {
-        value.toInt().toString()
-    } else {
-        String.format(Locale.ROOT, "%.2f", value).trimEnd('0').trimEnd('.')
-    }
-    return "${normalized}x"
 }
 
 private fun playbackStateText(state: PlaybackViewState): String {

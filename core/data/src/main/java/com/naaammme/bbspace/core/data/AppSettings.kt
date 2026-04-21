@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.naaammme.bbspace.core.designsystem.theme.AnimationSpeed
 import com.naaammme.bbspace.core.designsystem.theme.CornerStyle
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
@@ -21,8 +20,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private val Context.appSettingsStore by preferencesDataStore("app_settings")
 
 @Singleton
 class AppSettings @Inject constructor(
@@ -41,7 +38,7 @@ class AppSettings @Inject constructor(
     private val personalizedRcmdKey = booleanPreferencesKey("personalized_rcmd")
     private val autoCheckUpdateKey = booleanPreferencesKey("auto_check_update")
 
-    val themeConfig: Flow<ThemeConfig> = context.appSettingsStore.data.map { prefs ->
+    val themeConfig: Flow<ThemeConfig> = context.appSettingsDataStore.data.map { prefs ->
         ThemeConfig(
             themeMode = prefs[themeModeKey]?.let { ThemeMode.valueOf(it) } ?: ThemeMode.SYSTEM,
             seedColor = Color(prefs[seedColorKey] ?: 0xFFFB7299.toInt()),
@@ -56,71 +53,71 @@ class AppSettings @Inject constructor(
     }.distinctUntilChanged()
 
     suspend fun updateThemeMode(mode: ThemeMode) {
-        context.appSettingsStore.edit { it[themeModeKey] = mode.name }
+        context.appSettingsDataStore.edit { it[themeModeKey] = mode.name }
     }
 
     suspend fun updateSeedColor(color: Color) {
-        context.appSettingsStore.edit { it[seedColorKey] = color.toArgb() }
+        context.appSettingsDataStore.edit { it[seedColorKey] = color.toArgb() }
     }
 
     suspend fun updateUseDynamicColor(use: Boolean) {
-        context.appSettingsStore.edit { it[useDynamicColorKey] = use }
+        context.appSettingsDataStore.edit { it[useDynamicColorKey] = use }
     }
 
     suspend fun updateFontScale(scale: Float) {
-        context.appSettingsStore.edit { it[fontScaleKey] = scale }
+        context.appSettingsDataStore.edit { it[fontScaleKey] = scale }
     }
 
     suspend fun updateAnimationSpeed(speed: AnimationSpeed) {
-        context.appSettingsStore.edit { it[animationSpeedKey] = speed.name }
+        context.appSettingsDataStore.edit { it[animationSpeedKey] = speed.name }
     }
 
     suspend fun updateTransitionStyle(style: TransitionStyle) {
-        context.appSettingsStore.edit { it[transitionStyleKey] = style.name }
+        context.appSettingsDataStore.edit { it[transitionStyleKey] = style.name }
     }
 
     suspend fun updateIsPureBlack(isPure: Boolean) {
-        context.appSettingsStore.edit { it[isPureBlackKey] = isPure }
+        context.appSettingsDataStore.edit { it[isPureBlackKey] = isPure }
     }
 
     suspend fun updateFrameRateMode(mode: FrameRateMode) {
-        context.appSettingsStore.edit { it[frameRateModeKey] = mode.name }
+        context.appSettingsDataStore.edit { it[frameRateModeKey] = mode.name }
     }
 
     suspend fun updateCornerStyle(style: CornerStyle) {
-        context.appSettingsStore.edit { it[cornerStyleKey] = style.name }
+        context.appSettingsDataStore.edit { it[cornerStyleKey] = style.name }
     }
 
-    val hdFeed: Flow<Boolean> = context.appSettingsStore.data.map { it[hdFeedKey] ?: false }
+    val hdFeed: Flow<Boolean> = context.appSettingsDataStore.data.map { it[hdFeedKey] ?: false }
 
-    val personalizedRcmd: Flow<Boolean> = context.appSettingsStore.data.map { it[personalizedRcmdKey] ?: true }
+    val personalizedRcmd: Flow<Boolean> = context.appSettingsDataStore.data.map { it[personalizedRcmdKey] ?: true }
 
-    val autoCheckUpdate: Flow<Boolean> = context.appSettingsStore.data.map { it[autoCheckUpdateKey] ?: true }
+    val autoCheckUpdate: Flow<Boolean> = context.appSettingsDataStore.data.map { it[autoCheckUpdateKey] ?: true }
 
     private val interestDoneKey = booleanPreferencesKey("interest_done")
-    val interestDone: Flow<Boolean> = context.appSettingsStore.data.map { it[interestDoneKey] ?: false }
+    val interestDone: Flow<Boolean> = context.appSettingsDataStore.data.map { it[interestDoneKey] ?: false }
 
     suspend fun updateHdFeed(enabled: Boolean) {
-        context.appSettingsStore.edit { it[hdFeedKey] = enabled }
+        context.appSettingsDataStore.edit { it[hdFeedKey] = enabled }
     }
 
     suspend fun updatePersonalizedRcmd(enabled: Boolean) {
-        context.appSettingsStore.edit { it[personalizedRcmdKey] = enabled }
+        context.appSettingsDataStore.edit { it[personalizedRcmdKey] = enabled }
     }
 
     suspend fun updateAutoCheckEnabled(enabled: Boolean) {
-        context.appSettingsStore.edit { it[autoCheckUpdateKey] = enabled }
+        context.appSettingsDataStore.edit { it[autoCheckUpdateKey] = enabled }
     }
 
     suspend fun markInterestDone() {
-        context.appSettingsStore.edit { it[interestDoneKey] = true }
+        context.appSettingsDataStore.edit { it[interestDoneKey] = true }
     }
 
     private val blockGaiaKey = booleanPreferencesKey("block_gaia")
-    val blockGaia: Flow<Boolean> = context.appSettingsStore.data.map { it[blockGaiaKey] ?: false }
+    val blockGaia: Flow<Boolean> = context.appSettingsDataStore.data.map { it[blockGaiaKey] ?: false }
 
     suspend fun updateBlockGaia(enabled: Boolean) {
-        context.appSettingsStore.edit { it[blockGaiaKey] = enabled }
+        context.appSettingsDataStore.edit { it[blockGaiaKey] = enabled }
     }
 
     private val enableHdrAnd8kKey = booleanPreferencesKey("enable_hdr_8k")
@@ -129,157 +126,40 @@ class AppSettings @Inject constructor(
     private val forceHostKey = intPreferencesKey("force_host")
     private val needTrialKey = booleanPreferencesKey("need_trial")
     private val preferredCodecKey = intPreferencesKey("preferred_codec_qn")
-    private val playerMinBufMsKey = intPreferencesKey("player_min_buf_ms")
-    private val playerMaxBufMsKey = intPreferencesKey("player_max_buf_ms")
-    private val playerPlayBufMsKey = intPreferencesKey("player_play_buf_ms")
-    private val playerRebufMsKey = intPreferencesKey("player_rebuf_ms")
-    private val playerBackBufMsKey = intPreferencesKey("player_back_buf_ms")
-    private val playerCdnIdxKey = intPreferencesKey("player_cdn_idx")
-    private val preferSoftDecKey = booleanPreferencesKey("prefer_soft_dec")
-    private val decFallbackKey = booleanPreferencesKey("dec_fallback")
-    private val bgPlayKey = booleanPreferencesKey("bg_play")
-    private val danmakuEnabledKey = booleanPreferencesKey("danmaku_enabled")
-    private val danmakuAreaPercentKey = intPreferencesKey("danmaku_area_percent")
-    private val danmakuOpacityKey = floatPreferencesKey("danmaku_opacity")
-    private val danmakuTextScaleKey = floatPreferencesKey("danmaku_text_scale")
-    private val danmakuSpeedKey = floatPreferencesKey("danmaku_speed")
-    private val danmakuDensityKey = intPreferencesKey("danmaku_density")
-    private val danmakuMergeDuplicatesKey = booleanPreferencesKey("danmaku_merge_duplicates")
-    private val danmakuShowTopKey = booleanPreferencesKey("danmaku_show_top")
-    private val danmakuShowBottomKey = booleanPreferencesKey("danmaku_show_bottom")
-    private val danmakuShowScrollRlKey = booleanPreferencesKey("danmaku_show_scroll_rl")
 
-    val enableHdrAnd8k: Flow<Boolean> = context.appSettingsStore.data.map { it[enableHdrAnd8kKey] ?: false }
-    val defaultVideoQuality: Flow<Int> = context.appSettingsStore.data.map { it[defaultVideoQualityKey] ?: 64 }
-    val defaultAudioQuality: Flow<Int> = context.appSettingsStore.data.map { it[defaultAudioQualityKey] ?: 0 }
-    val forceHost: Flow<Int> = context.appSettingsStore.data.map { it[forceHostKey] ?: 0 }
-    val needTrial: Flow<Boolean> = context.appSettingsStore.data.map { it[needTrialKey] ?: false }
-    val preferredCodec: Flow<Int> = context.appSettingsStore.data.map { it[preferredCodecKey] ?: 2 }
-    val playerMinBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerMinBufMsKey] ?: 2_000 }
-    val playerMaxBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerMaxBufMsKey] ?: 15_000 }
-    val playerPlaybackBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerPlayBufMsKey] ?: 250 }
-    val playerRebufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerRebufMsKey] ?: 500 }
-    val playerBackBufferMs: Flow<Int> = context.appSettingsStore.data.map { it[playerBackBufMsKey] ?: 5_000 }
-    val playerCdnIndex: Flow<Int> = context.appSettingsStore.data.map { it[playerCdnIdxKey] ?: 0 }
-    val preferSoftwareDecode: Flow<Boolean> = context.appSettingsStore.data.map { it[preferSoftDecKey] ?: false }
-    val decoderFallback: Flow<Boolean> = context.appSettingsStore.data.map { it[decFallbackKey] ?: true }
-    val backgroundPlayback: Flow<Boolean> = context.appSettingsStore.data.map { it[bgPlayKey] ?: false }
-    val danmakuEnabled: Flow<Boolean> = context.appSettingsStore.data.map { it[danmakuEnabledKey] ?: true }
-    val danmakuAreaPercent: Flow<Int> = context.appSettingsStore.data.map { it[danmakuAreaPercentKey] ?: 100 }
-    val danmakuOpacity: Flow<Float> = context.appSettingsStore.data.map { it[danmakuOpacityKey] ?: 1f }
-    val danmakuTextScale: Flow<Float> = context.appSettingsStore.data.map { it[danmakuTextScaleKey] ?: 1f }
-    val danmakuSpeed: Flow<Float> = context.appSettingsStore.data.map { it[danmakuSpeedKey] ?: 1f }
-    val danmakuDensity: Flow<Int> = context.appSettingsStore.data.map { it[danmakuDensityKey] ?: 1 }
-    val danmakuMergeDuplicates: Flow<Boolean> =
-        context.appSettingsStore.data.map { it[danmakuMergeDuplicatesKey] ?: false }
-    val danmakuShowTop: Flow<Boolean> = context.appSettingsStore.data.map { it[danmakuShowTopKey] ?: true }
-    val danmakuShowBottom: Flow<Boolean> =
-        context.appSettingsStore.data.map { it[danmakuShowBottomKey] ?: true }
-    val danmakuShowScrollRl: Flow<Boolean> =
-        context.appSettingsStore.data.map { it[danmakuShowScrollRlKey] ?: true }
+    val enableHdrAnd8k: Flow<Boolean> = context.appSettingsDataStore.data.map { it[enableHdrAnd8kKey] ?: false }
+    val defaultVideoQuality: Flow<Int> = context.appSettingsDataStore.data.map { it[defaultVideoQualityKey] ?: 64 }
+    val defaultAudioQuality: Flow<Int> = context.appSettingsDataStore.data.map { it[defaultAudioQualityKey] ?: 0 }
+    val forceHost: Flow<Int> = context.appSettingsDataStore.data.map { it[forceHostKey] ?: 0 }
+    val needTrial: Flow<Boolean> = context.appSettingsDataStore.data.map { it[needTrialKey] ?: false }
+    val preferredCodec: Flow<Int> = context.appSettingsDataStore.data.map { it[preferredCodecKey] ?: 2 }
 
     suspend fun updateEnableHdrAnd8k(enabled: Boolean) {
-        context.appSettingsStore.edit { it[enableHdrAnd8kKey] = enabled }
+        context.appSettingsDataStore.edit { it[enableHdrAnd8kKey] = enabled }
     }
 
     suspend fun updateDefaultVideoQuality(quality: Int) {
-        context.appSettingsStore.edit { it[defaultVideoQualityKey] = quality }
+        context.appSettingsDataStore.edit { it[defaultVideoQualityKey] = quality }
     }
 
     suspend fun updateDefaultAudioQuality(quality: Int) {
-        context.appSettingsStore.edit { it[defaultAudioQualityKey] = quality }
+        context.appSettingsDataStore.edit { it[defaultAudioQualityKey] = quality }
     }
 
     suspend fun updateForceHost(value: Int) {
-        context.appSettingsStore.edit { it[forceHostKey] = value }
+        context.appSettingsDataStore.edit { it[forceHostKey] = value }
     }
 
     suspend fun updateNeedTrial(enabled: Boolean) {
-        context.appSettingsStore.edit { it[needTrialKey] = enabled }
+        context.appSettingsDataStore.edit { it[needTrialKey] = enabled }
     }
 
     suspend fun updatePreferredCodec(codec: Int) {
-        context.appSettingsStore.edit { it[preferredCodecKey] = codec }
-    }
-
-    suspend fun updatePlayerMinBufferMs(value: Int) {
-        context.appSettingsStore.edit { it[playerMinBufMsKey] = value }
-    }
-
-    suspend fun updatePlayerMaxBufferMs(value: Int) {
-        context.appSettingsStore.edit { it[playerMaxBufMsKey] = value }
-    }
-
-    suspend fun updatePlayerPlaybackBufferMs(value: Int) {
-        context.appSettingsStore.edit { it[playerPlayBufMsKey] = value }
-    }
-
-    suspend fun updatePlayerRebufferMs(value: Int) {
-        context.appSettingsStore.edit { it[playerRebufMsKey] = value }
-    }
-
-    suspend fun updatePlayerBackBufferMs(value: Int) {
-        context.appSettingsStore.edit { it[playerBackBufMsKey] = value }
-    }
-
-    suspend fun updatePlayerCdnIndex(value: Int) {
-        context.appSettingsStore.edit { it[playerCdnIdxKey] = value }
-    }
-
-    suspend fun updatePreferSoftwareDecode(enabled: Boolean) {
-        context.appSettingsStore.edit { it[preferSoftDecKey] = enabled }
-    }
-
-    suspend fun updateDecoderFallback(enabled: Boolean) {
-        context.appSettingsStore.edit { it[decFallbackKey] = enabled }
-    }
-
-    suspend fun updateBackgroundPlayback(enabled: Boolean) {
-        context.appSettingsStore.edit { it[bgPlayKey] = enabled }
-    }
-
-    suspend fun updateDanmakuEnabled(enabled: Boolean) {
-        context.appSettingsStore.edit { it[danmakuEnabledKey] = enabled }
-    }
-
-    suspend fun updateDanmakuAreaPercent(percent: Int) {
-        context.appSettingsStore.edit { it[danmakuAreaPercentKey] = percent.coerceIn(25, 100) }
-    }
-
-    suspend fun updateDanmakuOpacity(value: Float) {
-        context.appSettingsStore.edit { it[danmakuOpacityKey] = value.coerceIn(0.1f, 1f) }
-    }
-
-    suspend fun updateDanmakuTextScale(value: Float) {
-        context.appSettingsStore.edit { it[danmakuTextScaleKey] = value.coerceIn(0.5f, 2f) }
-    }
-
-    suspend fun updateDanmakuSpeed(value: Float) {
-        context.appSettingsStore.edit { it[danmakuSpeedKey] = value.coerceIn(0.5f, 2f) }
-    }
-
-    suspend fun updateDanmakuDensity(level: Int) {
-        context.appSettingsStore.edit { it[danmakuDensityKey] = level.coerceIn(0, 2) }
-    }
-
-    suspend fun updateDanmakuMergeDuplicates(enabled: Boolean) {
-        context.appSettingsStore.edit { it[danmakuMergeDuplicatesKey] = enabled }
-    }
-
-    suspend fun updateDanmakuShowTop(enabled: Boolean) {
-        context.appSettingsStore.edit { it[danmakuShowTopKey] = enabled }
-    }
-
-    suspend fun updateDanmakuShowBottom(enabled: Boolean) {
-        context.appSettingsStore.edit { it[danmakuShowBottomKey] = enabled }
-    }
-
-    suspend fun updateDanmakuShowScrollRl(enabled: Boolean) {
-        context.appSettingsStore.edit { it[danmakuShowScrollRlKey] = enabled }
+        context.appSettingsDataStore.edit { it[preferredCodecKey] = codec }
     }
 
     suspend fun resetAllSettings() {
-        context.appSettingsStore.edit {
+        context.appSettingsDataStore.edit {
             val interestDone = it[interestDoneKey] ?: false
             it.clear()
             if (interestDone) {
