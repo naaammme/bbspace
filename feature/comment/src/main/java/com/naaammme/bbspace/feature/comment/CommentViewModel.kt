@@ -10,8 +10,8 @@ import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -53,17 +53,6 @@ class CommentViewModel @Inject constructor(
             subject = subject,
             sort = sort,
             filter = state.selectedFilter
-        )
-    }
-
-    fun selectFilter(filter: String) {
-        val state = _uiState.value
-        val subject = state.subject ?: return
-        if (state.selectedFilter == filter && state.items.isNotEmpty()) return
-        refresh(
-            subject = subject,
-            sort = state.sort,
-            filter = filter
         )
     }
 
@@ -132,6 +121,115 @@ class CommentViewModel @Inject constructor(
         }
     }
 
+    fun openReplyThread(reply: CommentReply) {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        val sort = state.sort
+        _uiState.update {
+            it.copy(
+                threadPane = CommentThreadState(
+                    root = reply,
+                    count = reply.replyCount,
+                    sort = sort,
+                    loading = true,
+                    items = emptyList()
+                )
+            )
+        }
+        fetchReplyThread(
+            subject = subject,
+            rootRpid = reply.rpid,
+            sort = sort,
+            offset = "",
+            append = false
+        )
+    }
+
+    fun closeReplyThread() {
+        _uiState.update {
+            it.copy(threadPane = null)
+        }
+    }
+
+    fun retryReplyThread() {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        val thread = state.threadPane ?: return
+        _uiState.update {
+            it.copy(
+                threadPane = thread.copy(
+                    loading = true,
+                    loadingMore = false,
+                    error = null,
+                    loadMoreError = null
+                )
+            )
+        }
+        fetchReplyThread(
+            subject = subject,
+            rootRpid = thread.root.rpid,
+            sort = thread.sort,
+            offset = "",
+            append = false
+        )
+    }
+
+    fun loadMoreReplyThread() {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        val thread = state.threadPane ?: return
+        val nextOffset = thread.nextOffset ?: return
+        if (thread.loading || thread.loadingMore || !thread.hasMore) return
+        _uiState.update {
+            it.copy(
+                threadPane = thread.copy(
+                    loadingMore = true,
+                    loadMoreError = null
+                )
+            )
+        }
+        fetchReplyThread(
+            subject = subject,
+            rootRpid = thread.root.rpid,
+            sort = thread.sort,
+            offset = nextOffset,
+            append = true
+        )
+    }
+
+    fun toggleReplyThreadSort() {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        val thread = state.threadPane ?: return
+        if (!thread.canSwitchSort) return
+        val nextSort = if (thread.sort == CommentSort.HOT) {
+            CommentSort.TIME
+        } else {
+            CommentSort.HOT
+        }
+        _uiState.update {
+            it.copy(
+                threadPane = thread.copy(
+                    sort = nextSort,
+                    loading = true,
+                    loadingMore = false,
+                    error = null,
+                    loadMoreError = null,
+                    items = emptyList(),
+                    nextOffset = null,
+                    hasMore = false
+                )
+            )
+        }
+        fetchReplyThread(
+            subject = subject,
+            rootRpid = thread.root.rpid,
+            sort = nextSort,
+            offset = "",
+            append = false
+        )
+    }
+
     fun translateReply(rpid: Long) {
         val state = _uiState.value
         val subject = state.subject ?: return
@@ -155,20 +253,20 @@ class CommentViewModel @Inject constructor(
                         else -> {
                             _uiState.update { cur ->
                                 cur.copy(
-                                    items = cur.items.map { item ->
-                                        when {
-                                            item.rpid == rpid -> item.copy(translatedMessage = translated)
-                                            item.replies.any { it.rpid == rpid } -> item.copy(
-                                                replies = item.replies.map { child ->
-                                                    if (child.rpid == rpid) {
-                                                        child.copy(translatedMessage = translated)
-                                                    } else {
-                                                        child
-                                                    }
-                                                }
+                                    items = updateTranslatedReplies(cur.items, rpid, translated),
+                                    threadPane = cur.threadPane?.let { thread ->
+                                        thread.copy(
+                                            root = if (thread.root.rpid == rpid) {
+                                                thread.root.copy(translatedMessage = translated)
+                                            } else {
+                                                thread.root
+                                            },
+                                            items = updateTranslatedReplies(
+                                                thread.items,
+                                                rpid,
+                                                translated
                                             )
-                                            else -> item
-                                        }
+                                        )
                                     }
                                 )
                             }
@@ -199,6 +297,7 @@ class CommentViewModel @Inject constructor(
                 sort = sort,
                 selectedFilter = filter,
                 items = emptyList(),
+                threadPane = null,
                 nextOffset = null,
                 hasMore = false,
                 endText = null
@@ -222,6 +321,83 @@ class CommentViewModel @Inject constructor(
                         it.copy(
                             loading = false,
                             error = err.message ?: "加载评论失败"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private fun fetchReplyThread(
+        subject: CommentSubject,
+        rootRpid: Long,
+        sort: CommentSort,
+        offset: String,
+        append: Boolean
+    ) {
+        val callId = reqId
+        viewModelScope.launch {
+            val result = runCatching {
+                repo.fetchReplyDetail(
+                    subject = subject,
+                    rootRpid = rootRpid,
+                    sort = sort,
+                    offset = offset
+                )
+            }
+            if (callId != reqId || _uiState.value.subject != subject) return@launch
+            result.fold(
+                onSuccess = { page ->
+                    _uiState.update { cur ->
+                        val thread = cur.threadPane ?: return@update cur
+                        if (thread.root.rpid != rootRpid && thread.root.rpid != page.root.rpid) {
+                            return@update cur
+                        }
+                        val items = if (append) {
+                            mergeReplies(thread.items, page.items)
+                        } else {
+                            keepTranslatedReplies(thread.items, page.items)
+                        }
+                        cur.copy(
+                            threadPane = thread.copy(
+                                root = keepTranslatedReply(thread.root, page.root),
+                                count = page.count,
+                                sort = page.sort,
+                                canSwitchSort = page.canSwitchSort,
+                                loading = false,
+                                loadingMore = false,
+                                error = null,
+                                loadMoreError = null,
+                                items = items,
+                                nextOffset = page.nextOffset,
+                                hasMore = page.hasMore
+                            )
+                        )
+                    }
+                },
+                onFailure = { err ->
+                    val msg = err.message ?: if (append) {
+                        "加载更多回复失败"
+                    } else {
+                        "加载回复失败"
+                    }
+                    _uiState.update { cur ->
+                        val thread = cur.threadPane ?: return@update cur
+                        if (thread.root.rpid != rootRpid) return@update cur
+                        cur.copy(
+                            threadPane = if (append) {
+                                thread.copy(
+                                    loading = false,
+                                    loadingMore = false,
+                                    loadMoreError = msg
+                                )
+                            } else {
+                                thread.copy(
+                                    loading = false,
+                                    loadingMore = false,
+                                    error = msg
+                                )
+                            }
                         )
                     }
                 }
@@ -259,31 +435,47 @@ class CommentViewModel @Inject constructor(
             items[reply.rpid] = if (cur == null) {
                 reply
             } else {
-                reply.copy(
-                    translatedMessage = cur.translatedMessage ?: reply.translatedMessage,
-                    replies = mergeChildReplies(cur.replies, reply.replies)
-                )
+                reply.copy(translatedMessage = cur.translatedMessage ?: reply.translatedMessage)
             }
         }
         return items.values.toList()
     }
 
-    private fun mergeChildReplies(
+    private fun keepTranslatedReplies(
         current: List<CommentReply>,
-        append: List<CommentReply>
+        loaded: List<CommentReply>
     ): List<CommentReply> {
-        if (append.isEmpty()) return current
-        if (current.isEmpty()) return append
-        val items = LinkedHashMap<Long, CommentReply>(current.size + append.size)
-        current.forEach { reply -> items[reply.rpid] = reply }
-        append.forEach { reply ->
-            val cur = items[reply.rpid]
-            items[reply.rpid] = if (cur == null) {
-                reply
+        if (current.isEmpty()) return loaded
+        if (loaded.isEmpty()) return emptyList()
+        val currentMap = current.associateBy { it.rpid }
+        return loaded.map { reply ->
+            val old = currentMap[reply.rpid]
+            reply.copy(translatedMessage = old?.translatedMessage ?: reply.translatedMessage)
+        }
+    }
+
+    private fun keepTranslatedReply(
+        current: CommentReply,
+        loaded: CommentReply
+    ): CommentReply {
+        return loaded.copy(translatedMessage = current.translatedMessage ?: loaded.translatedMessage)
+    }
+
+    private fun updateTranslatedReplies(
+        items: List<CommentReply>,
+        rpid: Long,
+        translated: String
+    ): List<CommentReply> {
+        if (items.isEmpty()) return items
+        var changed = false
+        val next = items.map { reply ->
+            if (reply.rpid == rpid) {
+                changed = true
+                reply.copy(translatedMessage = translated)
             } else {
-                reply.copy(translatedMessage = cur.translatedMessage ?: reply.translatedMessage)
+                reply
             }
         }
-        return items.values.toList()
+        return if (changed) next else items
     }
 }

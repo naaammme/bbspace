@@ -12,10 +12,6 @@ import java.net.URLConnection
 import java.util.Locale
 
 object ImageSaver {
-    fun needsLegacyWritePermission(): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-    }
-
     fun saveUrl(
         context: Context,
         url: String,

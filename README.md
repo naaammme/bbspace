@@ -64,6 +64,16 @@
 
 项目主要用于学习、研究和界面实现练习。仓库内涉及的接口信息均来自公开资料整理，仅用于技术交流，不包含破解和付费内容分发。
 
+## 致谢
+
+- [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) 分享的 api 接口
+- [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) 提供部分功能的思路
+- [media3](https://github.com/androidx/media) 提供视频解码播放能力
+- [DanmakuFlameMaster](https://github.com/naaammme/DanmakuFlameMaster) 提供弹幕渲染能力
+- ... 
+- 等等
+
+
 ## License
 
 [GPL-3.0](LICENSE)

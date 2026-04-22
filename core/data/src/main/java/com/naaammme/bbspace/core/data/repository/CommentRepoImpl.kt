@@ -1,6 +1,8 @@
 package com.naaammme.bbspace.core.data.repository
 
 import android.text.format.DateFormat
+import com.bapis.bilibili.main.community.reply.v1.DetailListReply
+import com.bapis.bilibili.main.community.reply.v1.DetailListReq
 import com.bapis.bilibili.main.community.reply.v1.MainListReply
 import com.bapis.bilibili.main.community.reply.v1.MainListReq
 import com.bapis.bilibili.main.community.reply.v1.Mode
@@ -16,6 +18,7 @@ import com.naaammme.bbspace.core.model.CommentMedal
 import com.naaammme.bbspace.core.model.CommentPage
 import com.naaammme.bbspace.core.model.CommentPicture
 import com.naaammme.bbspace.core.model.CommentReply
+import com.naaammme.bbspace.core.model.CommentReplyDetailPage
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentUser
@@ -49,6 +52,39 @@ class CommentRepoImpl @Inject constructor(
                 reqSort = sort,
                 filterTag = filterTag,
                 reply = reply
+            )
+        }
+    }
+
+    override suspend fun fetchReplyDetail(
+        subject: CommentSubject,
+        rootRpid: Long,
+        sort: CommentSort,
+        offset: String
+    ): CommentReplyDetailPage {
+        val reply = withContext(Dispatchers.IO) {
+            grpcClient.call(
+                endpoint = DETAIL_ENDPOINT,
+                requestBytes = buildDetailReq(
+                    subject = subject,
+                    rootRpid = rootRpid,
+                    sort = sort,
+                    offset = offset
+                ).toByteArray(),
+                parser = DetailListReply.parser()
+            )
+        }
+        return withContext(Dispatchers.Default) {
+            val nextOffset = reply.paginationReply.nextOffset.ifBlank { null }
+            val root = mapReply(reply.root) ?: error("评论详情缺少根评论")
+            CommentReplyDetailPage(
+                root = root,
+                count = root.replyCount,
+                sort = reply.mode.toModelSort(sort),
+                canSwitchSort = reply.subjectControl.switcherType > 0L,
+                items = mapChildReplies(reply.root.repliesList),
+                nextOffset = nextOffset,
+                hasMore = nextOffset != null
             )
         }
     }
@@ -99,6 +135,29 @@ class CommentRepoImpl @Inject constructor(
                     .setShownCount(0L)
                     .build()
             )
+            .build()
+    }
+
+    private fun buildDetailReq(
+        subject: CommentSubject,
+        rootRpid: Long,
+        sort: CommentSort,
+        offset: String
+    ): DetailListReq {
+        return DetailListReq.newBuilder()
+            .setOid(subject.oid)
+            .setType(subject.type)
+            .setRoot(rootRpid)
+            .setRpid(0L)
+            .setMode(sort.toProto())
+            .setPagination(
+                FeedPagination.newBuilder()
+                    .setOffset(offset)
+                    .build()
+            )
+            .setExtra(buildExtra(subject))
+            .setAdExtra("")
+            .setNeedSubjectTitle(false)
             .build()
     }
 
@@ -205,6 +264,7 @@ class CommentRepoImpl @Inject constructor(
             timeText = info.replyControl.timeDesc.ifBlank { formatTime(info.ctime) },
             topLabel = topLabel ?: info.topLabel(),
             replyEntryText = info.replyControl.subReplyTitleText.ifBlank { null },
+            parentName = info.parentReplyMember.name.ifBlank { null },
             user = CommentUser(
                 mid = info.mid,
                 name = name,
@@ -213,9 +273,19 @@ class CommentRepoImpl @Inject constructor(
                 vipLabel = user.vipLabelText.ifBlank { null },
                 medal = medal
             ),
-            pictures = pictures,
-            replies = info.repliesList.mapNotNull { child -> mapReply(child) }
+            pictures = pictures
         )
+    }
+
+    private fun mapChildReplies(items: List<ReplyInfo>): List<CommentReply> {
+        return items.asSequence()
+            .filter { info ->
+                info.id > 0L &&
+                    !info.replyControl.invisible &&
+                    !info.replyControl.blocked
+            }
+            .mapNotNull(::mapReply)
+            .toList()
     }
 
     private fun ReplyInfo.topLabel(): String? {
@@ -292,6 +362,7 @@ class CommentRepoImpl @Inject constructor(
 
     private companion object {
         const val ENDPOINT = "bilibili.main.community.reply.v1.Reply/MainList"
+        const val DETAIL_ENDPOINT = "bilibili.main.community.reply.v1.Reply/DetailList"
         const val TRANSLATE_ENDPOINT = "bilibili.main.community.reply.v1.Reply/TranslateReply"
     }
 }

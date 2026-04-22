@@ -64,6 +64,17 @@ data class CommentPage(
 )
 
 @Immutable
+data class CommentReplyDetailPage(
+    val root: CommentReply,
+    val count: Long = 0L,
+    val sort: CommentSort = CommentSort.HOT,
+    val canSwitchSort: Boolean = true,
+    val items: List<CommentReply> = emptyList(),
+    val nextOffset: String? = null,
+    val hasMore: Boolean = false
+)
+
+@Immutable
 data class CommentReply(
     val rpid: Long,
     val message: String = "",
@@ -73,9 +84,9 @@ data class CommentReply(
     val timeText: String = "",
     val topLabel: String? = null,
     val replyEntryText: String? = null,
+    val parentName: String? = null,
     val user: CommentUser,
-    val pictures: List<CommentPicture> = emptyList(),
-    val replies: List<CommentReply> = emptyList()
+    val pictures: List<CommentPicture> = emptyList()
 )
 
 @Immutable
