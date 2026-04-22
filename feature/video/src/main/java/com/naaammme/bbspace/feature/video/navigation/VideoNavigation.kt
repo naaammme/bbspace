@@ -9,6 +9,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.naaammme.bbspace.core.model.PlayBiz
+import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.feature.video.VideoScreen
@@ -112,6 +113,7 @@ private fun NavController.navigateToPugvVideo(route: VideoRoute.Pugv) {
 fun NavGraphBuilder.videoScreen(
     onBack: () -> Unit,
     onOpenVideo: (VideoRoute) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
 ) {
     composable(
         route = UGC_VIDEO_ROUTE,
@@ -146,7 +148,8 @@ fun NavGraphBuilder.videoScreen(
     ) {
         VideoScreen(
             onBack = onBack,
-            onOpenVideo = onOpenVideo
+            onOpenVideo = onOpenVideo,
+            onOpenSpace = onOpenSpace
         )
     }
 
@@ -186,7 +189,8 @@ fun NavGraphBuilder.videoScreen(
     ) {
         VideoScreen(
             onBack = onBack,
-            onOpenVideo = onOpenVideo
+            onOpenVideo = onOpenVideo,
+            onOpenSpace = onOpenSpace
         )
     }
 
@@ -222,7 +226,8 @@ fun NavGraphBuilder.videoScreen(
     ) {
         VideoScreen(
             onBack = onBack,
-            onOpenVideo = onOpenVideo
+            onOpenVideo = onOpenVideo,
+            onOpenSpace = onOpenSpace
         )
     }
 }

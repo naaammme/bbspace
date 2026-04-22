@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -71,6 +72,7 @@ import com.naaammme.bbspace.core.common.media.ImageSaver
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.model.CommentPicture
 import com.naaammme.bbspace.core.model.CommentReply
+import com.naaammme.bbspace.core.model.CommentUser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,7 +83,8 @@ import java.util.Locale
 internal fun CommentCard(
     reply: CommentReply,
     isLoading: (Long) -> Boolean,
-    onTranslate: (Long) -> Unit
+    onTranslate: (Long) -> Unit,
+    onOpenUser: (CommentUser) -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -99,7 +102,8 @@ internal fun CommentCard(
             ) {
                 UserAvatar(
                     name = reply.user.name,
-                    face = reply.user.face
+                    face = reply.user.face,
+                    onClick = { onOpenUser(reply.user) }
                 )
 
                 Column(
@@ -116,8 +120,10 @@ internal fun CommentCard(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
+                                modifier = Modifier.clickable { onOpenUser(reply.user) },
                                 text = reply.user.name,
-                                style = MaterialTheme.typography.titleSmall
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
                             )
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -202,7 +208,8 @@ internal fun CommentCard(
                         SubReplyCard(
                             reply = child,
                             isLoading = isLoading,
-                            onTranslate = onTranslate
+                            onTranslate = onTranslate,
+                            onOpenUser = onOpenUser
                         )
                     }
                 }
@@ -215,7 +222,8 @@ internal fun CommentCard(
 private fun SubReplyCard(
     reply: CommentReply,
     isLoading: (Long) -> Boolean,
-    onTranslate: (Long) -> Unit
+    onTranslate: (Long) -> Unit,
+    onOpenUser: (CommentUser) -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -231,11 +239,14 @@ private fun SubReplyCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onOpenUser(reply.user) },
                     text = reply.user.name,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = reply.timeText.ifBlank { "刚刚" },
@@ -571,8 +582,10 @@ private fun CommentPicturePreview(
 @Composable
 private fun UserAvatar(
     name: String,
-    face: String?
+    face: String?,
+    onClick: () -> Unit
 ) {
+    val modifier = Modifier.size(44.dp)
     if (!face.isNullOrBlank()) {
         val context = LocalContext.current
         val req = remember(face) {
@@ -582,17 +595,25 @@ private fun UserAvatar(
                 .diskCachePolicy(CachePolicy.ENABLED)
                 .build()
         }
-        AsyncImage(
-            model = req,
-            contentDescription = name,
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
+        Surface(
+            onClick = onClick,
+            modifier = modifier,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            AsyncImage(
+                model = req,
+                contentDescription = name,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
     } else {
         Surface(
-            modifier = Modifier.size(44.dp),
+            onClick = onClick,
+            modifier = modifier,
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer
         ) {

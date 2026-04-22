@@ -7,6 +7,7 @@ data class LiveRecommendItem(
     val roomId: Long,
     val title: String,
     val cover: String,
+    val ownerMid: Long?,
     val ownerName: String?,
     val areaName: String?,
     val onlineText: String?,

@@ -12,6 +12,7 @@ import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRecommendRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRepoImpl
 import com.naaammme.bbspace.core.data.repository.SearchRepoImpl
+import com.naaammme.bbspace.core.data.repository.SpaceRepoImpl
 import com.naaammme.bbspace.core.data.repository.VodDanmakuRepoImpl
 import com.naaammme.bbspace.core.data.repository.VideoDetailRepoImpl
 import com.naaammme.bbspace.core.data.repository.VideoPlayerRepoImpl
@@ -27,6 +28,7 @@ import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
 import com.naaammme.bbspace.core.domain.search.SearchRepository
+import com.naaammme.bbspace.core.domain.space.SpaceRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import dagger.Binds
 import dagger.Module
@@ -73,6 +75,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindSearchRepo(impl: SearchRepoImpl): SearchRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSpaceRepo(impl: SpaceRepoImpl): SpaceRepository
 
     @Binds
     @Singleton

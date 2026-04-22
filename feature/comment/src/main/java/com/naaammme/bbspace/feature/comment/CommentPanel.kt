@@ -31,13 +31,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CommentCardSkeleton
 import com.naaammme.bbspace.core.designsystem.component.CommentHeaderSkeleton
+import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
+import com.naaammme.bbspace.core.model.CommentUser
+import com.naaammme.bbspace.core.model.SpaceRoute
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun CommentPanel(
     subject: CommentSubject?,
+    onOpenSpace: (SpaceRoute) -> Unit = {},
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     viewModel: CommentViewModel = hiltViewModel()
@@ -152,7 +156,10 @@ fun CommentPanel(
                     CommentCard(
                         reply = reply,
                         isLoading = { rpid -> rpid in uiState.loadingReplyIds },
-                        onTranslate = viewModel::translateReply
+                        onTranslate = viewModel::translateReply,
+                        onOpenUser = { user ->
+                            user.toSpaceRoute(subject)?.let(onOpenSpace)
+                        }
                     )
                 }
             }
@@ -305,3 +312,15 @@ private fun RetryCard(
 
 private const val INIT_SKELETON_COUNT = 4
 private const val LOAD_MORE_SKELETON_COUNT = 2
+
+private fun CommentUser.toSpaceRoute(subject: CommentSubject?): SpaceRoute? {
+    if (mid <= 0L && name.isBlank()) return null
+    return SpaceRoute(
+        mid = mid,
+        name = name.takeIf(String::isNotBlank),
+        fromViewAid = subject
+            ?.takeIf { it.type == CommentSubjectTool.TYPE_VIDEO }
+            ?.oid
+            ?.takeIf { it > 0L }
+    )
+}

@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.feature.auth.navigation.ACCOUNT_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.LOGIN_ROUTE
@@ -39,6 +40,8 @@ import com.naaammme.bbspace.feature.live.navigation.liveScreen
 import com.naaammme.bbspace.feature.live.navigation.navigateToLive
 import com.naaammme.bbspace.feature.search.navigation.navigateToSearch
 import com.naaammme.bbspace.feature.search.navigation.searchScreen
+import com.naaammme.bbspace.feature.space.navigation.navigateToSpace
+import com.naaammme.bbspace.feature.space.navigation.spaceScreen
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
 import com.naaammme.bbspace.feature.user.UserScreen
@@ -72,6 +75,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                 onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
                 onNavigateToBbSpace = { rootNavController.navigateToBbSpace() },
                 onNavigateToVideo = rootNavController::navigateToVideo,
+                onNavigateToSpace = rootNavController::navigateToSpace,
                 onNavigateToLive = rootNavController::navigateToLive
             )
         }
@@ -108,9 +112,14 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             onBack = { rootNavController.popBackStack() },
             onOpenVideo = rootNavController::navigateToVideo
         )
-        videoScreen(
+        spaceScreen(
             onBack = { rootNavController.popBackStack() },
             onOpenVideo = rootNavController::navigateToVideo
+        )
+        videoScreen(
+            onBack = { rootNavController.popBackStack() },
+            onOpenVideo = rootNavController::navigateToVideo,
+            onOpenSpace = rootNavController::navigateToSpace
         )
         liveScreen(
             onBack = { rootNavController.popBackStack() }
@@ -125,6 +134,7 @@ private fun MainTabsScaffold(
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
     onNavigateToVideo: (VideoRoute) -> Unit,
+    onNavigateToSpace: (SpaceRoute) -> Unit,
     onNavigateToLive: (LiveRoute) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
@@ -154,13 +164,15 @@ private fun MainTabsScaffold(
                                 onNavigateToSearch = onNavigateToSearch,
                                 onNavigateToSettings = onNavigateToSettings,
                                 onOpenVideo = onNavigateToVideo,
+                                onOpenSpace = onNavigateToSpace,
                                 onOpenLive = onNavigateToLive
                             )
                             TopLevelRoute.DYNAMIC -> PlaceholderScreen("动态")
                             TopLevelRoute.MESSAGE -> PlaceholderScreen("消息")
                             TopLevelRoute.PROFILE -> UserScreen(
                                 onNavigateToAccount = onNavigateToAccount,
-                                onNavigateToBbSpace = onNavigateToBbSpace
+                                onNavigateToBbSpace = onNavigateToBbSpace,
+                                onOpenSpace = onNavigateToSpace
                             )
                         }
                     }

@@ -84,6 +84,7 @@ dependencies {
     implementation(project(":feature:home"))
     implementation(project(":feature:dynamic"))
     implementation(project(":feature:search"))
+    implementation(project(":feature:space"))
     implementation(project(":feature:user"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:settings"))

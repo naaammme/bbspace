@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.feature.home.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,12 +37,14 @@ import com.naaammme.bbspace.core.designsystem.component.AdaptiveMediaGrid
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.LiveRecommendItem
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.SpaceRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeLivePage(
     isActive: Boolean,
     onOpenLive: (LiveRoute) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
     viewModel: HomeLiveViewModel = hiltViewModel()
 ) {
     val items = viewModel.items.collectAsStateWithLifecycle().value
@@ -68,7 +71,8 @@ fun HomeLivePage(
     ) { item ->
         LiveRecommendCard(
             item = item,
-            onClick = { onOpenLive(item.route) }
+            onClick = { onOpenLive(item.route) },
+            onOpenSpace = onOpenSpace
         )
     }
 }
@@ -103,7 +107,8 @@ private fun LiveEmptyState(errorMessage: String?) {
 @Composable
 private fun LiveRecommendCard(
     item: LiveRecommendItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit
 ) {
     val context = LocalContext.current
     val imageRequest = remember(item.cover) {
@@ -150,6 +155,17 @@ private fun LiveRecommendCard(
             }
 
             Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                val spaceRoute = item.ownerMid?.let { mid ->
+                    SpaceRoute(
+                        mid = mid,
+                        name = item.ownerName
+                    )
+                }
+                val ownerNameClickModifier = if (spaceRoute == null) {
+                    Modifier
+                } else {
+                    Modifier.clickable { onOpenSpace(spaceRoute) }
+                }
                 Text(
                     text = item.title,
                     maxLines = 2,
@@ -164,7 +180,8 @@ private fun LiveRecommendCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = ownerNameClickModifier
                     )
                 }
 

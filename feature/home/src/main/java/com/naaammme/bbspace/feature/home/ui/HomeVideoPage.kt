@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.feature.home.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,7 @@ import com.naaammme.bbspace.core.designsystem.component.AdaptiveMediaGrid
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.FeedItem
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.VideoRoute
 
@@ -56,6 +58,7 @@ fun HomeVideoPage(
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onOpenVideo: (VideoRoute) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
     onOpenLive: (LiveRoute) -> Unit
 ) {
     AdaptiveMediaGrid(
@@ -74,6 +77,7 @@ fun HomeVideoPage(
     ) { item ->
         FeedCard(
             item = item,
+            onOpenSpace = onOpenSpace,
             onClick = {
                 item.liveRoute?.let(onOpenLive)
                     ?: item.route?.let(onOpenVideo)
@@ -83,7 +87,11 @@ fun HomeVideoPage(
 }
 
 @Composable
-private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
+private fun FeedCard(
+    item: FeedItem,
+    onOpenSpace: (SpaceRoute) -> Unit,
+    onClick: () -> Unit
+) {
     val context = LocalContext.current
     val imageRequest = remember(item.cover) {
         ImageRequest.Builder(context)
@@ -141,6 +149,18 @@ private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
             }
 
             Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                val spaceRoute = item.args?.let { args ->
+                    if (args.upId <= 0L && args.upName.isNullOrBlank()) {
+                        null
+                    } else {
+                        SpaceRoute(
+                            mid = args.upId,
+                            name = args.upName,
+                            fromViewAid = args.aid.takeIf { it > 0L }
+                                ?: (item.route as? VideoRoute.Ugc)?.aid?.takeIf { it > 0L }
+                        )
+                    }
+                }
                 Text(
                     text = item.title,
                     maxLines = 2,
@@ -154,6 +174,11 @@ private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val upNameClickModifier = if (spaceRoute == null) {
+                        Modifier
+                    } else {
+                        Modifier.clickable { onOpenSpace(spaceRoute) }
+                    }
                     val upName = item.descButton?.text ?: item.args?.upName ?: ""
                     if (upName.isNotEmpty()) {
                         Text(
@@ -162,7 +187,9 @@ private fun FeedCard(item: FeedItem, onClick: () -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .then(upNameClickModifier)
                         )
                     }
 

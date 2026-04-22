@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoRoute
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -47,6 +48,7 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onOpenVideo: (VideoRoute) -> Unit = {},
+    onOpenSpace: (SpaceRoute) -> Unit = {},
     onOpenLive: (LiveRoute) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -92,12 +94,14 @@ fun HomeScreen(
                     onRefresh = viewModel::refresh,
                     onLoadMore = viewModel::loadMore,
                     onOpenVideo = onOpenVideo,
+                    onOpenSpace = onOpenSpace,
                     onOpenLive = onOpenLive
                 )
 
                 else -> HomeLivePage(
                     isActive = pagerState.currentPage == page,
-                    onOpenLive = onOpenLive
+                    onOpenLive = onOpenLive,
+                    onOpenSpace = onOpenSpace
                 )
             }
         }

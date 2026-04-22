@@ -93,6 +93,9 @@ class LiveRecommendRepoImpl @Inject constructor(
         val cover = card.optString("cover")
             .ifBlank { card.optString("system_cover") }
             .replace("http://", "https://")
+        val ownerMid = card.optLong("uid")
+            .takeIf { it > 0L }
+            ?: card.optLong("mid").takeIf { it > 0L }
         val ownerName = card.optString("uname")
             .takeIf { it.isNotBlank() }
             ?: card.optJSONObject("subtitle_style")
@@ -114,6 +117,7 @@ class LiveRecommendRepoImpl @Inject constructor(
             roomId = roomId,
             title = card.optString("title").ifBlank { "直播间 $roomId" },
             cover = cover,
+            ownerMid = ownerMid,
             ownerName = ownerName,
             areaName = areaName,
             onlineText = onlineText,

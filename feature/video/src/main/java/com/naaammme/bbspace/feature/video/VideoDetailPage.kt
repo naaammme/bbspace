@@ -61,6 +61,8 @@ import com.naaammme.bbspace.core.designsystem.component.VideoDetailInfoSkeleton
 import com.naaammme.bbspace.core.designsystem.component.VideoRelateCardSkeleton
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.QualityOption
+import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.core.model.SpaceRouteTool
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoOwner
 import com.naaammme.bbspace.core.model.VideoPagePart
@@ -81,6 +83,7 @@ internal fun VideoDetailPage(
     playerSpaceWidth: Dp,
     playerSpaceHeight: Dp,
     onOpenVideo: (VideoRoute) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
     onOpenEpisode: (VideoRoute.Ugc) -> Unit,
     onSwitchPage: (Long) -> Unit
 ) {
@@ -121,7 +124,8 @@ internal fun VideoDetailPage(
                 onToggleTag = { tagOn = !tagOn },
                 onSeasonClick = { sheetTp = SHEET_SEASON },
                 onPageClick = { sheetTp = SHEET_PAGE },
-                onOpenVideo = onOpenVideo
+                onOpenVideo = onOpenVideo,
+                onOpenSpace = onOpenSpace
             )
         }
     } else {
@@ -140,7 +144,8 @@ internal fun VideoDetailPage(
             onToggleTag = { tagOn = !tagOn },
             onSeasonClick = { sheetTp = SHEET_SEASON },
             onPageClick = { sheetTp = SHEET_PAGE },
-            onOpenVideo = onOpenVideo
+            onOpenVideo = onOpenVideo,
+            onOpenSpace = onOpenSpace
         )
     }
 
@@ -183,7 +188,8 @@ private fun DetailPager(
     onToggleTag: () -> Unit,
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
-    onOpenVideo: (VideoRoute) -> Unit
+    onOpenVideo: (VideoRoute) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
     val itemMod = if (horizontalPad > 0.dp) {
@@ -207,11 +213,13 @@ private fun DetailPager(
                 onToggleTag = onToggleTag,
                 onSeasonClick = onSeasonClick,
                 onPageClick = onPageClick,
-                onOpenVideo = onOpenVideo
+                onOpenVideo = onOpenVideo,
+                onOpenSpace = onOpenSpace
             )
 
             else -> CommentPanel(
                 subject = commentSubject,
+                onOpenSpace = onOpenSpace,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = horizontalPad,
@@ -235,7 +243,8 @@ private fun VideoInfoList(
     onToggleTag: () -> Unit,
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
-    onOpenVideo: (VideoRoute) -> Unit
+    onOpenVideo: (VideoRoute) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -251,7 +260,8 @@ private fun VideoInfoList(
             onToggleTag = onToggleTag,
             onSeasonClick = onSeasonClick,
             onPageClick = onPageClick,
-            onOpenVideo = onOpenVideo
+            onOpenVideo = onOpenVideo,
+            onOpenSpace = onOpenSpace
         )
     }
 }
@@ -265,7 +275,8 @@ private fun LazyListScope.detailItems(
     onToggleTag: () -> Unit,
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
-    onOpenVideo: (VideoRoute) -> Unit
+    onOpenVideo: (VideoRoute) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit
 ) {
     when {
         pageState.detailLoading -> {
@@ -309,6 +320,7 @@ private fun LazyListScope.detailItems(
                     tagOn = tagOn,
                     onToggleDesc = onToggleDesc,
                     onToggleTag = onToggleTag,
+                    onOpenSpace = onOpenSpace,
                     modifier = itemMod
                 )
             }
@@ -378,14 +390,21 @@ private fun VideoSummarySection(
     tagOn: Boolean,
     onToggleDesc: () -> Unit,
     onToggleTag: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val spaceRoute = detail.toSpaceRouteOrNull()
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         detail.owner?.let { owner ->
-            OwnerCapsule(owner = owner)
+            OwnerCapsule(
+                owner = owner,
+                onClick = spaceRoute?.let { route ->
+                    { onOpenSpace(route) }
+                }
+            )
         }
         InfoCapsule(
             detail = detail,
@@ -403,9 +422,13 @@ private fun VideoSummarySection(
 @Composable
 private fun OwnerCapsule(
     owner: VideoOwner,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    CapsuleCard(modifier = modifier) {
+    CapsuleCard(
+        modifier = modifier,
+        onClick = onClick
+    ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -559,19 +582,37 @@ private fun ActionCapsule(
 @Composable
 private fun CapsuleCard(
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+    if (onClick != null) {
+        Card(
+            onClick = onClick,
+            modifier = modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
         ) {
-            content()
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                content()
+            }
+        }
+    } else {
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                content()
+            }
         }
     }
 }
@@ -1184,6 +1225,17 @@ private fun pageTitle(
 
 private fun formatPubTime(ts: Long): String {
     return DateFormat.format("yyyy-MM-dd HH:mm", ts * 1000).toString()
+}
+
+private fun VideoDetail.toSpaceRouteOrNull(): SpaceRoute? {
+    val owner = owner ?: return null
+    if (owner.mid <= 0L && owner.name.isBlank()) return null
+    return SpaceRoute(
+        mid = owner.mid,
+        name = owner.name.takeIf(String::isNotBlank),
+        from = SpaceRouteTool.FROM_DEFAULT,
+        fromViewAid = aid.takeIf { it > 0L }
+    )
 }
 
 private const val DETAIL_RELATE_SKELETON_COUNT = 2

@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.feature.user
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
+import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.User
 import com.naaammme.bbspace.feature.user.model.UserViewModel
 
@@ -53,6 +55,7 @@ import com.naaammme.bbspace.feature.user.model.UserViewModel
 fun UserScreen(
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit = {},
     vm: UserViewModel = hiltViewModel()
 ) {
     val user by vm.user.collectAsStateWithLifecycle()
@@ -81,7 +84,10 @@ fun UserScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
         ) {
-            UserInfoSection(user)
+            UserInfoSection(
+                user = user,
+                onOpenSpace = onOpenSpace
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -134,7 +140,25 @@ fun UserScreen(
 }
 
 @Composable
-private fun UserInfoSection(user: User?) {
+private fun UserInfoSection(
+    user: User?,
+    onOpenSpace: (SpaceRoute) -> Unit
+) {
+    val spaceRoute = user?.let {
+        if (it.mid <= 0L && it.name.isBlank()) {
+            null
+        } else {
+            SpaceRoute(
+                mid = it.mid,
+                name = it.name.takeIf(String::isNotBlank)
+            )
+        }
+    }
+    val avatarClickModifier = if (spaceRoute == null) {
+        Modifier
+    } else {
+        Modifier.clickable { onOpenSpace(spaceRoute) }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -149,12 +173,14 @@ private fun UserInfoSection(user: User?) {
                     .size(72.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .then(avatarClickModifier)
             )
         } else {
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                    .then(avatarClickModifier),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
