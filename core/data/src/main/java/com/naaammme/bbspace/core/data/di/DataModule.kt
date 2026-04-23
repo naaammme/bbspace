@@ -9,6 +9,7 @@ import com.naaammme.bbspace.core.data.repository.LocalHistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.AuthRepoImpl
 import com.naaammme.bbspace.core.data.repository.CommentRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
+import com.naaammme.bbspace.core.data.repository.HistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRecommendRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRepoImpl
 import com.naaammme.bbspace.core.data.repository.SearchRepoImpl
@@ -20,6 +21,7 @@ import com.naaammme.bbspace.core.domain.auth.AuthRepository
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
 import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
+import com.naaammme.bbspace.core.domain.history.HistoryRepository
 import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
 import com.naaammme.bbspace.core.domain.live.LivePlaybackController
 import com.naaammme.bbspace.core.domain.live.LiveRecommendRepository
@@ -75,6 +77,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindSearchRepo(impl: SearchRepoImpl): SearchRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHistoryRepo(impl: HistoryRepoImpl): HistoryRepository
 
     @Binds
     @Singleton

@@ -82,9 +82,13 @@ data class VideoSrc(
 object VideoRouteTool {
     const val SPMID = "united.player-video-detail.0.0"
     const val FROM_FEED = "7"
+    const val FROM_HISTORY = "64"
+    const val FROM_SPACE = "66"
     const val FROM_SEARCH = "3"
     const val FROM_RELATE = "2"
     const val FROM_SPMID_FEED = "tm.recommend.0.0"
+    const val FROM_SPMID_HISTORY = "main.my-history.0.0"
+    const val FROM_SPMID_SPACE = "main.space-contribution.0.0"
     const val FROM_SPMID_SEARCH = "search.search-result.0.0"
     private const val RELATE_SPMID_PRE = "united.player-video-detail.relatedvideo"
 
@@ -95,6 +99,30 @@ object VideoRouteTool {
         return VideoSrc(
             from = FROM_FEED,
             fromSpmid = FROM_SPMID_FEED,
+            trackId = trackId.blankToNull(),
+            reportFlowData = reportFlowData.blankToNull()
+        )
+    }
+
+    fun history(
+        trackId: String? = null,
+        reportFlowData: String? = null
+    ): VideoSrc {
+        return VideoSrc(
+            from = FROM_HISTORY,
+            fromSpmid = FROM_SPMID_HISTORY,
+            trackId = trackId.blankToNull(),
+            reportFlowData = reportFlowData.blankToNull()
+        )
+    }
+
+    fun space(
+        trackId: String? = null,
+        reportFlowData: String? = null
+    ): VideoSrc {
+        return VideoSrc(
+            from = FROM_SPACE,
+            fromSpmid = FROM_SPMID_SPACE,
             trackId = trackId.blankToNull(),
             reportFlowData = reportFlowData.blankToNull()
         )

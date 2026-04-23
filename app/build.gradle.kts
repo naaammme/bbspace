@@ -89,6 +89,7 @@ dependencies {
     implementation(project(":feature:auth"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:bbspace"))
+    implementation(project(":feature:history"))
     implementation(project(":feature:comment"))
     implementation(project(":feature:video"))
     implementation(project(":feature:live"))

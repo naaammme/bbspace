@@ -55,6 +55,7 @@ import com.naaammme.bbspace.feature.user.model.UserViewModel
 fun UserScreen(
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit = {},
     vm: UserViewModel = hiltViewModel()
 ) {
@@ -95,7 +96,7 @@ fun UserScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            FeatureEntryRow()
+            FeatureEntryRow(onNavigateToHistory = onNavigateToHistory)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -261,7 +262,7 @@ private fun StatItem(value: String, label: String) {
 }
 
 @Composable
-private fun FeatureEntryRow() {
+private fun FeatureEntryRow(onNavigateToHistory: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -273,7 +274,7 @@ private fun FeatureEntryRow() {
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             FeatureEntry(Icons.Default.Refresh, "离线缓存")
-            FeatureEntry(Icons.Default.DateRange, "历史记录")
+            FeatureEntry(Icons.Default.DateRange, "历史记录", onClick = onNavigateToHistory)
             FeatureEntry(Icons.Default.FavoriteBorder, "收藏")
             FeatureEntry(Icons.Default.Star, "稍后再看")
         }
@@ -281,10 +282,19 @@ private fun FeatureEntryRow() {
 }
 
 @Composable
-private fun FeatureEntry(icon: ImageVector, label: String) {
+private fun FeatureEntry(
+    icon: ImageVector,
+    label: String,
+    onClick: (() -> Unit)? = null
+) {
+    val clickModifier = if (onClick == null) {
+        Modifier
+    } else {
+        Modifier.clickable(onClick = onClick)
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 8.dp)
+        modifier = clickModifier.padding(horizontal = 8.dp)
     ) {
         Icon(
             imageVector = icon,

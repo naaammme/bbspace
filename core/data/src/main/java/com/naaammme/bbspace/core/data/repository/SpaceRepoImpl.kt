@@ -210,7 +210,8 @@ class SpaceRepoImpl @Inject constructor(
                     aid = aid,
                     cid = cid,
                     bvid = item.optString("bvid").ifBlank { null }
-                        ?: VideoRouteTool.bvid(uri)
+                        ?: VideoRouteTool.bvid(uri),
+                    src = VideoRouteTool.space()
                 )
                 add(
                     SpaceVideo(

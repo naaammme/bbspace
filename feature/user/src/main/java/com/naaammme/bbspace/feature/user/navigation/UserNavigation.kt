@@ -8,12 +8,14 @@ const val USER_ROUTE = "user"
 
 fun NavGraphBuilder.userScreen(
     onNavigateToAccount: () -> Unit,
-    onNavigateToBbSpace: () -> Unit
+    onNavigateToBbSpace: () -> Unit,
+    onNavigateToHistory: () -> Unit
 ) {
     composable(USER_ROUTE) {
         UserScreen(
             onNavigateToAccount = onNavigateToAccount,
-            onNavigateToBbSpace = onNavigateToBbSpace
+            onNavigateToBbSpace = onNavigateToBbSpace,
+            onNavigateToHistory = onNavigateToHistory
         )
     }
 }

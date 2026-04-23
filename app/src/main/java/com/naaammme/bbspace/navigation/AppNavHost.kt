@@ -35,6 +35,8 @@ import com.naaammme.bbspace.feature.auth.navigation.loginScreen
 import com.naaammme.bbspace.feature.auth.navigation.smsLoginScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.bbSpaceScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.navigateToBbSpace
+import com.naaammme.bbspace.feature.history.navigation.historyScreen
+import com.naaammme.bbspace.feature.history.navigation.navigateToHistory
 import com.naaammme.bbspace.feature.home.ui.HomeScreen
 import com.naaammme.bbspace.feature.live.navigation.liveScreen
 import com.naaammme.bbspace.feature.live.navigation.navigateToLive
@@ -74,6 +76,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                 onNavigateToSettings = { rootNavController.navigate(SETTINGS_ROUTE) },
                 onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
                 onNavigateToBbSpace = { rootNavController.navigateToBbSpace() },
+                onNavigateToHistory = { rootNavController.navigateToHistory() },
                 onNavigateToVideo = rootNavController::navigateToVideo,
                 onNavigateToSpace = rootNavController::navigateToSpace,
                 onNavigateToLive = rootNavController::navigateToLive
@@ -112,6 +115,11 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             onBack = { rootNavController.popBackStack() },
             onOpenVideo = rootNavController::navigateToVideo
         )
+        historyScreen(
+            onBack = { rootNavController.popBackStack() },
+            onOpenVideo = rootNavController::navigateToVideo,
+            onOpenLive = rootNavController::navigateToLive
+        )
         spaceScreen(
             onBack = { rootNavController.popBackStack() },
             onOpenVideo = rootNavController::navigateToVideo
@@ -133,6 +141,7 @@ private fun MainTabsScaffold(
     onNavigateToSettings: () -> Unit,
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     onNavigateToVideo: (VideoRoute) -> Unit,
     onNavigateToSpace: (SpaceRoute) -> Unit,
     onNavigateToLive: (LiveRoute) -> Unit
@@ -172,6 +181,7 @@ private fun MainTabsScaffold(
                             TopLevelRoute.PROFILE -> UserScreen(
                                 onNavigateToAccount = onNavigateToAccount,
                                 onNavigateToBbSpace = onNavigateToBbSpace,
+                                onNavigateToHistory = onNavigateToHistory,
                                 onOpenSpace = onNavigateToSpace
                             )
                         }
