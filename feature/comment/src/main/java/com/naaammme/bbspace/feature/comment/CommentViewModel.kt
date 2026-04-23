@@ -2,6 +2,7 @@ package com.naaammme.bbspace.feature.comment
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.naaammme.bbspace.core.domain.auth.AuthRepository
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
 import com.naaammme.bbspace.core.model.COMMENT_FILTER_ALL
 import com.naaammme.bbspace.core.model.CommentPage
@@ -14,12 +15,14 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class CommentViewModel @Inject constructor(
-    private val repo: CommentRepository
+    private val repo: CommentRepository,
+    authRepo: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CommentUiState())
@@ -29,11 +32,26 @@ class CommentViewModel @Inject constructor(
 
     private var reqId = 0L
 
+    init {
+        viewModelScope.launch {
+            authRepo.currentMidFlow.collectLatest { mid ->
+                _uiState.update { cur ->
+                    cur.copy(
+                        currentMid = mid,
+                        editor = if (mid > 0L) cur.editor else CommentEditorState()
+                    )
+                }
+            }
+        }
+    }
+
     fun bind(subject: CommentSubject?) {
         if (_uiState.value.subject == subject) return
         reqId += 1L
+        val currentMid = _uiState.value.currentMid
         _uiState.value = CommentUiState(
             subject = subject,
+            currentMid = currentMid,
             loading = subject != null
         )
         if (subject != null) {
@@ -233,9 +251,9 @@ class CommentViewModel @Inject constructor(
     fun translateReply(rpid: Long) {
         val state = _uiState.value
         val subject = state.subject ?: return
-        if (rpid in state.loadingReplyIds) return
+        if (rpid in state.busyReplyIds) return
         _uiState.update {
-            it.copy(loadingReplyIds = it.loadingReplyIds + rpid)
+            it.copy(busyReplyIds = it.busyReplyIds + rpid)
         }
         viewModelScope.launch {
             val result = runCatching {
@@ -243,7 +261,7 @@ class CommentViewModel @Inject constructor(
             }
             if (_uiState.value.subject != subject) return@launch
             _uiState.update {
-                it.copy(loadingReplyIds = it.loadingReplyIds - rpid)
+                it.copy(busyReplyIds = it.busyReplyIds - rpid)
             }
             result.fold(
                 onSuccess = { translated ->
@@ -280,6 +298,139 @@ class CommentViewModel @Inject constructor(
         }
     }
 
+    fun deleteReply(reply: CommentReply) {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        if (reply.rpid in state.busyReplyIds) return
+        _uiState.update {
+            it.copy(busyReplyIds = it.busyReplyIds + reply.rpid)
+        }
+        viewModelScope.launch {
+            val result = runCatching {
+                repo.deleteReply(subject, reply.rpid)
+            }
+            if (_uiState.value.subject != subject) return@launch
+            _uiState.update {
+                it.copy(busyReplyIds = it.busyReplyIds - reply.rpid)
+            }
+            result.fold(
+                onSuccess = {
+                    _uiState.update { cur -> removeDeletedReply(cur, reply) }
+                    _msg.tryEmit("评论已删除")
+                },
+                onFailure = { err ->
+                    _msg.tryEmit(err.message ?: "删除评论失败")
+                }
+            )
+        }
+    }
+
+    fun openEditor() {
+        val state = _uiState.value
+        if (state.subject == null) return
+        if (state.currentMid <= 0L) {
+            _msg.tryEmit("请先登录")
+            return
+        }
+        showEditor(
+            state = state,
+            target = state.threadPane?.let { thread ->
+                CommentEditorTarget(
+                    rootRpid = thread.root.rpid,
+                    parentRpid = thread.root.rpid,
+                    parentName = thread.root.user.name
+                )
+            } ?: CommentEditorTarget()
+        )
+    }
+
+    fun replyTo(reply: CommentReply) {
+        val state = _uiState.value
+        if (state.subject == null) return
+        if (state.currentMid <= 0L) {
+            _msg.tryEmit("请先登录")
+            return
+        }
+        showEditor(
+            state = state,
+            target = replyTarget(state, reply)
+        )
+    }
+
+    fun dismissEditor() {
+        val editor = _uiState.value.editor
+        if (editor.loading || !editor.visible) return
+        _uiState.update {
+            it.copy(editor = editor.copy(visible = false))
+        }
+    }
+
+    fun updateEditorInput(value: String) {
+        _uiState.update {
+            it.copy(editor = it.editor.copy(input = value))
+        }
+    }
+
+    fun submitEditor() {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        if (state.currentMid <= 0L) {
+            _msg.tryEmit("请先登录")
+            return
+        }
+        val editor = state.editor
+        if (editor.loading) return
+        val message = editor.input.trim()
+        if (message.isBlank()) {
+            _msg.tryEmit("评论内容不能为空")
+            return
+        }
+        val callId = reqId
+        val target = editor.target
+        val sort = state.threadPane
+            ?.takeIf { it.root.rpid == target.rootRpid && target.rootRpid > 0L }
+            ?.sort
+            ?: state.sort
+        _uiState.update {
+            it.copy(editor = editor.copy(loading = true))
+        }
+        viewModelScope.launch {
+            val publishResult = runCatching {
+                repo.publishReply(
+                    subject = subject,
+                    message = message,
+                    rootRpid = target.rootRpid,
+                    parentRpid = target.parentRpid,
+                    sort = sort
+                )
+            }
+            if (callId != reqId || _uiState.value.subject != subject) return@launch
+            publishResult.fold(
+                onSuccess = { published ->
+                    val insertedReply = if (target.isReply && published.parentName.isNullOrBlank()) {
+                        published.copy(parentName = target.parentName)
+                    } else {
+                        published
+                    }
+                    _uiState.update {
+                        insertPublishedReply(
+                            state = it.copy(editor = CommentEditorState()),
+                            target = target,
+                            reply = insertedReply
+                        )
+                    }
+                    _msg.tryEmit(if (target.isReply) "回复已发送" else "评论已发送")
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(editor = it.editor.copy(loading = false))
+                    }
+                    _msg.tryEmit(err.message ?: "发送评论失败")
+                }
+            )
+        }
+    }
+
     private fun refresh(
         subject: CommentSubject,
         sort: CommentSort,
@@ -298,6 +449,7 @@ class CommentViewModel @Inject constructor(
                 selectedFilter = filter,
                 items = emptyList(),
                 threadPane = null,
+                editor = CommentEditorState(),
                 nextOffset = null,
                 hasMore = false,
                 endText = null
@@ -314,7 +466,7 @@ class CommentViewModel @Inject constructor(
             if (callId != reqId) return@launch
             result.fold(
                 onSuccess = { page ->
-                    _uiState.value = page.toUiState()
+                    _uiState.value = page.toUiState(currentMid = _uiState.value.currentMid)
                 },
                 onFailure = { err ->
                     _uiState.update {
@@ -405,9 +557,47 @@ class CommentViewModel @Inject constructor(
         }
     }
 
-    private fun CommentPage.toUiState(): CommentUiState {
+    private fun showEditor(
+        state: CommentUiState,
+        target: CommentEditorTarget
+    ) {
+        if (state.editor.loading) return
+        _uiState.update { cur ->
+            val reuseInput = if (cur.editor.target == target) cur.editor.input else ""
+            cur.copy(
+                editor = CommentEditorState(
+                    visible = true,
+                    input = reuseInput,
+                    target = target
+                )
+            )
+        }
+    }
+
+    private fun replyTarget(
+        state: CommentUiState,
+        reply: CommentReply
+    ): CommentEditorTarget {
+        val thread = state.threadPane
+        return if (thread == null || thread.root.rpid == reply.rpid) {
+            CommentEditorTarget(
+                rootRpid = reply.rpid,
+                parentRpid = reply.rpid,
+                parentName = reply.user.name
+            )
+        } else {
+            CommentEditorTarget(
+                rootRpid = thread.root.rpid,
+                parentRpid = reply.rpid,
+                parentName = reply.user.name
+            )
+        }
+    }
+
+    private fun CommentPage.toUiState(currentMid: Long): CommentUiState {
         return CommentUiState(
             subject = subject,
+            currentMid = currentMid,
             loading = false,
             title = title,
             count = count,
@@ -477,5 +667,108 @@ class CommentViewModel @Inject constructor(
             }
         }
         return if (changed) next else items
+    }
+
+    private fun insertPublishedReply(
+        state: CommentUiState,
+        target: CommentEditorTarget,
+        reply: CommentReply
+    ): CommentUiState {
+        val nextCount = state.count + 1L
+        if (!target.isReply) {
+            val insertIndex = state.items.indexOfFirst { it.topLabel == null }
+                .let { index -> if (index >= 0) index else state.items.size }
+            return state.copy(
+                count = nextCount,
+                items = state.items.toMutableList().apply {
+                    add(insertIndex, reply)
+                }
+            )
+        }
+
+        val thread = state.threadPane
+        if (thread != null && thread.root.rpid == target.rootRpid) {
+            val nextRoot = thread.root.copy(
+                replyCount = thread.root.replyCount + 1L,
+                replyEntryText = null
+            )
+            val insertIndex = if (target.parentRpid == target.rootRpid) {
+                0
+            } else {
+                (thread.items.indexOfFirst { it.rpid == target.parentRpid } + 1).coerceAtLeast(0)
+            }
+            return state.copy(
+                count = nextCount,
+                items = state.items.map { item ->
+                    if (item.rpid == nextRoot.rpid) {
+                        nextRoot
+                    } else {
+                        item
+                    }
+                },
+                threadPane = thread.copy(
+                    root = nextRoot,
+                    count = thread.count + 1L,
+                    items = thread.items.toMutableList().apply {
+                        add(insertIndex.coerceAtMost(size), reply)
+                    }
+                )
+            )
+        }
+
+        return state.copy(
+            count = nextCount,
+            items = state.items.map { item ->
+                if (item.rpid == target.rootRpid) {
+                    item.copy(
+                        replyCount = item.replyCount + 1L,
+                        replyEntryText = null
+                    )
+                } else {
+                    item
+                }
+            }
+        )
+    }
+
+    private fun removeDeletedReply(
+        state: CommentUiState,
+        reply: CommentReply
+    ): CommentUiState {
+        val thread = state.threadPane
+        if (thread != null && thread.root.rpid != reply.rpid) {
+            val nextThreadItems = thread.items.filterNot { it.rpid == reply.rpid }
+            if (nextThreadItems.size != thread.items.size) {
+                val nextRoot = thread.root.copy(
+                    replyCount = (thread.root.replyCount - 1L).coerceAtLeast(0L),
+                    replyEntryText = null
+                )
+                return state.copy(
+                    count = (state.count - 1L).coerceAtLeast(0L),
+                    items = state.items.map { item ->
+                        if (item.rpid == nextRoot.rpid) {
+                            nextRoot
+                        } else {
+                            item
+                        }
+                    },
+                    threadPane = thread.copy(
+                        root = nextRoot,
+                        count = (thread.count - 1L).coerceAtLeast(0L),
+                        items = nextThreadItems
+                    )
+                )
+            }
+        }
+
+        val nextItems = state.items.filterNot { it.rpid == reply.rpid }
+        val removedFromMain = nextItems.size != state.items.size
+        val isThreadRoot = thread?.root?.rpid == reply.rpid
+        if (!removedFromMain && !isThreadRoot) return state
+        return state.copy(
+            count = (state.count - 1L).coerceAtLeast(0L),
+            items = nextItems,
+            threadPane = if (isThreadRoot) null else thread
+        )
     }
 }

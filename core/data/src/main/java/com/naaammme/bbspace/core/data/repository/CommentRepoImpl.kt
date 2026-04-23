@@ -11,6 +11,8 @@ import com.bapis.bilibili.main.community.reply.v1.TranslateReplyReq
 import com.bapis.bilibili.main.community.reply.v1.TranslateReplyResp
 import com.bapis.bilibili.main.community.reply.v1.WordSearchParam
 import com.bapis.bilibili.pagination.FeedPagination
+import com.naaammme.bbspace.core.common.AuthProvider
+import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
 import com.naaammme.bbspace.core.model.COMMENT_FILTER_ALL
 import com.naaammme.bbspace.core.model.CommentFilterTag
@@ -23,15 +25,89 @@ import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentUser
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
+import com.naaammme.bbspace.infra.network.BiliRestClient
+import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
+import com.naaammme.bbspace.infra.network.BiliRestProfile
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 @Singleton
 class CommentRepoImpl @Inject constructor(
-    private val grpcClient: BiliGrpcClient
+    private val grpcClient: BiliGrpcClient,
+    private val restClient: BiliRestClient,
+    private val restParamBuilder: BiliRestParamBuilder,
+    private val authProvider: AuthProvider
 ) : CommentRepository {
+
+    override suspend fun deleteReply(
+        subject: CommentSubject,
+        rpid: Long
+    ) {
+        val accessToken = authProvider.accessToken
+        check(accessToken.isNotBlank()) { "请先登录" }
+        val ts = System.currentTimeMillis() / 1000L
+        restClient.postSigned(
+            url = "${BiliConstants.BASE_URL_API}$DEL_ENDPOINT",
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, accessToken) + mapOf(
+                "oid" to subject.oid.toString(),
+                "type" to subject.type.toString(),
+                "rpid" to rpid.toString()
+            ),
+            profile = BiliRestProfile.APP
+        )
+    }
+
+    override suspend fun publishReply(
+        subject: CommentSubject,
+        message: String,
+        rootRpid: Long,
+        parentRpid: Long,
+        sort: CommentSort
+    ): CommentReply {
+        val accessToken = authProvider.accessToken
+        check(accessToken.isNotBlank()) { "请先登录" }
+        val ts = System.currentTimeMillis() / 1000L
+        val json = restClient.postSigned(
+            url = "${BiliConstants.BASE_URL_API}$ADD_ENDPOINT",
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, accessToken) + buildMap {
+                put("oid", subject.oid.toString())
+                put("type", subject.type.toString())
+                put("plat", "2")
+                put("from", subject.source.from)
+                put("message", message.trim())
+                put("ordering", sort.toOrdering())
+                put("scene", if (rootRpid > 0L || parentRpid > 0L) "detail" else subject.source.scene)
+                put("sync_to_dynamic", "false")
+                put("has_vote_option", "false")
+                if (rootRpid > 0L) {
+                    put("root", rootRpid.toString())
+                }
+                if (parentRpid > 0L) {
+                    put("parent", parentRpid.toString())
+                }
+                subject.source.goTo?.takeIf(String::isNotBlank)?.let { value ->
+                    put("goto", value)
+                }
+                subject.source.spmid.takeIf(String::isNotBlank)?.let { value ->
+                    put("spmid", value)
+                }
+                subject.source.fromSpmid?.takeIf(String::isNotBlank)?.let { value ->
+                    put("from_spmid", value)
+                }
+                subject.source.trackId?.takeIf(String::isNotBlank)?.let { value ->
+                    put("track_id", value)
+                }
+            },
+            profile = BiliRestProfile.APP
+        )
+        val reply = json.optJSONObject("data")
+            ?.optJSONObject("reply")
+            ?: error("发评响应缺少评论数据")
+        return mapPublishedReply(reply)
+    }
 
     override suspend fun fetchMainPage(
         subject: CommentSubject,
@@ -277,6 +353,43 @@ class CommentRepoImpl @Inject constructor(
         )
     }
 
+    private fun mapPublishedReply(reply: JSONObject): CommentReply {
+        val member = reply.optJSONObject("member")
+        val content = reply.optJSONObject("content")
+        val replyControl = reply.optJSONObject("reply_control")
+        val vip = member?.optJSONObject("vip")
+        val mid = reply.optLong("mid").takeIf { it > 0L }
+            ?: member?.optString("mid")?.toLongOrNull()
+            ?: 0L
+        val name = member?.optString("uname").orEmpty().ifBlank {
+            if (mid > 0L) {
+                "用户$mid"
+            } else {
+                "匿名用户"
+            }
+        }
+        return CommentReply(
+            rpid = reply.optLong("rpid"),
+            message = content?.optString("message").orEmpty().trim(),
+            likeCount = reply.optLong("like"),
+            replyCount = reply.optLong("count"),
+            timeText = replyControl?.optString("time_desc").orEmpty().ifBlank {
+                formatTime(reply.optLong("ctime"))
+            },
+            user = CommentUser(
+                mid = mid,
+                name = name,
+                face = member?.optString("avatar").orEmpty().toHttps().ifBlank { null },
+                level = member?.optJSONObject("level_info")
+                    ?.optInt("current_level")
+                    ?.takeIf { it > 0 },
+                vipLabel = vip?.optJSONObject("label")
+                    ?.optString("text")
+                    ?.takeIf(String::isNotBlank)
+            )
+        )
+    }
+
     private fun mapChildReplies(items: List<ReplyInfo>): List<CommentReply> {
         return items.asSequence()
             .filter { info ->
@@ -301,6 +414,13 @@ class CommentRepoImpl @Inject constructor(
         return when (this) {
             CommentSort.HOT -> Mode.MAIN_LIST_HOT
             CommentSort.TIME -> Mode.MAIN_LIST_TIME
+        }
+    }
+
+    private fun CommentSort.toOrdering(): String {
+        return when (this) {
+            CommentSort.HOT -> "heat"
+            CommentSort.TIME -> "time"
         }
     }
 
@@ -364,5 +484,7 @@ class CommentRepoImpl @Inject constructor(
         const val ENDPOINT = "bilibili.main.community.reply.v1.Reply/MainList"
         const val DETAIL_ENDPOINT = "bilibili.main.community.reply.v1.Reply/DetailList"
         const val TRANSLATE_ENDPOINT = "bilibili.main.community.reply.v1.Reply/TranslateReply"
+        const val ADD_ENDPOINT = "/x/v2/reply/add"
+        const val DEL_ENDPOINT = "/x/v2/reply/del"
     }
 }

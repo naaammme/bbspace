@@ -3,8 +3,11 @@ package com.naaammme.bbspace.feature.comment
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -14,6 +17,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,9 +35,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -65,10 +74,18 @@ fun CommentPanel(
         viewModel.bind(subject)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val layoutDirection = LocalLayoutDirection.current
+    val replyThread = uiState.threadPane
     val isInitLoading = subject != null && uiState.loading && uiState.items.isEmpty()
     val context = LocalContext.current
     val appCtx = remember(context) { context.applicationContext }
     val scope = rememberCoroutineScope()
+    val listContentPadding = PaddingValues(
+        start = contentPadding.calculateStartPadding(layoutDirection),
+        top = contentPadding.calculateTopPadding(),
+        end = contentPadding.calculateEndPadding(layoutDirection),
+        bottom = contentPadding.calculateBottomPadding() + COMMENT_FAB_SPACE
+    )
     val onSaveImage: (PreviewImage) -> Unit = { image ->
         scope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -91,11 +108,13 @@ fun CommentPanel(
         }
     }
     val listState = rememberLazyListState()
+    val threadListState = rememberLazyListState()
+    var fabVisible by remember { mutableStateOf(true) }
     val shouldLoadMore by remember {
         derivedStateOf {
             val total = listState.layoutInfo.totalItemsCount
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            uiState.threadPane == null &&
+            replyThread == null &&
             uiState.hasMore &&
                 !uiState.loading &&
                 !uiState.loadingMore &&
@@ -111,13 +130,37 @@ fun CommentPanel(
         }
     }
 
+    LaunchedEffect(replyThread != null) {
+        fabVisible = true
+    }
+
+    LaunchedEffect(listState, threadListState, replyThread != null) {
+        val activeListState = if (replyThread != null) threadListState else listState
+        var lastIndex = activeListState.firstVisibleItemIndex
+        var lastOffset = activeListState.firstVisibleItemScrollOffset
+        snapshotFlow {
+            activeListState.firstVisibleItemIndex to activeListState.firstVisibleItemScrollOffset
+        }.collectLatest { (index, offset) ->
+            fabVisible = when {
+                index == 0 && offset == 0 -> true
+                index > lastIndex -> false
+                index < lastIndex -> true
+                offset > lastOffset -> false
+                offset < lastOffset -> true
+                else -> fabVisible
+            }
+            lastIndex = index
+            lastOffset = offset
+        }
+    }
+
     LaunchedEffect(viewModel, context) {
         viewModel.msg.collectLatest { text ->
             Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
         }
     }
 
-    BackHandler(enabled = uiState.threadPane != null) {
+    BackHandler(enabled = replyThread != null) {
         viewModel.closeReplyThread()
     }
 
@@ -125,7 +168,7 @@ fun CommentPanel(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             state = listState,
-            contentPadding = contentPadding,
+            contentPadding = listContentPadding,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(
@@ -199,8 +242,11 @@ fun CommentPanel(
                     ) { reply ->
                         CommentCard(
                             reply = reply,
-                            isLoading = { rpid -> rpid in uiState.loadingReplyIds },
+                            currentMid = uiState.currentMid,
+                            isBusy = { rpid -> rpid in uiState.busyReplyIds },
                             onTranslate = viewModel::translateReply,
+                            onDelete = viewModel::deleteReply,
+                            onReply = viewModel::replyTo,
                             onSaveImage = onSaveImage,
                             onOpenReplies = viewModel::openReplyThread,
                             onOpenUser = { user ->
@@ -248,7 +294,7 @@ fun CommentPanel(
         }
         // 评论详情过渡动画
         AnimatedContent(
-            targetState = uiState.threadPane,
+            targetState = replyThread,
             contentKey = { it != null },
             transitionSpec = {
                 (slideInHorizontally { fullWidth -> fullWidth } + fadeIn())
@@ -259,20 +305,55 @@ fun CommentPanel(
             if (threadPane != null) {
                 CommentThreadPane(
                     state = threadPane,
-                    isLoading = { rpid -> rpid in uiState.loadingReplyIds },
+                    listState = threadListState,
+                    currentMid = uiState.currentMid,
+                    isBusy = { rpid -> rpid in uiState.busyReplyIds },
+                    onReply = viewModel::replyTo,
                     onSaveImage = onSaveImage,
                     onDismiss = viewModel::closeReplyThread,
                     onToggleSort = viewModel::toggleReplyThreadSort,
                     onTranslate = viewModel::translateReply,
+                    onDelete = viewModel::deleteReply,
                     onLoadMore = viewModel::loadMoreReplyThread,
                     onRetry = viewModel::retryReplyThread,
                     onOpenUser = { user ->
                         user.toSpaceRoute(subject)?.let(onOpenSpace)
                     },
+                    bottomPadding = COMMENT_FAB_SPACE,
                     modifier = Modifier.fillMaxSize()
                 )
             }
         }
+        if (uiState.subject != null) {
+            AnimatedVisibility(
+                visible = fabVisible,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = contentPadding.calculateEndPadding(layoutDirection),
+                        bottom = contentPadding.calculateBottomPadding() + 16.dp
+                    ),
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
+            ) {
+                CommentEditorFab(
+                    contentDescription = when {
+                        uiState.currentMid <= 0L -> "登录后发评论"
+                        replyThread != null -> "回复评论"
+                        else -> "发表评论"
+                    },
+                    onClick = viewModel::openEditor
+                )
+            }
+        }
+    }
+    if (uiState.editor.visible) {
+        CommentEditorSheet(
+            state = uiState.editor,
+            onDismiss = viewModel::dismissEditor,
+            onInputChange = viewModel::updateEditorInput,
+            onSubmit = viewModel::submitEditor
+        )
     }
 }
 
@@ -386,6 +467,7 @@ internal fun RetryCard(
 
 private const val INIT_SKELETON_COUNT = 4
 private const val LOAD_MORE_SKELETON_COUNT = 2
+private val COMMENT_FAB_SPACE = 88.dp
 private const val COMMENT_TAG = "CommentPanel"
 
 private fun CommentUser.toSpaceRoute(subject: CommentSubject?): SpaceRoute? {

@@ -6,6 +6,9 @@ const val COMMENT_FILTER_ALL = "全部"
 
 @Immutable
 data class CommentSource(
+    val from: String = "0",
+    val scene: String = "main",
+    val goTo: String? = null,
     val spmid: String = "",
     val fromSpmid: String? = null,
     val trackId: String? = null

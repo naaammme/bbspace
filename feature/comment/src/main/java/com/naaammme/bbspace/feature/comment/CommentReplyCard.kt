@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -23,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,8 +54,11 @@ import java.util.Locale
 @Composable
 internal fun CommentCard(
     reply: CommentReply,
-    isLoading: (Long) -> Boolean,
+    currentMid: Long,
+    isBusy: (Long) -> Boolean,
     onTranslate: (Long) -> Unit,
+    onDelete: (CommentReply) -> Unit,
+    onReply: (CommentReply) -> Unit,
     onSaveImage: (PreviewImage) -> Unit,
     onOpenReplies: (CommentReply) -> Unit,
     onOpenUser: (CommentUser) -> Unit
@@ -66,8 +71,11 @@ internal fun CommentCard(
         Column {
             ReplyBody(
                 reply = reply,
-                isLoading = isLoading,
+                currentMid = currentMid,
+                isBusy = isBusy,
                 onTranslate = onTranslate,
+                onDelete = onDelete,
+                onReply = onReply,
                 onSaveImage = onSaveImage,
                 onOpenUser = onOpenUser,
                 modifier = Modifier.padding(16.dp)
@@ -77,12 +85,16 @@ internal fun CommentCard(
                 HorizontalDivider()
                 TextButton(
                     onClick = { onOpenReplies(reply) },
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = ButtonDefaults.TextButtonContentPadding
                 ) {
                     Text(
-                        reply.replyEntryText
+                        text = reply.replyEntryText
                             ?.takeIf(String::isNotBlank)
-                            ?: "查看 ${reply.replyCount.formatCount()} 条回复"
+                            ?: "查看 ${reply.replyCount.formatCount()} 条回复",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -94,8 +106,11 @@ internal fun CommentCard(
 @Composable
 internal fun ThreadReplyCard(
     reply: CommentReply,
-    isLoading: (Long) -> Boolean,
+    currentMid: Long,
+    isBusy: (Long) -> Boolean,
     onTranslate: (Long) -> Unit,
+    onDelete: (CommentReply) -> Unit,
+    onReply: (CommentReply) -> Unit,
     onSaveImage: (PreviewImage) -> Unit,
     onOpenUser: (CommentUser) -> Unit,
     modifier: Modifier = Modifier
@@ -107,8 +122,11 @@ internal fun ThreadReplyCard(
     ) {
         ReplyBody(
             reply = reply,
-            isLoading = isLoading,
+            currentMid = currentMid,
+            isBusy = isBusy,
             onTranslate = onTranslate,
+            onDelete = onDelete,
+            onReply = onReply,
             onSaveImage = onSaveImage,
             onOpenUser = onOpenUser,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
@@ -120,8 +138,11 @@ internal fun ThreadReplyCard(
 @Composable
 private fun ReplyBody(
     reply: CommentReply,
-    isLoading: (Long) -> Boolean,
+    currentMid: Long,
+    isBusy: (Long) -> Boolean,
     onTranslate: (Long) -> Unit,
+    onDelete: (CommentReply) -> Unit,
+    onReply: (CommentReply) -> Unit,
     onSaveImage: (PreviewImage) -> Unit,
     onOpenUser: (CommentUser) -> Unit,
     modifier: Modifier = Modifier
@@ -219,18 +240,16 @@ private fun ReplyBody(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (reply.replyCount > 0L) {
-                        Text(
-                            text = "回复 ${reply.replyCount.formatCount()}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { onReply(reply) }) {
+                    Text("回复")
+                }
                 ReplyMenuButton(
-                    loading = isLoading(reply.rpid),
-                    onTranslate = { onTranslate(reply.rpid) }
+                    busy = isBusy(reply.rpid),
+                    canDelete = currentMid > 0L && reply.user.mid == currentMid,
+                    onTranslate = { onTranslate(reply.rpid) },
+                    onDelete = { onDelete(reply) }
                 )
             }
         }
@@ -270,15 +289,18 @@ private fun ReplyMessage(reply: CommentReply) {
 
 @Composable
 private fun ReplyMenuButton(
-    loading: Boolean,
-    onTranslate: () -> Unit
+    busy: Boolean,
+    canDelete: Boolean,
+    onTranslate: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var show by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
 
     Box {
         IconButton(
             onClick = { show = true },
-            enabled = !loading
+            enabled = !busy
         ) {
             Icon(Icons.Default.MoreVert, contentDescription = null)
         }
@@ -293,7 +315,38 @@ private fun ReplyMenuButton(
                     onTranslate()
                 }
             )
+            if (canDelete) {
+                DropdownMenuItem(
+                    text = { Text("删除评论") },
+                    onClick = {
+                        show = false
+                        confirmDelete = true
+                    }
+                )
+            }
         }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("删除评论") },
+            text = { Text("确认删除这条评论吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete()
+                    }
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }
 
