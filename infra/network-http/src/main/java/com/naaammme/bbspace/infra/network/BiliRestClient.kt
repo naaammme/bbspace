@@ -38,6 +38,26 @@ class BiliRestClient @Inject constructor(
     }
 
     /**
+     * 发送签名后的 POST 请求并读取指定响应头
+     */
+    suspend fun postSignedReadHeader(
+        url: String,
+        params: Map<String, String>,
+        headerName: String,
+        profile: BiliRestProfile = BiliRestProfile.APP
+    ): Pair<JSONObject, String> {
+        val signedBody = AppSigner.sign(params, profile.appKey, profile.appSec)
+        val requestBody = signedBody.toRequestBody(null)
+        return withContext(Dispatchers.IO) {
+            val resp = okHttpClient.newCall(
+                Request.Builder().url(url).post(requestBody).withHeaders().build()
+            ).execute()
+            val json = JSONObject(resp.body?.string() ?: throw BiliApiException(-1, "Empty response"))
+            requireSuccess(json) to resp.header(headerName).orEmpty()
+        }
+    }
+
+    /**
      * 发送签名后的 GET 请求并要求 code == 0
      *
      * GET 参数会被签名后直接拼进 URL query。

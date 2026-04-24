@@ -31,7 +31,7 @@ object BiliConstants {
     const val MOBI_APP = "android"
 
     const val MOBI_APP_HD = "android_hd"
-    const val CHANNEL = "bili"
+    const val CHANNEL = "360"
     const val APP_ID = 1
 
     const val APP_ID_HD = 5
@@ -49,7 +49,7 @@ object BiliConstants {
     const val BASE_URL_PASSPORT = "https://passport.bilibili.com"
 
     // Statistics JSON
-    const val STATISTICS_JSON = """{"appId":1,"platform":3,"version":8620300}"""
+    const val STATISTICS_JSON = """{"appId":1,"platform":3,"version":"8.62.0","abtest":""}"""
 
     const val STATISTICS_JSON_HD = """{"appId":5,"platform":3,"version":"2.3.1","abtest":""}"""
 

@@ -44,6 +44,24 @@ class SettingsViewModel @Inject constructor(
         true
     )
 
+    val lessonsMode = appSettings.lessonsMode.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
+
+    val teenagersMode = appSettings.teenagersMode.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
+
+    val teenagersAge = appSettings.teenagersAge.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        16
+    )
+
     fun updateThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             appSettings.updateThemeMode(mode)
@@ -112,6 +130,24 @@ class SettingsViewModel @Inject constructor(
     fun updatePersonalizedRcmd(enabled: Boolean) {
         viewModelScope.launch {
             appSettings.updatePersonalizedRcmd(enabled)
+        }
+    }
+
+    fun updateLessonsMode(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateLessonsMode(enabled)
+        }
+    }
+
+    fun updateTeenagersMode(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateTeenagersMode(enabled)
+        }
+    }
+
+    fun updateTeenagersAge(age: Int) {
+        viewModelScope.launch {
+            appSettings.updateTeenagersAge(age)
         }
     }
 

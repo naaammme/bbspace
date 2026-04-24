@@ -4,6 +4,7 @@ import android.content.Context
 import com.naaammme.bbspace.infra.crypto.BuvidFetcher
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
+import com.naaammme.bbspace.infra.crypto.LegalRegionCache
 import com.naaammme.bbspace.infra.crypto.RegionCodeCache
 import com.naaammme.bbspace.infra.crypto.TicketGenerator
 import com.naaammme.bbspace.infra.network.dns.BiliDns
@@ -63,6 +64,14 @@ object NetworkModule {
     @Singleton
     fun provideRegionCodeCache(): RegionCodeCache {
         return RegionCodeCache()
+    }
+
+    @Provides
+    @Singleton
+    fun provideLegalRegionCache(
+        @ApplicationContext context: Context
+    ): LegalRegionCache {
+        return LegalRegionCache(context)
     }
 
     @Provides

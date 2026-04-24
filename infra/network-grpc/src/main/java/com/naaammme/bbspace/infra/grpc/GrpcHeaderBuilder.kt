@@ -7,6 +7,7 @@ import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.infra.crypto.RegionCodeCache
 import com.naaammme.bbspace.infra.crypto.AuroraEidGenerator
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
+import com.naaammme.bbspace.infra.crypto.LegalRegionCache
 import com.naaammme.bbspace.infra.crypto.TicketGenerator
 import com.naaammme.bbspace.infra.crypto.TraceIdGenerator
 import com.naaammme.bbspace.infra.network.BiliMetadataBuilder
@@ -23,6 +24,7 @@ class GrpcHeaderBuilder @Inject constructor(
     private val deviceIdentity: DeviceIdentity,
     private val metadataBuilder: BiliMetadataBuilder,
     private val regionCodeCache: RegionCodeCache,
+    private val legalRegionCache: LegalRegionCache,
     private val ticketGenerator: TicketGenerator
 ) {
     fun build(
@@ -57,6 +59,10 @@ class GrpcHeaderBuilder @Inject constructor(
             put("x-bili-fawkes-req-bin", Base64.encodeToString(metadataBuilder.buildFawkes(), Base64.NO_WRAP or Base64.NO_PADDING))
             put("x-bili-locale-bin", Base64.encodeToString(metadataBuilder.buildLocale(), Base64.NO_WRAP or Base64.NO_PADDING))
             put("x-bili-metadata-ip-region", regionCodeCache.get())
+            val legalRegion = legalRegionCache.get()
+            if (mid > 0 && legalRegion.isNotEmpty()) {
+                put("x-bili-metadata-legal-region", legalRegion)
+            }
             put("x-bili-metadata-bin", Base64.encodeToString(metadataBuilder.buildMetadata(accessKey), Base64.NO_WRAP or Base64.NO_PADDING))
             if (mid > 0) {
                 put("x-bili-mid", mid.toString())

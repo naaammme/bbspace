@@ -112,14 +112,19 @@ class FeedRepoImpl @Inject constructor(
         hdFeed: Boolean
     ): Map<String, String> {
         val personalizedRcmd = appSettings.personalizedRcmd.first()
+        val lessonsMode = appSettings.lessonsMode.first()
+        val teenagersMode = appSettings.teenagersMode.first()
+        val teenagersAge = appSettings.teenagersAge.first()
         val ts = System.currentTimeMillis() / 1000
         val normalToken = authStore.accessToken
         val hdToken = authStore.getHdAccessKeyForCurrent()
         val token = if (hdFeed) hdToken else normalToken
         return restParamBuilder.app(profile, ts, token) + buildMap { // TODO:feed首页获取视频流
             put("auto_refresh_state", "1")
-            // put("autoplay_card", "2")
-            // put("autoplay_timestamp", ts)
+
+            put("autoplay_card", "11")
+            put("autoplay_timestamp", "0")
+
             put("client_attr", "0")
             put("column", "2")
             put("column_timestamp", "0")
@@ -127,32 +132,49 @@ class FeedRepoImpl @Inject constructor(
             put("device_type", "0")
             put("disable_rcmd", if (personalizedRcmd) "0" else "1")
             put("flush", flush.toString())
-            // put("fnval", "272")
-            // put("fnver", "0")
-            // put("force_host", "0")
-            // put("fourk", "0")
+
+            put("fnval", "272")
+            put("fnver", "0")
+            put("force_host", "0")
+            put("fourk", "0")
+
             put("guidance", "0")
             put("https_url_req", "0")
             put("idx", idx.toString())
+            put("inline_danmu", "2")
+            put("inline_sound", "1")
+            put("inline_sound_cold_state", "2")
             put("interest_id", "0")
+            if (lessonsMode) {
+                put("lessons_mode", "1")
+            }
             put("login_event", if (token.isNotEmpty()) "0" else "1") // 会显著影响feed结果
             put("network", "wifi")
-            put("open_event", if (idx == 0L) "cold" else "")
-            // player_extra_content
+            put("open_event", if (idx == 0L) "cold" else "hot")
+
+            put("player_extra_content", "{\"short_edge\":\"1080\",\"long_edge\":\"1920\"}")
+
             put("player_net", "1")
             put("pull", pull.toString())
-            // put("qn", "32")
-            // qn_policy
+
+            put("qn", "80")
+            put("qn_policy", "0")
+
             put("recsys_mode", "0")
             put("splash_creative_id", "0")
             put("splash_id", "")
-            // video_mode
-            // voice_balance
-            // put("volume_balance", "1")
+            if (teenagersMode) {
+                put("teenagers_age", teenagersAge.toString())
+                put("teenagers_mode", "1")
+            }
+
+            put("video_mode", "1")
+            put("voice_balance", "1")
+            put("volume_balance", "1")
         }
     }
 
-    private val adCardGotos = setOf("banner", "ad_web_s", "ad_web", "ad")
+    private val adCardGotos = setOf("banner", "ad_web_s", "ad_web", "ad", "ad_player")
 
     private fun parseItems(arr: org.json.JSONArray?): List<FeedItem> {
         if (arr == null) return emptyList()

@@ -13,6 +13,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.feature.settings.SettingsViewModel
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,6 +24,11 @@ fun FeedSettingsScreen(
     val hdFeed by viewModel.hdFeed.collectAsStateWithLifecycle()
     val hdFeedAvailable by viewModel.hdFeedAvailable.collectAsStateWithLifecycle()
     val personalizedRcmd by viewModel.personalizedRcmd.collectAsStateWithLifecycle()
+    val lessonsMode by viewModel.lessonsMode.collectAsStateWithLifecycle()
+    val teenagersMode by viewModel.teenagersMode.collectAsStateWithLifecycle()
+    val teenagersAge by viewModel.teenagersAge.collectAsStateWithLifecycle()
+    var teenagersAgeDraft by remember(teenagersAge) { mutableFloatStateOf(teenagersAge.toFloat()) }
+    val teenagersAgeText = teenagersAgeDraft.roundToInt().coerceIn(1, 17).toString()
 
     LaunchedEffect(Unit) {
         viewModel.refreshHdFeedAvailable()
@@ -99,6 +105,95 @@ fun FeedSettingsScreen(
                         Switch(
                             checked = personalizedRcmd,
                             onCheckedChange = viewModel::updatePersonalizedRcmd
+                        )
+                    }
+                }
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("课堂推荐模式", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "只推荐学习相关视频",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = lessonsMode,
+                            onCheckedChange = viewModel::updateLessonsMode
+                        )
+                    }
+                }
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("未成年推荐", style = MaterialTheme.typography.titleMedium)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "按指定年龄请求未成年推荐内容",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = teenagersMode,
+                                onCheckedChange = viewModel::updateTeenagersMode
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "年龄",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (teenagersMode) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                            Text(
+                                teenagersAgeText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (teenagersMode) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                        Slider(
+                            value = teenagersAgeDraft,
+                            onValueChange = { teenagersAgeDraft = it },
+                            onValueChangeFinished = {
+                                viewModel.updateTeenagersAge(teenagersAgeDraft.roundToInt())
+                            },
+                            enabled = teenagersMode,
+                            valueRange = 1f..17f,
+                            steps = 15
                         )
                     }
                 }

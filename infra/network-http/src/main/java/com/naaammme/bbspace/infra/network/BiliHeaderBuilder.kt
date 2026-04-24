@@ -8,6 +8,7 @@ import com.naaammme.bbspace.infra.crypto.RegionCodeCache
 import com.naaammme.bbspace.infra.crypto.AuroraEidGenerator
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
+import com.naaammme.bbspace.infra.crypto.LegalRegionCache
 import com.naaammme.bbspace.infra.crypto.TicketGenerator
 import com.naaammme.bbspace.infra.crypto.TraceIdGenerator
 import javax.inject.Inject
@@ -23,6 +24,7 @@ class BiliHeaderBuilder @Inject constructor(
     private val deviceIdentity: DeviceIdentity,
     private val metadataBuilder: BiliMetadataBuilder,
     private val regionCodeCache: RegionCodeCache,
+    private val legalRegionCache: LegalRegionCache,
     private val ticketGenerator: TicketGenerator,
     private val guestIdGenerator: GuestIdGenerator
 ) {
@@ -51,6 +53,10 @@ class BiliHeaderBuilder @Inject constructor(
             }
             put("x-bili-locale-bin", Base64.encodeToString(metadataBuilder.buildLocale(), Base64.NO_WRAP or Base64.NO_PADDING))
             put("x-bili-metadata-ip-region", regionCodeCache.get())
+            val legalRegion = legalRegionCache.get()
+            if (mid > 0 && legalRegion.isNotEmpty()) {
+                put("x-bili-metadata-legal-region", legalRegion)
+            }
             if (mid > 0) {
                 put("x-bili-mid", mid.toString())
             }

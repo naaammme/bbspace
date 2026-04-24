@@ -17,6 +17,7 @@ import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
+import com.naaammme.bbspace.infra.crypto.LegalRegionCache
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,7 +31,8 @@ class AuthRepoImpl @Inject constructor(
     private val guestIdGenerator: GuestIdGenerator,
     private val deviceIdentity: DeviceIdentity,
     private val restParamBuilder: BiliRestParamBuilder,
-    private val cacheManager: CacheManager
+    private val cacheManager: CacheManager,
+    private val legalRegionCache: LegalRegionCache
 ) : AuthRepository {
 
     private val _currentMidFlow = MutableStateFlow(authStore.mid)
@@ -158,6 +160,7 @@ class AuthRepoImpl @Inject constructor(
         cacheManager.clearSession()
         cacheManager.clearTicketCache()
         cacheManager.clearGuestCache()
+        legalRegionCache.clear()
     }
 
     override fun saveHdAccessKey(mid: Long, key: String, expiresIn: Long) =
@@ -353,11 +356,13 @@ class AuthRepoImpl @Inject constructor(
             "tel" to tel
         )
 
-        val json = restClient.postSigned(
+        val (json, legalRegion) = restClient.postSignedReadHeader(
             url = "${BiliConstants.BASE_URL_PASSPORT}$SMS_LOGIN_ENDPOINT",
             params = params,
+            headerName = "x-bili-metadata-legal-region",
             profile = BiliRestProfile.SMS
         )
+        legalRegionCache.set(legalRegion)
 
         val data = json.getJSONObject("data")
         val tokenInfo = data.getJSONObject("token_info")

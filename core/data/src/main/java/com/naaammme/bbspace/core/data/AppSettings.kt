@@ -36,6 +36,9 @@ class AppSettings @Inject constructor(
     private val cornerStyleKey = stringPreferencesKey("corner_style")
     private val hdFeedKey = booleanPreferencesKey("hd_feed")
     private val personalizedRcmdKey = booleanPreferencesKey("personalized_rcmd")
+    private val lessonsModeKey = booleanPreferencesKey("lessons_mode")
+    private val teenagersModeKey = booleanPreferencesKey("teenagers_mode")
+    private val teenagersAgeKey = intPreferencesKey("teenagers_age")
     private val autoCheckUpdateKey = booleanPreferencesKey("auto_check_update")
 
     val themeConfig: Flow<ThemeConfig> = context.appSettingsDataStore.data.map { prefs ->
@@ -92,6 +95,14 @@ class AppSettings @Inject constructor(
 
     val personalizedRcmd: Flow<Boolean> = context.appSettingsDataStore.data.map { it[personalizedRcmdKey] ?: true }
 
+    val lessonsMode: Flow<Boolean> = context.appSettingsDataStore.data.map { it[lessonsModeKey] ?: false }
+
+    val teenagersMode: Flow<Boolean> = context.appSettingsDataStore.data.map { it[teenagersModeKey] ?: false }
+
+    val teenagersAge: Flow<Int> = context.appSettingsDataStore.data.map {
+        (it[teenagersAgeKey] ?: DEFAULT_TEENAGERS_AGE).coerceIn(MIN_TEENAGERS_AGE, MAX_TEENAGERS_AGE)
+    }
+
     val autoCheckUpdate: Flow<Boolean> = context.appSettingsDataStore.data.map { it[autoCheckUpdateKey] ?: true }
 
     private val interestDoneKey = booleanPreferencesKey("interest_done")
@@ -103,6 +114,18 @@ class AppSettings @Inject constructor(
 
     suspend fun updatePersonalizedRcmd(enabled: Boolean) {
         context.appSettingsDataStore.edit { it[personalizedRcmdKey] = enabled }
+    }
+
+    suspend fun updateLessonsMode(enabled: Boolean) {
+        context.appSettingsDataStore.edit { it[lessonsModeKey] = enabled }
+    }
+
+    suspend fun updateTeenagersMode(enabled: Boolean) {
+        context.appSettingsDataStore.edit { it[teenagersModeKey] = enabled }
+    }
+
+    suspend fun updateTeenagersAge(age: Int) {
+        context.appSettingsDataStore.edit { it[teenagersAgeKey] = age.coerceIn(MIN_TEENAGERS_AGE, MAX_TEENAGERS_AGE) }
     }
 
     suspend fun updateAutoCheckEnabled(enabled: Boolean) {
@@ -166,5 +189,11 @@ class AppSettings @Inject constructor(
                 it[interestDoneKey] = true
             }
         }
+    }
+
+    private companion object {
+        const val DEFAULT_TEENAGERS_AGE = 16
+        const val MIN_TEENAGERS_AGE = 1
+        const val MAX_TEENAGERS_AGE = 17
     }
 }
