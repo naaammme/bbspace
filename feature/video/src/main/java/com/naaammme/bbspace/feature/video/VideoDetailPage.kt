@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -84,6 +85,7 @@ internal fun VideoDetailPage(
     playerSpaceHeight: Dp,
     onOpenVideo: (VideoRoute) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
+    onDownloadClick: () -> Unit,
     onOpenEpisode: (VideoRoute.Ugc) -> Unit,
     onSwitchPage: (Long) -> Unit
 ) {
@@ -125,7 +127,8 @@ internal fun VideoDetailPage(
                 onSeasonClick = { sheetTp = SHEET_SEASON },
                 onPageClick = { sheetTp = SHEET_PAGE },
                 onOpenVideo = onOpenVideo,
-                onOpenSpace = onOpenSpace
+                onOpenSpace = onOpenSpace,
+                onDownloadClick = onDownloadClick
             )
         }
     } else {
@@ -145,7 +148,8 @@ internal fun VideoDetailPage(
             onSeasonClick = { sheetTp = SHEET_SEASON },
             onPageClick = { sheetTp = SHEET_PAGE },
             onOpenVideo = onOpenVideo,
-            onOpenSpace = onOpenSpace
+            onOpenSpace = onOpenSpace,
+            onDownloadClick = onDownloadClick
         )
     }
 
@@ -189,7 +193,8 @@ private fun DetailPager(
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
     onOpenVideo: (VideoRoute) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit
+    onOpenSpace: (SpaceRoute) -> Unit,
+    onDownloadClick: () -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
     val itemMod = if (horizontalPad > 0.dp) {
@@ -214,7 +219,8 @@ private fun DetailPager(
                 onSeasonClick = onSeasonClick,
                 onPageClick = onPageClick,
                 onOpenVideo = onOpenVideo,
-                onOpenSpace = onOpenSpace
+                onOpenSpace = onOpenSpace,
+                onDownloadClick = onDownloadClick
             )
 
             else -> CommentPanel(
@@ -244,7 +250,8 @@ private fun VideoInfoList(
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
     onOpenVideo: (VideoRoute) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit
+    onOpenSpace: (SpaceRoute) -> Unit,
+    onDownloadClick: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -261,7 +268,8 @@ private fun VideoInfoList(
             onSeasonClick = onSeasonClick,
             onPageClick = onPageClick,
             onOpenVideo = onOpenVideo,
-            onOpenSpace = onOpenSpace
+            onOpenSpace = onOpenSpace,
+            onDownloadClick = onDownloadClick
         )
     }
 }
@@ -276,7 +284,8 @@ private fun LazyListScope.detailItems(
     onSeasonClick: () -> Unit,
     onPageClick: () -> Unit,
     onOpenVideo: (VideoRoute) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit
+    onOpenSpace: (SpaceRoute) -> Unit,
+    onDownloadClick: () -> Unit
 ) {
     when {
         pageState.detailLoading -> {
@@ -321,6 +330,7 @@ private fun LazyListScope.detailItems(
                     onToggleDesc = onToggleDesc,
                     onToggleTag = onToggleTag,
                     onOpenSpace = onOpenSpace,
+                    onDownloadClick = onDownloadClick,
                     modifier = itemMod
                 )
             }
@@ -391,6 +401,7 @@ private fun VideoSummarySection(
     onToggleDesc: () -> Unit,
     onToggleTag: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
+    onDownloadClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val spaceRoute = detail.toSpaceRouteOrNull()
@@ -413,9 +424,10 @@ private fun VideoSummarySection(
             onToggleDesc = onToggleDesc,
             onToggleTag = onToggleTag
         )
-        detail.stat?.let { stat ->
-            ActionCapsule(stat = stat)
-        }
+        ActionCapsule(
+            stat = detail.stat,
+            onDownloadClick = onDownloadClick
+        )
     }
 }
 
@@ -562,7 +574,8 @@ private fun InfoCapsule(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ActionCapsule(
-    stat: VideoStat,
+    stat: VideoStat?,
+    onDownloadClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     CapsuleCard(modifier = modifier) {
@@ -571,10 +584,16 @@ private fun ActionCapsule(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ActionChip("点赞", stat.like)
-            ActionChip("投币", stat.coin)
-            ActionChip("收藏", stat.fav)
-            ActionChip("分享", stat.share)
+            stat?.let {
+                ActionChip("点赞", it.like)
+                ActionChip("投币", it.coin)
+                ActionChip("收藏", it.fav)
+                ActionChip("分享", it.share)
+            }
+            ActionChip(
+                label = "下载",
+                onClick = onDownloadClick
+            )
         }
     }
 }
@@ -653,27 +672,41 @@ private fun ToggleChip(
 @Composable
 private fun ActionChip(
     label: String,
-    value: String
+    value: String? = null,
+    onClick: (() -> Unit)? = null
 ) {
     Surface(
+        modifier = if (onClick != null) {
+            Modifier.clickable(onClick = onClick)
+        } else {
+            Modifier
+        },
         color = MaterialTheme.colorScheme.secondaryContainer,
         shape = MaterialTheme.shapes.extraLarge
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier
+                .defaultMinSize(minWidth = 76.dp, minHeight = 36.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
+                style = if (value == null) {
+                    MaterialTheme.typography.titleSmall
+                } else {
+                    MaterialTheme.typography.labelMedium
+                },
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+            value?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,6 +36,8 @@ import com.naaammme.bbspace.feature.auth.navigation.loginScreen
 import com.naaammme.bbspace.feature.auth.navigation.smsLoginScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.bbSpaceScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.navigateToBbSpace
+import com.naaammme.bbspace.feature.download.navigation.downloadScreen
+import com.naaammme.bbspace.feature.download.navigation.navigateToDownload
 import com.naaammme.bbspace.feature.history.navigation.historyScreen
 import com.naaammme.bbspace.feature.history.navigation.navigateToHistory
 import com.naaammme.bbspace.feature.home.ui.HomeScreen
@@ -46,6 +49,7 @@ import com.naaammme.bbspace.feature.space.navigation.navigateToSpace
 import com.naaammme.bbspace.feature.space.navigation.spaceScreen
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
+import com.naaammme.bbspace.feature.download.model.DownloadViewModel
 import com.naaammme.bbspace.feature.user.UserScreen
 import com.naaammme.bbspace.feature.video.navigation.navigateToVideo
 import com.naaammme.bbspace.feature.video.navigation.videoScreen
@@ -55,6 +59,7 @@ private const val MAIN_ROUTE = "main"
 @Composable
 fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
     val rootNavController = rememberNavController()
+    val downloadViewModel: DownloadViewModel = hiltViewModel()
     val transitions = remember(themeConfig.transitionStyle, themeConfig.animationSpeed) {
         buildNavTransitions<NavBackStackEntry>(
             themeConfig.transitionStyle,
@@ -77,6 +82,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                 onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
                 onNavigateToBbSpace = { rootNavController.navigateToBbSpace() },
                 onNavigateToHistory = { rootNavController.navigateToHistory() },
+                onNavigateToDownload = { rootNavController.navigateToDownload() },
                 onNavigateToVideo = rootNavController::navigateToVideo,
                 onNavigateToSpace = rootNavController::navigateToSpace,
                 onNavigateToLive = rootNavController::navigateToLive
@@ -127,7 +133,13 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
         videoScreen(
             onBack = { rootNavController.popBackStack() },
             onOpenVideo = rootNavController::navigateToVideo,
-            onOpenSpace = rootNavController::navigateToSpace
+            onOpenSpace = rootNavController::navigateToSpace,
+            onOpenDownloadCache = { rootNavController.navigateToDownload() },
+            onStartDownload = downloadViewModel::startRouteDownload
+        )
+        downloadScreen(
+            onBack = { rootNavController.popBackStack() },
+            viewModel = downloadViewModel
         )
         liveScreen(
             onBack = { rootNavController.popBackStack() }
@@ -142,6 +154,7 @@ private fun MainTabsScaffold(
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToDownload: () -> Unit,
     onNavigateToVideo: (VideoRoute) -> Unit,
     onNavigateToSpace: (SpaceRoute) -> Unit,
     onNavigateToLive: (LiveRoute) -> Unit
@@ -182,6 +195,7 @@ private fun MainTabsScaffold(
                                 onNavigateToAccount = onNavigateToAccount,
                                 onNavigateToBbSpace = onNavigateToBbSpace,
                                 onNavigateToHistory = onNavigateToHistory,
+                                onNavigateToDownload = onNavigateToDownload,
                                 onOpenSpace = onNavigateToSpace
                             )
                         }

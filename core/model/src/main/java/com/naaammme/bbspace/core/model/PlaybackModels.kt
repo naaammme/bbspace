@@ -93,7 +93,9 @@ data class PlayableParams(
                     biz.securityLevel?.takeIf(String::isNotBlank)?.let { put("security_level", it) }
                 }
                 PlayBiz.PUGV -> {
+                    biz.epId?.let { put("ep_id", it.toString()) }
                     biz.seasonId?.let { put("season_id", it.toString()) }
+                    put("biz_type", PUGV_BIZ_TYPE)
                 }
             }
             putAll(extraResolve)
@@ -114,6 +116,7 @@ data class PlayableParams(
 
     private companion object {
         const val DEFAULT_FROM_SCENE = "normal"
+        const val PUGV_BIZ_TYPE = "3"
     }
 }
 

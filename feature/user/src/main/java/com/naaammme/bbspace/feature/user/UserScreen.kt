@@ -56,6 +56,7 @@ fun UserScreen(
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToDownload: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit = {},
     vm: UserViewModel = hiltViewModel()
 ) {
@@ -96,7 +97,10 @@ fun UserScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            FeatureEntryRow(onNavigateToHistory = onNavigateToHistory)
+            FeatureEntryRow(
+                onNavigateToHistory = onNavigateToHistory,
+                onNavigateToDownload = onNavigateToDownload
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -262,7 +266,10 @@ private fun StatItem(value: String, label: String) {
 }
 
 @Composable
-private fun FeatureEntryRow(onNavigateToHistory: () -> Unit) {
+private fun FeatureEntryRow(
+    onNavigateToHistory: () -> Unit,
+    onNavigateToDownload: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -273,7 +280,7 @@ private fun FeatureEntryRow(onNavigateToHistory: () -> Unit) {
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            FeatureEntry(Icons.Default.Refresh, "离线缓存")
+            FeatureEntry(Icons.Default.Refresh, "离线缓存", onClick = onNavigateToDownload)
             FeatureEntry(Icons.Default.DateRange, "历史记录", onClick = onNavigateToHistory)
             FeatureEntry(Icons.Default.FavoriteBorder, "收藏")
             FeatureEntry(Icons.Default.Star, "稍后再看")

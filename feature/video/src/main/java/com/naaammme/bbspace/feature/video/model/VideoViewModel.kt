@@ -232,6 +232,27 @@ class VideoViewModel @Inject constructor(
         startPlayback(next)
     }
 
+    fun currentDownloadRoute(): VideoRoute? {
+        val base = route ?: return null
+        if (base !is VideoRoute.Ugc) return base
+        val id = playerState.value.playbackSource?.videoId ?: _req.value?.videoId
+        return base.copy(
+            aid = id?.aid?.takeIf { it > 0L } ?: base.aid,
+            cid = id?.cid?.takeIf { it > 0L } ?: base.cid,
+            bvid = id?.bvid?.takeIf(String::isNotBlank) ?: base.bvid
+        )
+    }
+
+    fun currentDownloadTitle(): String? {
+        val detail = _detail.value ?: return null
+        val cid = playerState.value.playbackSource?.videoId?.cid ?: _req.value?.videoId?.cid
+        val part = cid?.let { target -> detail.pages.firstOrNull { it.cid == target } }
+        return listOfNotNull(
+            detail.title.takeIf(String::isNotBlank),
+            part?.part?.takeIf(String::isNotBlank)
+        ).joinToString(" - ").takeIf(String::isNotBlank)
+    }
+
     fun closePage() {
         startJob?.cancel()
         startJob = null

@@ -2,6 +2,7 @@
 
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.data.AuthProviderImpl
+import com.naaammme.bbspace.core.data.download.VideoDownloadRepoImpl
 import com.naaammme.bbspace.core.data.player.LivePlaybackControllerImpl
 import com.naaammme.bbspace.core.data.player.PlayerSettingsImpl
 import com.naaammme.bbspace.core.data.player.VideoPlaybackControllerImpl
@@ -20,6 +21,7 @@ import com.naaammme.bbspace.core.data.repository.VideoPlayerRepoImpl
 import com.naaammme.bbspace.core.domain.auth.AuthRepository
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
 import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
+import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
 import com.naaammme.bbspace.core.domain.history.HistoryRepository
 import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
@@ -101,6 +103,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindVideoDetailRepo(impl: VideoDetailRepoImpl): VideoDetailRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindVideoDownloadRepo(impl: VideoDownloadRepoImpl): VideoDownloadRepository
 
     @Binds
     @Singleton

@@ -7,11 +7,17 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -37,12 +43,22 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.media3.common.util.UnstableApi
 import androidx.window.core.layout.WindowWidthSizeClass
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.core.model.VideoDownloadKind
+import com.naaammme.bbspace.core.model.VideoDownloadOption
+import com.naaammme.bbspace.core.model.VideoDownloadOptions
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
@@ -56,9 +72,12 @@ fun VideoScreen(
     onBack: () -> Unit,
     onOpenVideo: (VideoRoute) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
+    onOpenDownloadCache: () -> Unit,
+    onStartDownload: (VideoRoute, String?, VideoDownloadKind, Int, Int) -> Unit,
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
+    val playerState by viewModel.playerState.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     val procOwner = remember { ProcessLifecycleOwner.get() }
@@ -66,6 +85,7 @@ fun VideoScreen(
     val act = remember(ctx) { ctx.findActivity() }
     val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
     var isFull by rememberSaveable { mutableStateOf(false) }
+    var downloadSheetOn by rememberSaveable { mutableStateOf(false) }
 
     val toggleFull = { isFull = !isFull }
     val handleBack = {
@@ -159,6 +179,7 @@ fun VideoScreen(
                 playerSpaceHeight = if (isExpanded) expandedPlayerH else compactPlayerSpaceH,
                 onOpenVideo = onOpenVideo,
                 onOpenSpace = onOpenSpace,
+                onDownloadClick = { downloadSheetOn = true },
                 onOpenEpisode = { onOpenVideo(it) },
                 onSwitchPage = viewModel::switchPage
             )
@@ -196,6 +217,137 @@ fun VideoScreen(
                 onToggleFull = toggleFull,
                 onBackClick = handleBack
             )
+        }
+    }
+
+    if (downloadSheetOn) {
+        val route = viewModel.currentDownloadRoute()
+        DownloadTaskSheet(
+            currentVideoQuality = playerState.currentStream?.quality ?: 80,
+            currentAudioQuality = playerState.currentAudio?.id ?: 0,
+            canStartDownload = route != null,
+            onDismiss = { downloadSheetOn = false },
+            onOpenCache = {
+                downloadSheetOn = false
+                onOpenDownloadCache()
+            },
+            onStart = { kind, videoQuality, audioQuality ->
+                route?.let { currentRoute ->
+                    downloadSheetOn = false
+                    onStartDownload(
+                        currentRoute,
+                        viewModel.currentDownloadTitle(),
+                        kind,
+                        videoQuality,
+                        audioQuality
+                    )
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun DownloadTaskSheet(
+    currentVideoQuality: Int,
+    currentAudioQuality: Int,
+    canStartDownload: Boolean,
+    onDismiss: () -> Unit,
+    onOpenCache: () -> Unit,
+    onStart: (VideoDownloadKind, Int, Int) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var kind by rememberSaveable { mutableStateOf(VideoDownloadKind.VIDEO) }
+    var videoQuality by rememberSaveable {
+        mutableStateOf(currentVideoQuality.takeIf { it > 0 } ?: 80)
+    }
+    var audioQuality by rememberSaveable {
+        mutableStateOf(currentAudioQuality.takeIf { it > 0 } ?: 0)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text("下载", style = MaterialTheme.typography.titleLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = kind == VideoDownloadKind.VIDEO,
+                    onClick = { kind = VideoDownloadKind.VIDEO },
+                    label = { Text("下载视频") }
+                )
+                FilterChip(
+                    selected = kind == VideoDownloadKind.AUDIO,
+                    onClick = { kind = VideoDownloadKind.AUDIO },
+                    label = { Text("下载音频") }
+                )
+            }
+            if (kind == VideoDownloadKind.VIDEO) {
+                DownloadOptionGroup(
+                    title = "画质",
+                    options = VideoDownloadOptions.videoQualities,
+                    selected = videoQuality,
+                    onSelect = { videoQuality = it }
+                )
+            }
+            DownloadOptionGroup(
+                title = "音质",
+                options = VideoDownloadOptions.audioQualities,
+                selected = audioQuality,
+                onSelect = { audioQuality = it }
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onOpenCache,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("查看缓存")
+                }
+                Button(
+                    onClick = { onStart(kind, videoQuality, audioQuality) },
+                    enabled = canStartDownload,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (kind == VideoDownloadKind.VIDEO) "下载视频" else "下载音频")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DownloadOptionGroup(
+    title: String,
+    options: List<VideoDownloadOption>,
+    selected: Int,
+    onSelect: (Int) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            options.forEach { option ->
+                FilterChip(
+                    selected = option.value == selected,
+                    onClick = { onSelect(option.value) },
+                    label = { Text(option.label) }
+                )
+            }
         }
     }
 }

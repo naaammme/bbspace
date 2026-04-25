@@ -93,6 +93,7 @@ dependencies {
     implementation(project(":feature:comment"))
     implementation(project(":feature:video"))
     implementation(project(":feature:live"))
+    implementation(project(":feature:download"))
 
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
