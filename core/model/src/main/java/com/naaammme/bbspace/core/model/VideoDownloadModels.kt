@@ -60,6 +60,23 @@ object VideoDownloadOptions {
     }
 }
 
+@Immutable
+data class VideoDownloadTask(
+    val id: Long,
+    val title: String,
+    val request: VideoDownloadRequest,
+    val status: VideoDownloadTaskStatus = VideoDownloadTaskStatus.WAITING,
+    val progress: VideoDownloadProgress? = null,
+    val error: String? = null
+)
+
+enum class VideoDownloadTaskStatus {
+    WAITING,
+    RUNNING,
+    DONE,
+    FAILED
+}
+
 sealed interface VideoDownloadProgress {
     data object Preparing : VideoDownloadProgress
     data class Downloading(

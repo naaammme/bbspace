@@ -12,9 +12,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -25,12 +27,34 @@ class DownloadViewModel @Inject constructor(
 ) : ViewModel() {
     private var title: String? = null
     private var route: VideoRoute? = null
-    private val _state = MutableStateFlow(DownloadUiState())
-    val state: StateFlow<DownloadUiState> = _state.asStateFlow()
-    private var job: Job? = null
+    private val _formState = MutableStateFlow(DownloadUiState())
+    val state: StateFlow<DownloadUiState> = combine(
+        _formState,
+        downloadRepository.tasks
+    ) { form, tasks ->
+        form.copy(tasks = tasks)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = DownloadUiState()
+    )
+    private var parseJob: Job? = null
+
+    fun selectTab(tab: DownloadTab) {
+        _formState.update { it.copy(tab = tab) }
+    }
 
     fun updateInput(value: String) {
-        _state.update { it.copy(input = value, error = null) }
+        route = null
+        title = null
+        _formState.update {
+            it.copy(
+                input = value,
+                hasTask = false,
+                pendingTitle = null,
+                error = null
+            )
+        }
     }
 
     fun startRouteDownload(
@@ -40,52 +64,73 @@ class DownloadViewModel @Inject constructor(
         videoQuality: Int,
         audioQuality: Int
     ) {
-        this.route = route
-        this.title = title
-        _state.update {
+        parseJob?.cancel()
+        this.route = null
+        this.title = null
+        _formState.update {
             it.copy(
                 kind = kind,
                 videoQuality = videoQuality,
                 audioQuality = audioQuality,
-                hasTask = true,
+                hasTask = false,
+                pendingTitle = null,
                 error = null
             )
         }
-        startDownload()
+        enqueue(
+            VideoDownloadRequest(
+                route = route,
+                kind = kind,
+                videoQuality = videoQuality,
+                audioQuality = audioQuality,
+                title = title
+            )
+        )
     }
 
     fun selectKind(kind: VideoDownloadKind) {
-        _state.update { it.copy(kind = kind, error = null) }
+        _formState.update { it.copy(kind = kind, error = null) }
     }
 
     fun selectQuality(quality: Int) {
-        _state.update { it.copy(videoQuality = quality, error = null) }
+        _formState.update { it.copy(videoQuality = quality, error = null) }
     }
 
     fun selectAudio(audioQuality: Int) {
-        _state.update { it.copy(audioQuality = audioQuality, error = null) }
+        _formState.update { it.copy(audioQuality = audioQuality, error = null) }
     }
 
     fun startInputTask() {
-        if (_state.value.downloading) return
-        val input = _state.value.input.trim()
+        val input = _formState.value.input.trim()
         if (input.isBlank()) return setError("请输入链接、av号或BV号")
-        job?.cancel()
-        job = viewModelScope.launch {
-            _state.update { it.copy(loading = true, progress = null, error = null) }
+        parseJob?.cancel()
+        parseJob = viewModelScope.launch {
+            _formState.update {
+                it.copy(
+                    loading = true,
+                    hasTask = false,
+                    pendingTitle = null,
+                    error = null
+                )
+            }
             try {
                 val task = parseInput(input)
                 route = task.route
                 title = task.title
-                _state.update { it.copy(loading = false, hasTask = true) }
-                collectDownload(task.route)
-            } catch (t: Throwable) {
-                if (t is CancellationException) throw t
-                _state.update {
+                _formState.update {
                     it.copy(
                         loading = false,
-                        progress = null,
-                        error = t.message ?: "解析下载目标失败"
+                        hasTask = true,
+                        pendingTitle = taskTitle(task.title, task.route)
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _formState.update {
+                    it.copy(
+                        loading = false,
+                        error = e.message ?: "解析下载目标失败"
                     )
                 }
             }
@@ -93,37 +138,25 @@ class DownloadViewModel @Inject constructor(
     }
 
     fun startDownload() {
-        if (_state.value.downloading) return
         val target = route ?: return setError("下载路由无效")
-        job?.cancel()
-        job = viewModelScope.launch {
-            collectDownload(target)
-        }
-    }
-
-    private suspend fun collectDownload(target: VideoRoute) {
-        val state = _state.value
-        _state.update { it.copy(loading = false, progress = null, error = null) }
-        try {
-            downloadRepository.download(
-                VideoDownloadRequest(
-                    route = target,
-                    kind = state.kind,
-                    videoQuality = state.videoQuality,
-                    audioQuality = state.audioQuality,
-                    title = title
-                )
-            ).collect { progress ->
-                _state.update { it.copy(progress = progress, error = null) }
-            }
-        } catch (t: Throwable) {
-            if (t is CancellationException) throw t
-            _state.update {
-                it.copy(
-                    progress = null,
-                    error = t.message ?: "下载失败"
-                )
-            }
+        val state = _formState.value
+        enqueue(
+            VideoDownloadRequest(
+                route = target,
+                kind = state.kind,
+                videoQuality = state.videoQuality,
+                audioQuality = state.audioQuality,
+                title = title
+            )
+        )
+        route = null
+        title = null
+        _formState.update {
+            it.copy(
+                hasTask = false,
+                pendingTitle = null,
+                error = null
+            )
         }
     }
 
@@ -171,7 +204,29 @@ class DownloadViewModel @Inject constructor(
     }
 
     private fun setError(message: String) {
-        _state.update { it.copy(error = message) }
+        _formState.update { it.copy(error = message) }
+    }
+
+    private fun enqueue(request: VideoDownloadRequest) {
+        downloadRepository.enqueue(request)
+        _formState.update { it.copy(error = null) }
+        viewModelScope.launch {
+            downloadRepository.runPending()
+        }
+    }
+
+    private fun taskTitle(
+        title: String?,
+        route: VideoRoute
+    ): String {
+        title?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?.let { return it }
+        return when (route) {
+            is VideoRoute.Ugc -> route.bvid?.takeIf(String::isNotBlank) ?: "av${route.aid}"
+            is VideoRoute.Pgc -> "ep${route.epId}"
+            is VideoRoute.Pugv -> "pugv ep${route.epId}"
+        }
     }
 
     private data class ParsedTask(

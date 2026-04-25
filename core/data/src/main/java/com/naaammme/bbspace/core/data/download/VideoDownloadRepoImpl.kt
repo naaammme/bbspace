@@ -24,6 +24,9 @@ import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadProgress
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
+import com.naaammme.bbspace.core.model.VideoDownloadTask
+import com.naaammme.bbspace.core.model.VideoDownloadTaskStatus
+import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.toPlayableParams
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -31,12 +34,20 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -47,16 +58,96 @@ class VideoDownloadRepoImpl @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) : VideoDownloadRepository {
 
-    override fun download(request: VideoDownloadRequest): Flow<VideoDownloadProgress> = flow {
+    private val _tasks = MutableStateFlow<List<VideoDownloadTask>>(emptyList())
+    override val tasks: StateFlow<List<VideoDownloadTask>> = _tasks.asStateFlow()
+    private val nextTaskId = AtomicLong(1L)
+    private val drainMutex = Mutex()
+
+    override fun enqueue(request: VideoDownloadRequest): Long {
+        val id = nextTaskId.getAndIncrement()
+        _tasks.update { tasks ->
+            tasks + VideoDownloadTask(
+                id = id,
+                title = request.taskTitle(),
+                request = request
+            )
+        }
+        return id
+    }
+
+    override suspend fun runPending() {
+        drainMutex.withLock {
+            while (true) {
+                val task = tasks.value.firstOrNull { it.status == VideoDownloadTaskStatus.WAITING }
+                    ?: break
+                runTask(task)
+            }
+        }
+    }
+
+    private suspend fun runTask(task: VideoDownloadTask) {
+        updateTask(task.id) {
+            it.copy(
+                status = VideoDownloadTaskStatus.RUNNING,
+                progress = VideoDownloadProgress.Preparing,
+                error = null
+            )
+        }
+        try {
+            download(task.request, task.id).collect { progress ->
+                updateTask(task.id) {
+                    it.copy(
+                        status = if (progress is VideoDownloadProgress.Done) {
+                            VideoDownloadTaskStatus.DONE
+                        } else {
+                            VideoDownloadTaskStatus.RUNNING
+                        },
+                        progress = progress,
+                        error = null
+                    )
+                }
+            }
+        } catch (e: CancellationException) {
+            updateTask(task.id) {
+                it.copy(
+                    status = VideoDownloadTaskStatus.WAITING,
+                    progress = null,
+                    error = null
+                )
+            }
+            throw e
+        } catch (e: Exception) {
+            updateTask(task.id) {
+                it.copy(
+                    status = VideoDownloadTaskStatus.FAILED,
+                    progress = null,
+                    error = e.message ?: "下载失败"
+                )
+            }
+        }
+    }
+
+    private fun updateTask(
+        taskId: Long,
+        transform: (VideoDownloadTask) -> VideoDownloadTask
+    ) {
+        _tasks.update { tasks ->
+            tasks.map { task -> if (task.id == taskId) transform(task) else task }
+        }
+    }
+
+    private fun download(
+        request: VideoDownloadRequest,
+        taskId: Long
+    ): Flow<VideoDownloadProgress> = flow {
         emit(VideoDownloadProgress.Preparing)
         val source = fetchSource(request)
         val stream = source.selectStream(request.videoQuality)
         val audio = source.selectAudio(stream, request.audioQuality)
         val dir = File(context.cacheDir, "video_download").apply { mkdirs() }
-        val stamp = System.currentTimeMillis()
-        val videoFile = File(dir, "video_$stamp.m4s")
-        val audioFile = File(dir, "audio_$stamp.m4s")
-        val outFile = File(dir, "out_$stamp.${request.kind.extension}")
+        val videoFile = File(dir, "${taskId}_video.m4s")
+        val audioFile = File(dir, "${taskId}_audio.m4s")
+        val outFile = File(dir, "${taskId}_out.${request.kind.extension}")
 
         try {
             when (request.kind) {
@@ -220,12 +311,17 @@ class VideoDownloadRepoImpl @Inject constructor(
             body.byteStream().use { input ->
                 FileOutputStream(out).use { output ->
                     val buf = ByteArray(BUF_SIZE)
+                    var lastProgressAt = 0L
                     while (true) {
                         val len = input.read(buf)
                         if (len < 0) break
                         output.write(buf, 0, len)
                         done += len
-                        onProgress(done, total)
+                        val now = System.currentTimeMillis()
+                        if (done == total || now - lastProgressAt >= PROGRESS_INTERVAL_MS) {
+                            lastProgressAt = now
+                            onProgress(done, total)
+                        }
                     }
                 }
             }
@@ -319,7 +415,8 @@ class VideoDownloadRepoImpl @Inject constructor(
     ): String {
         val dirType = kind.directory
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            val dir = File(context.getExternalFilesDir(dirType), ALBUM).apply { mkdirs() }
+            val parent = context.getExternalFilesDir(dirType) ?: error("外部存储不可用")
+            val dir = File(parent, ALBUM).apply { mkdirs() }
             val out = File(dir, fileName)
             file.inputStream().use { input ->
                 FileOutputStream(out).use { output -> input.copyTo(output) }
@@ -346,9 +443,9 @@ class VideoDownloadRepoImpl @Inject constructor(
                 null
             )
             return uri.toString()
-        } catch (t: Throwable) {
+        } catch (e: Exception) {
             resolver.delete(uri, null, null)
-            throw t
+            throw e
         }
     }
 
@@ -370,6 +467,17 @@ class VideoDownloadRepoImpl @Inject constructor(
             VideoDownloadKind.AUDIO -> audio?.id
         }?.toString()
         return listOfNotNull(clean, quality).joinToString("_") + ".${request.kind.extension}"
+    }
+
+    private fun VideoDownloadRequest.taskTitle(): String {
+        title?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?.let { return it }
+        return when (val route = route) {
+            is VideoRoute.Ugc -> route.bvid?.takeIf(String::isNotBlank) ?: "av${route.aid}"
+            is VideoRoute.Pgc -> "ep${route.epId}"
+            is VideoRoute.Pugv -> "pugv ep${route.epId}"
+        }
     }
 
     private fun DownloadSource.selectStream(quality: Int): DownloadStream? {
@@ -471,6 +579,7 @@ class VideoDownloadRepoImpl @Inject constructor(
         const val DOWNLOAD_FNVAL = 4048
         const val CODECID_HEVC = 12
         const val BUF_SIZE = 256 * 1024
+        const val PROGRESS_INTERVAL_MS = 400L
         const val SAMPLE_BUF_SIZE = 4 * 1024 * 1024
         const val MAX_FILE_NAME_LEN = 80
         val FILE_NAME_REGEX = Regex("""[\\/:*?"<>|]""")
