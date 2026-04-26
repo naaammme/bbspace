@@ -1,7 +1,10 @@
 package com.naaammme.bbspace.feature.download
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,10 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,17 +27,29 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadOption
@@ -40,6 +57,7 @@ import com.naaammme.bbspace.core.model.VideoDownloadOptions
 import com.naaammme.bbspace.core.model.VideoDownloadProgress
 import com.naaammme.bbspace.core.model.VideoDownloadTask
 import com.naaammme.bbspace.core.model.VideoDownloadTaskStatus
+import com.naaammme.bbspace.core.model.summaryLabel
 import com.naaammme.bbspace.feature.download.model.DownloadTab
 import com.naaammme.bbspace.feature.download.model.DownloadUiState
 import com.naaammme.bbspace.feature.download.model.DownloadViewModel
@@ -49,14 +67,15 @@ import java.util.Locale
 @Composable
 fun DownloadScreen(
     onBack: () -> Unit,
+    onOpenPlayer: (Long) -> Unit,
     viewModel: DownloadViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
+    CollapsingTopBarScaffold(
+        topBar = { scrollBehavior ->
             TopAppBar(
-                title = { Text("视频下载") },
+                title = { Text("离线缓存") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -64,7 +83,8 @@ fun DownloadScreen(
                             contentDescription = "返回"
                         )
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
@@ -77,6 +97,10 @@ fun DownloadScreen(
             onSelectAudio = viewModel::selectAudio,
             onStartInputTask = viewModel::startInputTask,
             onStartDownload = viewModel::startDownload,
+            onPauseTask = viewModel::pauseTask,
+            onResumeTask = viewModel::resumeTask,
+            onDeleteTask = viewModel::deleteTask,
+            onOpenPlayer = onOpenPlayer,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -95,6 +119,10 @@ private fun DownloadContent(
     onSelectAudio: (Int) -> Unit,
     onStartInputTask: () -> Unit,
     onStartDownload: () -> Unit,
+    onPauseTask: (Long) -> Unit,
+    onResumeTask: (Long) -> Unit,
+    onDeleteTask: (Long) -> Unit,
+    onOpenPlayer: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -119,6 +147,10 @@ private fun DownloadContent(
 
             DownloadTab.QUEUE -> QueueTab(
                 state = state,
+                onPauseTask = onPauseTask,
+                onResumeTask = onResumeTask,
+                onDeleteTask = onDeleteTask,
+                onOpenPlayer = onOpenPlayer,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -147,8 +179,12 @@ private fun ConfigTab(
             InputCard(
                 input = state.input,
                 enabled = !state.loading,
+                hasTask = state.hasTask,
+                canDownload = canDownload,
                 onInputChange = onInputChange,
-                onStart = onStartInputTask
+                onClear = { onInputChange("") },
+                onStart = onStartInputTask,
+                onDownload = onStartDownload
             )
         }
         state.pendingTitle?.let { title ->
@@ -179,23 +215,12 @@ private fun ConfigTab(
         }
         if (state.loading) {
             item("loading") {
-                StateCard("正在解析下载目标")
+                StateCard("正在解析缓存目标")
             }
         }
         state.error?.takeIf(String::isNotBlank)?.let { message ->
             item("error") {
                 StateCard(message, isError = true)
-            }
-        }
-        if (state.hasTask) {
-            item("start") {
-                Button(
-                    onClick = onStartDownload,
-                    enabled = canDownload,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("加入下载队列")
-                }
             }
         }
     }
@@ -204,11 +229,16 @@ private fun ConfigTab(
 @Composable
 private fun QueueTab(
     state: DownloadUiState,
+    onPauseTask: (Long) -> Unit,
+    onResumeTask: (Long) -> Unit,
+    onDeleteTask: (Long) -> Unit,
+    onOpenPlayer: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tasks = state.tasks.sortedWith(
         compareBy<VideoDownloadTask>({ taskOrder(it) }, { it.id })
     )
+    var pendingDelete by remember { mutableStateOf<VideoDownloadTask?>(null) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -217,16 +247,45 @@ private fun QueueTab(
     ) {
         if (tasks.isEmpty()) {
             item("queue_empty") {
-                StateCard("暂无下载任务")
+                StateCard("暂无缓存任务")
             }
         } else {
             items(
                 items = tasks,
                 key = { it.id }
             ) { task ->
-                TaskCard(task)
+                TaskCard(
+                    task = task,
+                    onPauseTask = onPauseTask,
+                    onResumeTask = onResumeTask,
+                    onDeleteTask = { pendingDelete = task },
+                    onOpenPlayer = onOpenPlayer
+                )
             }
         }
+    }
+
+    pendingDelete?.let { task ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("删除缓存") },
+            text = { Text("确认删除 ${task.title} 吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDelete = null
+                        onDeleteTask(task.id)
+                    }
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }
 
@@ -234,15 +293,19 @@ private fun QueueTab(
 private fun InputCard(
     input: String,
     enabled: Boolean,
+    hasTask: Boolean,
+    canDownload: Boolean,
     onInputChange: (String) -> Unit,
-    onStart: () -> Unit
+    onClear: () -> Unit,
+    onStart: () -> Unit,
+    onDownload: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("下载目标", style = MaterialTheme.typography.titleMedium)
+            Text("缓存目标", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = input,
                 onValueChange = onInputChange,
@@ -251,12 +314,34 @@ private fun InputCard(
                 label = { Text("链接、av号或BV号") },
                 modifier = Modifier.fillMaxWidth()
             )
-            Button(
-                onClick = onStart,
-                enabled = enabled && input.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("解析目标")
+                Button(
+                    onClick = onStart,
+                    enabled = enabled && input.isNotBlank(),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("解析目标")
+                }
+                if (hasTask) {
+                    Button(
+                        onClick = onDownload,
+                        enabled = canDownload,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("加入队列")
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onClear,
+                        enabled = enabled && input.isNotBlank(),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("清空输入")
+                    }
+                }
             }
         }
     }
@@ -272,17 +357,17 @@ private fun KindCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("下载内容", style = MaterialTheme.typography.titleMedium)
+            Text("缓存内容", style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = selected == VideoDownloadKind.VIDEO,
                     onClick = { onSelect(VideoDownloadKind.VIDEO) },
-                    label = { Text("下载视频") }
+                    label = { Text("缓存视频") }
                 )
                 FilterChip(
                     selected = selected == VideoDownloadKind.AUDIO,
                     onClick = { onSelect(VideoDownloadKind.AUDIO) },
-                    label = { Text("下载音频") }
+                    label = { Text("缓存音频") }
                 )
             }
         }
@@ -326,24 +411,93 @@ private fun QualityCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TaskCard(task: VideoDownloadTask) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun TaskCard(
+    task: VideoDownloadTask,
+    onPauseTask: (Long) -> Unit,
+    onResumeTask: (Long) -> Unit,
+    onDeleteTask: (Long) -> Unit,
+    onOpenPlayer: (Long) -> Unit
+) {
+    val context = LocalContext.current
+    val imageRequest = remember(task.cover, context) {
+        task.cover?.takeIf(String::isNotBlank)?.let { cover ->
+            ImageRequest.Builder(context)
+                .data(thumbnailUrl(cover))
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .build()
+        }
+    }
+    val canToggle = task.status != VideoDownloadTaskStatus.DONE &&
+            task.status != VideoDownloadTaskStatus.FAILED
+
+    @Composable
+    fun DeleteButton(modifier: Modifier) {
+        OutlinedButton(
+            onClick = { onDeleteTask(task.id) },
+            modifier = modifier
+        ) {
+            Text("删除")
+        }
+    }
+
+    Card(
+        onClick = { onOpenPlayer(task.id) },
+        enabled = task.isPlayable,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = taskSummary(task),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(112.dp)
+                        .aspectRatio(16f / 10f)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    if (imageRequest != null) {
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription = task.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = task.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    ownerLine(task)?.let { owner ->
+                        Text(
+                            text = owner,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = task.summaryLabel(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Text(
                 text = taskStatusText(task),
                 style = MaterialTheme.typography.bodySmall,
@@ -362,24 +516,36 @@ private fun TaskCard(task: VideoDownloadTask) {
                     )
                 }
 
-                VideoDownloadProgress.Preparing,
-                VideoDownloadProgress.Muxing -> {
+                VideoDownloadProgress.Preparing -> {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
                 else -> Unit
             }
-            if (task.status == VideoDownloadTaskStatus.DONE) {
-                val uri = (task.progress as? VideoDownloadProgress.Done)?.uri
-                if (!uri.isNullOrBlank()) {
-                    Text(
-                        text = uri,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            if (canToggle) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (task.status == VideoDownloadTaskStatus.PAUSED) {
+                        Button(
+                            onClick = { onResumeTask(task.id) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("继续")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { onPauseTask(task.id) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("暂停")
+                        }
+                    }
+                    DeleteButton(Modifier.weight(1f))
                 }
+            } else {
+                DeleteButton(Modifier.fillMaxWidth())
             }
             task.error?.takeIf(String::isNotBlank)?.let { message ->
                 Text(
@@ -411,40 +577,30 @@ private fun StateCard(
     }
 }
 
-private fun taskSummary(task: VideoDownloadTask): String {
-    val kind = if (task.request.kind == VideoDownloadKind.VIDEO) "视频" else "音频"
-    val video = if (task.request.kind == VideoDownloadKind.VIDEO) {
-        VideoDownloadOptions.videoLabel(task.request.videoQuality)
-    } else {
-        null
-    }
-    val audio = VideoDownloadOptions.audioLabel(task.request.audioQuality)
-    return listOfNotNull(kind, video, audio).joinToString(" · ")
-}
-
 private fun taskOrder(task: VideoDownloadTask): Int {
     return when (task.status) {
         VideoDownloadTaskStatus.RUNNING -> 0
         VideoDownloadTaskStatus.WAITING -> 1
-        VideoDownloadTaskStatus.FAILED -> 2
-        VideoDownloadTaskStatus.DONE -> 3
+        VideoDownloadTaskStatus.PAUSED -> 2
+        VideoDownloadTaskStatus.FAILED -> 3
+        VideoDownloadTaskStatus.DONE -> 4
     }
 }
 
 private fun taskStatusText(task: VideoDownloadTask): String {
     return when (task.status) {
-        VideoDownloadTaskStatus.WAITING -> "等待下载"
+        VideoDownloadTaskStatus.WAITING -> "等待缓存"
+        VideoDownloadTaskStatus.PAUSED -> "已暂停"
         VideoDownloadTaskStatus.RUNNING -> when (val progress = task.progress) {
-            VideoDownloadProgress.Preparing -> "准备下载"
+            VideoDownloadProgress.Preparing -> "准备缓存"
             is VideoDownloadProgress.Downloading -> {
-                "正在下载${progress.label} ${formatBytes(progress.doneBytes)} / ${formatBytes(progress.totalBytes)}"
+                "正在缓存${progress.label} ${formatBytes(progress.doneBytes)} / ${formatBytes(progress.totalBytes)}"
             }
-            VideoDownloadProgress.Muxing -> "正在合并媒体"
-            is VideoDownloadProgress.Done -> "下载完成"
-            null -> "下载中"
+            VideoDownloadProgress.Done -> "缓存完成"
+            null -> "缓存中"
         }
-        VideoDownloadTaskStatus.DONE -> "下载完成"
-        VideoDownloadTaskStatus.FAILED -> "下载失败"
+        VideoDownloadTaskStatus.DONE -> "缓存完成"
+        VideoDownloadTaskStatus.FAILED -> "缓存失败"
     }
 }
 
@@ -453,7 +609,16 @@ private fun statusColor(task: VideoDownloadTask) = when (task.status) {
     VideoDownloadTaskStatus.FAILED -> MaterialTheme.colorScheme.error
     VideoDownloadTaskStatus.DONE -> MaterialTheme.colorScheme.primary
     VideoDownloadTaskStatus.RUNNING -> MaterialTheme.colorScheme.onSecondaryContainer
+    VideoDownloadTaskStatus.PAUSED -> MaterialTheme.colorScheme.onSurfaceVariant
     VideoDownloadTaskStatus.WAITING -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+private fun ownerLine(task: VideoDownloadTask): String? {
+    val uid = task.ownerUid?.takeIf { it > 0L }?.let { "UID $it" }
+    return listOfNotNull(
+        task.ownerName?.takeIf(String::isNotBlank),
+        uid
+    ).takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
 private fun formatBytes(value: Long): String {

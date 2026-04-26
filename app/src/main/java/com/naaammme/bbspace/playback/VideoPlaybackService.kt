@@ -164,6 +164,12 @@ class VideoPlaybackService : Service() {
             if (isLivePlayback()) {
                 return livePlaybackController.state.value.playbackSource?.currentDescription
             }
+            player.currentMediaItem
+                ?.mediaMetadata
+                ?.artist
+                ?.toString()
+                ?.takeIf(String::isNotBlank)
+                ?.let { return it }
             val meta = playbackController.pageMeta.value
             val text = listOfNotNull(
                 meta?.ownerName?.takeIf(String::isNotBlank),
@@ -249,6 +255,13 @@ class VideoPlaybackService : Service() {
             val roomId = livePlaybackController.state.value.playbackSource?.roomId
             return roomId?.let { "直播间 $it" } ?: "直播播放"
         }
+        playerEngine.player.value
+            ?.currentMediaItem
+            ?.mediaMetadata
+            ?.title
+            ?.toString()
+            ?.takeIf(String::isNotBlank)
+            ?.let { return it }
         return playbackController.pageMeta.value?.title
             ?.takeIf(String::isNotBlank)
             ?: "视频播放"
@@ -259,6 +272,13 @@ class VideoPlaybackService : Service() {
         return if (isLivePlayback()) {
             if (isPlaying) "后台直播中" else "后台待播"
         } else {
+            playerEngine.player.value
+                ?.currentMediaItem
+                ?.mediaMetadata
+                ?.artist
+                ?.toString()
+                ?.takeIf(String::isNotBlank)
+                ?.let { return it }
             if (isPlaying) "后台播放中" else "后台待播"
         }
     }

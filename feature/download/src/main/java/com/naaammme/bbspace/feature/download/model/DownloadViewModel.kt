@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
+import com.naaammme.bbspace.core.model.VideoDownloadEnqueueResult
 import com.naaammme.bbspace.core.model.VideoDownloadKind
+import com.naaammme.bbspace.core.model.VideoDownloadMeta
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
-import com.naaammme.bbspace.core.model.VideoRoute
+import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.VideoRouteTool
+import com.naaammme.bbspace.core.model.fallbackTitle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -25,8 +28,8 @@ class DownloadViewModel @Inject constructor(
     private val detailRepository: VideoDetailRepository,
     private val downloadRepository: VideoDownloadRepository
 ) : ViewModel() {
-    private var title: String? = null
-    private var route: VideoRoute? = null
+    private var pendingRequest: VideoDownloadRequest? = null
+    private var pendingMeta: VideoDownloadMeta = VideoDownloadMeta()
     private val _formState = MutableStateFlow(DownloadUiState())
     val state: StateFlow<DownloadUiState> = combine(
         _formState,
@@ -45,8 +48,8 @@ class DownloadViewModel @Inject constructor(
     }
 
     fun updateInput(value: String) {
-        route = null
-        title = null
+        pendingRequest = null
+        pendingMeta = VideoDownloadMeta()
         _formState.update {
             it.copy(
                 input = value,
@@ -57,35 +60,21 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
-    fun startRouteDownload(
-        route: VideoRoute,
-        title: String?,
-        kind: VideoDownloadKind,
-        videoQuality: Int,
-        audioQuality: Int
-    ) {
+    fun enqueueDownload(request: VideoDownloadRequest) {
         parseJob?.cancel()
-        this.route = null
-        this.title = null
+        pendingRequest = null
+        pendingMeta = VideoDownloadMeta()
         _formState.update {
             it.copy(
-                kind = kind,
-                videoQuality = videoQuality,
-                audioQuality = audioQuality,
+                kind = request.kind,
+                videoQuality = request.videoQuality,
+                audioQuality = request.audioQuality,
                 hasTask = false,
                 pendingTitle = null,
                 error = null
             )
         }
-        enqueue(
-            VideoDownloadRequest(
-                route = route,
-                kind = kind,
-                videoQuality = videoQuality,
-                audioQuality = audioQuality,
-                title = title
-            )
-        )
+        enqueue(request)
     }
 
     fun selectKind(kind: VideoDownloadKind) {
@@ -105,6 +94,8 @@ class DownloadViewModel @Inject constructor(
         if (input.isBlank()) return setError("请输入链接、av号或BV号")
         parseJob?.cancel()
         parseJob = viewModelScope.launch {
+            pendingRequest = null
+            pendingMeta = VideoDownloadMeta()
             _formState.update {
                 it.copy(
                     loading = true,
@@ -114,14 +105,14 @@ class DownloadViewModel @Inject constructor(
                 )
             }
             try {
-                val task = parseInput(input)
-                route = task.route
-                title = task.title
+                val request = parseInput(input)
+                pendingRequest = request
+                pendingMeta = request.meta
                 _formState.update {
                     it.copy(
                         loading = false,
                         hasTask = true,
-                        pendingTitle = taskTitle(task.title, task.route)
+                        pendingTitle = requestTitle(request)
                     )
                 }
             } catch (e: CancellationException) {
@@ -130,7 +121,7 @@ class DownloadViewModel @Inject constructor(
                 _formState.update {
                     it.copy(
                         loading = false,
-                        error = e.message ?: "解析下载目标失败"
+                        error = e.message ?: "解析缓存目标失败"
                     )
                 }
             }
@@ -138,19 +129,18 @@ class DownloadViewModel @Inject constructor(
     }
 
     fun startDownload() {
-        val target = route ?: return setError("下载路由无效")
+        val request = pendingRequest ?: return setError("缓存目标无效")
         val state = _formState.value
         enqueue(
-            VideoDownloadRequest(
-                route = target,
+            request.copy(
                 kind = state.kind,
                 videoQuality = state.videoQuality,
                 audioQuality = state.audioQuality,
-                title = title
+                meta = pendingMeta
             )
         )
-        route = null
-        title = null
+        pendingRequest = null
+        pendingMeta = VideoDownloadMeta()
         _formState.update {
             it.copy(
                 hasTask = false,
@@ -160,12 +150,47 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
-    private suspend fun parseInput(input: String): ParsedTask {
-        val src = VideoRouteTool.feed()
+    fun pauseTask(taskId: Long) {
+        viewModelScope.launch {
+            downloadRepository.pause(taskId)
+        }
+    }
+
+    fun resumeTask(taskId: Long) {
+        viewModelScope.launch {
+            downloadRepository.resume(taskId)
+        }
+    }
+
+    fun deleteTask(taskId: Long) {
+        viewModelScope.launch {
+            downloadRepository.delete(taskId)
+        }
+    }
+
+    private suspend fun parseInput(input: String): VideoDownloadRequest {
+        val state = _formState.value
         val epId = VideoRouteTool.epId(input)
             ?: EP_REGEX.find(input)?.groupValues?.get(1)?.toLongOrNull()
-        if (epId != null && epId > 0L) {
-            return ParsedTask(VideoRoute.Pgc(epId = epId, src = src), null)
+        val seasonId = VideoRouteTool.arg(input, "season_id")
+            ?.toLongOrNull()
+            ?: VideoRouteTool.arg(input, "seasonId")?.toLongOrNull()
+            ?: SS_REGEX.find(input)?.groupValues?.get(1)?.toLongOrNull()
+        if ((epId != null && epId > 0L) || (seasonId != null && seasonId > 0L)) {
+            val title = when {
+                epId != null && epId > 0L -> "ep$epId"
+                seasonId != null && seasonId > 0L -> "ss$seasonId"
+                else -> null
+            }
+            return VideoDownloadRequest(
+                biz = PlayBiz.PGC,
+                epId = epId ?: 0L,
+                seasonId = seasonId ?: 0L,
+                kind = state.kind,
+                videoQuality = state.videoQuality,
+                audioQuality = state.audioQuality,
+                meta = VideoDownloadMeta(title = title)
+            )
         }
 
         val bvid = VideoRouteTool.bvid(input) ?: BV_REGEX.find(input)?.value
@@ -174,32 +199,34 @@ class DownloadViewModel @Inject constructor(
             ?: input.toLongOrNull()
         val cid = VideoRouteTool.cid(input)
         if (aid == null && bvid == null) error("请输入链接、av号或BV号")
-        if (aid != null && aid > 0L && cid != null && cid > 0L) {
-            return ParsedTask(
-                VideoRoute.Ugc(
-                    aid = aid,
-                    cid = cid,
-                    bvid = bvid,
-                    src = src
-                ),
-                null
-            )
-        }
-
         val detail = detailRepository.fetchVideoDetail(
             aid = aid ?: 0L,
             bvid = bvid,
-            src = src
+            src = VideoRouteTool.feed()
         )
-        val page = detail.pages.firstOrNull() ?: error("没有找到可下载分P")
-        return ParsedTask(
-            VideoRoute.Ugc(
-                aid = detail.aid,
-                cid = page.cid,
-                bvid = detail.bvid.takeIf(String::isNotBlank),
-                src = src
-            ),
-            detail.title
+        val targetCid = cid?.takeIf { it > 0L }
+            ?: detail.pages.firstOrNull()?.cid
+            ?: error("没有找到可缓存分P")
+        val page = detail.pages.firstOrNull { it.cid == targetCid }
+            ?: detail.pages.firstOrNull()
+        val title = listOfNotNull(
+            detail.title.takeIf(String::isNotBlank),
+            page?.part?.takeIf(String::isNotBlank)
+        ).joinToString(" - ").takeIf(String::isNotBlank)
+        return VideoDownloadRequest(
+            biz = PlayBiz.UGC,
+            aid = detail.aid,
+            cid = targetCid,
+            bvid = detail.bvid.takeIf(String::isNotBlank),
+            kind = state.kind,
+            videoQuality = state.videoQuality,
+            audioQuality = state.audioQuality,
+            meta = VideoDownloadMeta(
+                title = title,
+                cover = detail.cover,
+                ownerUid = detail.owner?.mid?.takeIf { it > 0L },
+                ownerName = detail.owner?.name?.takeIf(String::isNotBlank)
+            )
         )
     }
 
@@ -208,35 +235,26 @@ class DownloadViewModel @Inject constructor(
     }
 
     private fun enqueue(request: VideoDownloadRequest) {
-        downloadRepository.enqueue(request)
         _formState.update { it.copy(error = null) }
         viewModelScope.launch {
-            downloadRepository.runPending()
+            when (downloadRepository.enqueue(request)) {
+                is VideoDownloadEnqueueResult.Enqueued -> Unit
+                is VideoDownloadEnqueueResult.AlreadyExists -> {
+                    setError("任务已存在")
+                }
+            }
         }
     }
 
-    private fun taskTitle(
-        title: String?,
-        route: VideoRoute
-    ): String {
-        title?.trim()
-            ?.takeIf(String::isNotBlank)
-            ?.let { return it }
-        return when (route) {
-            is VideoRoute.Ugc -> route.bvid?.takeIf(String::isNotBlank) ?: "av${route.aid}"
-            is VideoRoute.Pgc -> "ep${route.epId}"
-            is VideoRoute.Pugv -> "pugv ep${route.epId}"
-        }
+    private fun requestTitle(request: VideoDownloadRequest): String {
+        val title = request.meta.title?.trim()
+        return if (!title.isNullOrBlank()) title else request.fallbackTitle()
     }
-
-    private data class ParsedTask(
-        val route: VideoRoute,
-        val title: String?
-    )
 
     private companion object {
         val AV_REGEX = Regex("""(?i)(?:^|\D)av(\d+)""")
         val BV_REGEX = Regex("""BV[0-9A-Za-z]+""")
         val EP_REGEX = Regex("""(?i)(?:^|\D)ep(\d+)""")
+        val SS_REGEX = Regex("""(?i)(?:^|\D)ss(\d+)""")
     }
 }

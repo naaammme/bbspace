@@ -59,6 +59,7 @@ import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadOption
 import com.naaammme.bbspace.core.model.VideoDownloadOptions
+import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import java.util.Locale
@@ -73,7 +74,7 @@ fun VideoScreen(
     onOpenVideo: (VideoRoute) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
     onOpenDownloadCache: () -> Unit,
-    onStartDownload: (VideoRoute, String?, VideoDownloadKind, Int, Int) -> Unit,
+    onStartDownload: (VideoDownloadRequest) -> Unit,
     viewModel: VideoViewModel = hiltViewModel()
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
@@ -221,27 +222,28 @@ fun VideoScreen(
     }
 
     if (downloadSheetOn) {
-        val route = viewModel.currentDownloadRoute()
+        val sheetVideoQuality = playerState.currentStream?.quality ?: 80
+        val sheetAudioQuality = playerState.currentAudio?.id ?: 0
         DownloadTaskSheet(
-            currentVideoQuality = playerState.currentStream?.quality ?: 80,
-            currentAudioQuality = playerState.currentAudio?.id ?: 0,
-            canStartDownload = route != null,
+            currentVideoQuality = sheetVideoQuality,
+            currentAudioQuality = sheetAudioQuality,
+            canStartDownload = viewModel.currentDownloadRequest(
+                kind = VideoDownloadKind.VIDEO,
+                videoQuality = sheetVideoQuality,
+                audioQuality = sheetAudioQuality
+            ) != null,
             onDismiss = { downloadSheetOn = false },
             onOpenCache = {
                 downloadSheetOn = false
                 onOpenDownloadCache()
             },
             onStart = { kind, videoQuality, audioQuality ->
-                route?.let { currentRoute ->
-                    downloadSheetOn = false
-                    onStartDownload(
-                        currentRoute,
-                        viewModel.currentDownloadTitle(),
-                        kind,
-                        videoQuality,
-                        audioQuality
-                    )
-                }
+                val request = viewModel.currentDownloadRequest(
+                    kind = kind,
+                    videoQuality = videoQuality,
+                    audioQuality = audioQuality
+                ) ?: error("下载参数无效")
+                onStartDownload(request)
             }
         )
     }

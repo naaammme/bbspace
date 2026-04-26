@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -41,8 +43,10 @@ class Media3PlayerEngine @Inject constructor(
 
     private val appContext = context.applicationContext
 
-    private val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+    private val upstreamDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
         .setUserAgent(UserAgentBuilder.buildPlayerUserAgent())
+
+    private val dataSourceFactory = DefaultDataSource.Factory(appContext, upstreamDataSourceFactory)
 
     private val mediaSourceFactory = ProgressiveMediaSource.Factory(dataSourceFactory)
 
@@ -148,7 +152,7 @@ class Media3PlayerEngine @Inject constructor(
         startPositionMs: Long?,
         playWhenReady: Boolean
     ) {
-        val player = checkNotNull(exoPlayer) { "Player not prepared" }
+        val player = ensurePlayer()
         firstFrameSeq = 0L
         player.stop()
         player.clearMediaItems()
@@ -163,7 +167,7 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun play() {
-        val player = exoPlayer ?: return
+        val player = ensurePlayer()
         player.play()
     }
 
@@ -173,7 +177,7 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun setSpeed(speed: Float) {
-        val player = exoPlayer ?: return
+        val player = ensurePlayer()
         player.playbackParameters = PlaybackParameters(speed.coerceIn(0.25f, 3f))
     }
 
@@ -251,6 +255,15 @@ class Media3PlayerEngine @Inject constructor(
         }
     }
 
+    private fun ensurePlayer(): ExoPlayer {
+        exoPlayer?.let { return it }
+        val player = buildPlayer(appContext, playerConfig)
+        exoPlayer = player
+        _player.value = player
+        _snapshot.value = PlaybackSnapshot(playerInstanceId = System.identityHashCode(player))
+        return player
+    }
+
     private fun buildLoadControl(config: PlayerConfig): DefaultLoadControl {
         return DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -280,33 +293,33 @@ class Media3PlayerEngine @Inject constructor(
     private fun buildMediaSource(source: EngineSource): MediaSource {
         return when (source) {
             is EngineSource.LiveFlv -> {
-                val mediaItem = MediaItem.Builder()
-                    .setUri(source.url)
-                    .setLiveConfiguration(
-                        MediaItem.LiveConfiguration.Builder().build()
-                    )
+                val mediaItem = mediaItem(source.url, source)
+                    .buildUpon()
+                    .setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
                     .build()
                 mediaSourceFactory.createMediaSource(mediaItem)
             }
 
             is EngineSource.Dash -> {
-                val video = mediaSourceFactory.createMediaSource(MediaItem.fromUri(source.videoUrl))
+                val video = mediaSourceFactory.createMediaSource(mediaItem(source.videoUrl, source))
                 if (source.audioUrl.isNullOrBlank()) {
                     video
                 } else {
-                    val audio = mediaSourceFactory.createMediaSource(MediaItem.fromUri(source.audioUrl))
+                    val audio = mediaSourceFactory.createMediaSource(mediaItem(source.audioUrl, source))
                     MergingMediaSource(true, video, audio)
                 }
             }
 
             is EngineSource.Progressive -> {
                 if (source.segments.size == 1) {
-                    mediaSourceFactory.createMediaSource(MediaItem.fromUri(source.segments.first().url))
+                    mediaSourceFactory.createMediaSource(
+                        mediaItem(source.segments.first().url, source)
+                    )
                 } else {
                     val builder = ConcatenatingMediaSource2.Builder()
                     source.segments.forEach { segment ->
                         builder.add(
-                            mediaSourceFactory.createMediaSource(MediaItem.fromUri(segment.url)),
+                            mediaSourceFactory.createMediaSource(mediaItem(segment.url, source)),
                             segment.durationMs ?: C.TIME_UNSET
                         )
                     }
@@ -314,6 +327,23 @@ class Media3PlayerEngine @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun mediaItem(
+        uri: String,
+        source: EngineSource
+    ): MediaItem {
+        val title = source.title
+        val subtitle = source.subtitle
+        return MediaItem.Builder()
+            .setUri(uri)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(subtitle)
+                    .build()
+            )
+            .build()
     }
 
     private fun updateSnapshot(

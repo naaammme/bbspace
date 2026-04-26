@@ -135,9 +135,10 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             onOpenVideo = rootNavController::navigateToVideo,
             onOpenSpace = rootNavController::navigateToSpace,
             onOpenDownloadCache = { rootNavController.navigateToDownload() },
-            onStartDownload = downloadViewModel::startRouteDownload
+            onStartDownload = downloadViewModel::enqueueDownload
         )
         downloadScreen(
+            navController = rootNavController,
             onBack = { rootNavController.popBackStack() },
             viewModel = downloadViewModel
         )

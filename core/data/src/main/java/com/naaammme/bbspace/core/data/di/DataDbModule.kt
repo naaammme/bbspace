@@ -2,6 +2,8 @@ package com.naaammme.bbspace.core.data.di
 
 import android.content.Context
 import androidx.room.Room
+import com.naaammme.bbspace.core.data.download.VideoDownloadDao
+import com.naaammme.bbspace.core.data.download.VideoDownloadDb
 import com.naaammme.bbspace.core.data.history.LocalHistoryDao
 import com.naaammme.bbspace.core.data.history.LocalHistoryDb
 import dagger.Module
@@ -29,6 +31,24 @@ object DataDbModule {
 
     @Provides
     fun provideLocalHistoryDao(db: LocalHistoryDb): LocalHistoryDao {
+        return db.dao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideVideoDownloadDb(
+        @ApplicationContext context: Context
+    ): VideoDownloadDb {
+        return Room.databaseBuilder(
+            context,
+            VideoDownloadDb::class.java,
+            "video_download.db"
+        ).fallbackToDestructiveMigration()
+            .build()
+    }
+
+    @Provides
+    fun provideVideoDownloadDao(db: VideoDownloadDb): VideoDownloadDao {
         return db.dao()
     }
 }

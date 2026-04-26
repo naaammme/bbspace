@@ -17,6 +17,9 @@ import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerBufferSettings
 import com.naaammme.bbspace.core.model.PlayerPlaybackPrefs
 import com.naaammme.bbspace.core.model.VideoDetail
+import com.naaammme.bbspace.core.model.VideoDownloadKind
+import com.naaammme.bbspace.core.model.VideoDownloadMeta
+import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
@@ -232,25 +235,51 @@ class VideoViewModel @Inject constructor(
         startPlayback(next)
     }
 
-    fun currentDownloadRoute(): VideoRoute? {
-        val base = route ?: return null
-        if (base !is VideoRoute.Ugc) return base
+    fun currentDownloadRequest(
+        kind: VideoDownloadKind,
+        videoQuality: Int,
+        audioQuality: Int
+    ): VideoDownloadRequest? {
+        val curRoute = route ?: return null
         val id = playerState.value.playbackSource?.videoId ?: _req.value?.videoId
-        return base.copy(
-            aid = id?.aid?.takeIf { it > 0L } ?: base.aid,
-            cid = id?.cid?.takeIf { it > 0L } ?: base.cid,
-            bvid = id?.bvid?.takeIf(String::isNotBlank) ?: base.bvid
-        )
-    }
+        val meta = buildDownloadMeta()
+        return when (curRoute) {
+            is VideoRoute.Ugc -> {
+                val aid = id?.aid?.takeIf { it > 0L } ?: curRoute.aid
+                val cid = id?.cid?.takeIf { it > 0L } ?: curRoute.cid
+                if (aid <= 0L || cid <= 0L) return null
+                VideoDownloadRequest(
+                    biz = PlayBiz.UGC,
+                    aid = aid,
+                    cid = cid,
+                    bvid = id?.bvid?.takeIf(String::isNotBlank) ?: curRoute.bvid,
+                    kind = kind,
+                    videoQuality = videoQuality,
+                    audioQuality = audioQuality,
+                    meta = meta
+                )
+            }
 
-    fun currentDownloadTitle(): String? {
-        val detail = _detail.value ?: return null
-        val cid = playerState.value.playbackSource?.videoId?.cid ?: _req.value?.videoId?.cid
-        val part = cid?.let { target -> detail.pages.firstOrNull { it.cid == target } }
-        return listOfNotNull(
-            detail.title.takeIf(String::isNotBlank),
-            part?.part?.takeIf(String::isNotBlank)
-        ).joinToString(" - ").takeIf(String::isNotBlank)
+            is VideoRoute.Pgc -> VideoDownloadRequest(
+                biz = PlayBiz.PGC,
+                epId = curRoute.epId,
+                seasonId = curRoute.seasonId ?: 0L,
+                kind = kind,
+                videoQuality = videoQuality,
+                audioQuality = audioQuality,
+                meta = meta
+            )
+
+            is VideoRoute.Pugv -> VideoDownloadRequest(
+                biz = PlayBiz.PUGV,
+                epId = curRoute.epId,
+                seasonId = curRoute.seasonId ?: 0L,
+                kind = kind,
+                videoQuality = videoQuality,
+                audioQuality = audioQuality,
+                meta = meta
+            )
+        }
     }
 
     fun closePage() {
@@ -350,6 +379,24 @@ class VideoViewModel @Inject constructor(
         viewModelScope.launch {
             playerSettings.updatePlayback(settingsState.value.playback.transform())
         }
+    }
+
+    private fun buildDownloadMeta(): VideoDownloadMeta {
+        val detail = _detail.value
+        val cid = playerState.value.playbackSource?.videoId?.cid ?: _req.value?.videoId?.cid
+        val part = cid?.let { target -> detail?.pages?.firstOrNull { it.cid == target } }
+        val title = detail?.let {
+            listOfNotNull(
+                it.title.takeIf(String::isNotBlank),
+                part?.part?.takeIf(String::isNotBlank)
+            ).joinToString(" - ").takeIf(String::isNotBlank)
+        }
+        return VideoDownloadMeta(
+            title = title,
+            cover = detail?.cover,
+            ownerUid = detail?.owner?.mid?.takeIf { it > 0L },
+            ownerName = detail?.owner?.name?.takeIf(String::isNotBlank)
+        )
     }
 
     private suspend fun fetchDetail(
