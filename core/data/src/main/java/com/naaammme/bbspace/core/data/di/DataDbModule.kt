@@ -43,7 +43,7 @@ object DataDbModule {
             context,
             VideoDownloadDb::class.java,
             "video_download.db"
-        ).fallbackToDestructiveMigration()
+        ).fallbackToDestructiveMigration(true)
             .build()
     }
 

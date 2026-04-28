@@ -58,6 +58,7 @@ import com.naaammme.bbspace.core.model.VideoDownloadProgress
 import com.naaammme.bbspace.core.model.VideoDownloadTask
 import com.naaammme.bbspace.core.model.VideoDownloadTaskStatus
 import com.naaammme.bbspace.core.model.summaryLabel
+import com.naaammme.bbspace.feature.download.model.DownloadExportState
 import com.naaammme.bbspace.feature.download.model.DownloadTab
 import com.naaammme.bbspace.feature.download.model.DownloadUiState
 import com.naaammme.bbspace.feature.download.model.DownloadViewModel
@@ -100,6 +101,7 @@ fun DownloadScreen(
             onPauseTask = viewModel::pauseTask,
             onResumeTask = viewModel::resumeTask,
             onDeleteTask = viewModel::deleteTask,
+            onExportTask = viewModel::exportTask,
             onOpenPlayer = onOpenPlayer,
             modifier = Modifier
                 .fillMaxSize()
@@ -122,6 +124,7 @@ private fun DownloadContent(
     onPauseTask: (Long) -> Unit,
     onResumeTask: (Long) -> Unit,
     onDeleteTask: (Long) -> Unit,
+    onExportTask: (VideoDownloadTask) -> Unit,
     onOpenPlayer: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -150,6 +153,7 @@ private fun DownloadContent(
                 onPauseTask = onPauseTask,
                 onResumeTask = onResumeTask,
                 onDeleteTask = onDeleteTask,
+                onExportTask = onExportTask,
                 onOpenPlayer = onOpenPlayer,
                 modifier = Modifier.fillMaxSize()
             )
@@ -232,6 +236,7 @@ private fun QueueTab(
     onPauseTask: (Long) -> Unit,
     onResumeTask: (Long) -> Unit,
     onDeleteTask: (Long) -> Unit,
+    onExportTask: (VideoDownloadTask) -> Unit,
     onOpenPlayer: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -245,6 +250,11 @@ private fun QueueTab(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        state.export.message?.takeIf(String::isNotBlank)?.let { message ->
+            item("export_message") {
+                StateCard(message, isError = state.export.isError)
+            }
+        }
         if (tasks.isEmpty()) {
             item("queue_empty") {
                 StateCard("暂无缓存任务")
@@ -259,6 +269,8 @@ private fun QueueTab(
                     onPauseTask = onPauseTask,
                     onResumeTask = onResumeTask,
                     onDeleteTask = { pendingDelete = task },
+                    onExportTask = onExportTask,
+                    export = state.export,
                     onOpenPlayer = onOpenPlayer
                 )
             }
@@ -418,6 +430,8 @@ private fun TaskCard(
     onPauseTask: (Long) -> Unit,
     onResumeTask: (Long) -> Unit,
     onDeleteTask: (Long) -> Unit,
+    onExportTask: (VideoDownloadTask) -> Unit,
+    export: DownloadExportState,
     onOpenPlayer: (Long) -> Unit
 ) {
     val context = LocalContext.current
@@ -432,6 +446,9 @@ private fun TaskCard(
     }
     val canToggle = task.status != VideoDownloadTaskStatus.DONE &&
             task.status != VideoDownloadTaskStatus.FAILED
+    val exporting = export.taskId == task.id
+    val exportProgress = export.progress.takeIf { exporting }
+    val exportEnabled = export.taskId == null
 
     @Composable
     fun DeleteButton(modifier: Modifier) {
@@ -543,6 +560,32 @@ private fun TaskCard(
                         }
                     }
                     DeleteButton(Modifier.weight(1f))
+                }
+            } else if (task.status == VideoDownloadTaskStatus.DONE && task.isPlayable) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { onExportTask(task) },
+                        enabled = exportEnabled,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            if (exporting) {
+                                exportProgress?.let { "导出中 $it%" } ?: "导出中"
+                            } else {
+                                "导出"
+                            }
+                        )
+                    }
+                    DeleteButton(Modifier.weight(1f))
+                }
+                exportProgress?.let { progress ->
+                    LinearProgressIndicator(
+                        progress = { progress.coerceIn(0, 100) / 100f },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             } else {
                 DeleteButton(Modifier.fillMaxWidth())

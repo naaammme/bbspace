@@ -13,7 +13,15 @@ data class DownloadUiState(
     val hasTask: Boolean = false,
     val pendingTitle: String? = null,
     val tasks: List<VideoDownloadTask> = emptyList(),
+    val export: DownloadExportState = DownloadExportState(),
     val error: String? = null
+)
+
+data class DownloadExportState(
+    val taskId: Long? = null,
+    val progress: Int? = null,
+    val message: String? = null,
+    val isError: Boolean = false
 )
 
 enum class DownloadTab(val title: String) {

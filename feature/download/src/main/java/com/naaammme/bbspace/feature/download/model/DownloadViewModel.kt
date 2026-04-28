@@ -8,9 +8,11 @@ import com.naaammme.bbspace.core.model.VideoDownloadEnqueueResult
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadMeta
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
+import com.naaammme.bbspace.core.model.VideoDownloadTask
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.core.model.fallbackTitle
+import com.naaammme.bbspace.feature.download.DownloadExporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -26,7 +28,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DownloadViewModel @Inject constructor(
     private val detailRepository: VideoDetailRepository,
-    private val downloadRepository: VideoDownloadRepository
+    private val downloadRepository: VideoDownloadRepository,
+    private val downloadExporter: DownloadExporter
 ) : ViewModel() {
     private var pendingRequest: VideoDownloadRequest? = null
     private var pendingMeta: VideoDownloadMeta = VideoDownloadMeta()
@@ -165,6 +168,70 @@ class DownloadViewModel @Inject constructor(
     fun deleteTask(taskId: Long) {
         viewModelScope.launch {
             downloadRepository.delete(taskId)
+        }
+    }
+
+    fun exportTask(task: VideoDownloadTask) {
+        if (_formState.value.export.taskId != null) {
+            _formState.update {
+                it.copy(
+                    export = it.export.copy(
+                        message = "已有任务正在导出",
+                        isError = true
+                    )
+                )
+            }
+            return
+        }
+        viewModelScope.launch {
+            _formState.update {
+                it.copy(
+                    export = DownloadExportState(taskId = task.id, progress = 0)
+                )
+            }
+            try {
+                val path = downloadExporter.export(task) { progress ->
+                    _formState.update {
+                        if (it.export.taskId == task.id) {
+                            it.copy(export = it.export.copy(progress = progress))
+                        } else {
+                            it
+                        }
+                    }
+                }
+                _formState.update {
+                    it.copy(
+                        export = it.export.copy(
+                            message = "已导出到 $path",
+                            isError = false
+                        )
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _formState.update {
+                    it.copy(
+                        export = it.export.copy(
+                            message = "导出失败：${e.message ?: "未知错误"}",
+                            isError = true
+                        )
+                    )
+                }
+            } finally {
+                _formState.update {
+                    if (it.export.taskId == task.id) {
+                        it.copy(
+                            export = it.export.copy(
+                                taskId = null,
+                                progress = null
+                            )
+                        )
+                    } else {
+                        it
+                    }
+                }
+            }
         }
     }
 
