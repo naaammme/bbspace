@@ -90,7 +90,7 @@ class BiliMetadataBuilder @Inject constructor(
     fun buildFawkes(): ByteArray {
         val sessionId = UUID.randomUUID().toString().replace("-", "").substring(0, 8)
         return Fawkes.FawkesReq.newBuilder().apply {
-            appkey = BiliConstants.MOBI_APP
+            appkey = BiliConstants.APP_KEY_NAME
             env = BiliConstants.ENV
             this.sessionId = sessionId
         }.build().toByteArray()

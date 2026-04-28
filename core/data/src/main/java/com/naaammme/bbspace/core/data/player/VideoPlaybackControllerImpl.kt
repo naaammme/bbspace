@@ -282,6 +282,14 @@ class VideoPlaybackControllerImpl @Inject constructor(
                 ?: throw NoPlayableStreamException("暂无可用播放流")
             val startMs = resolveStartMs(request, source)
             if (openId.get() != token) return
+            _sessionState.value = PlayerSessionState(
+                currentRequest = request,
+                playbackSource = source,
+                currentStream = stream,
+                currentAudio = audio,
+                cdnIndex = engineSource.second,
+                isPreparing = true
+            )
             playerEngine.setSource(
                 source = engineSource.first,
                 startPositionMs = startMs,

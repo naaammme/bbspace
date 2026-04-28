@@ -36,7 +36,7 @@ class GrpcHeaderBuilder @Inject constructor(
         return buildMap {
             put("accept", "*/*")
             put("accept-encoding", "gzip, deflate, br")
-            put("app-key", BiliConstants.MOBI_APP)
+            put("app-key", BiliConstants.APP_KEY_NAME)
             if (accessKey.isNotEmpty()) {
                 put("authorization", "identify_v1 $accessKey")
             }

@@ -10,10 +10,12 @@ object BiliConstants {
     // 粉版 (android) 的 appkey
     const val APP_KEY = "1d8b6e7d45233436"
     const val APP_SEC = "560c52ccd288fed045859ed18bffd973"
+    const val APP_KEY_NAME = "android64"
 
     // TV 版 (android_hd) 的 appkey
     const val APP_KEY_HD = "dfca71928277209b"
     const val APP_SEC_HD = "b5475a8825547a4fc26c7d518eaaa02e"
+    const val APP_KEY_NAME_HD = "android_hd"
 
     // 手机号登录专用 appkey
     const val APP_KEY_SMS = "783bbb7264451d82"

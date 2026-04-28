@@ -295,7 +295,7 @@ class GuestIdGenerator(
                 .addHeader("session_id", BiliSessionId.header())
                 .addHeader("buvid", deviceIdentity.buvid)
                 .addHeader("env", BiliConstants.ENV)
-                .addHeader("app-key", BiliConstants.MOBI_APP)
+                .addHeader("app-key", BiliConstants.APP_KEY_NAME)
                 .addHeader("user-agent", UserAgentBuilder.buildRestfulUserAgent(deviceIdentity.model, deviceIdentity.osVer))
                 .addHeader("x-bili-trace-id", TraceIdGenerator.generate())
                 .addHeader("x-bili-aurora-eid", "")

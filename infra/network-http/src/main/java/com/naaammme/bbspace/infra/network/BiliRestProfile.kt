@@ -11,6 +11,7 @@ import com.naaammme.bbspace.core.common.BiliConstants
 enum class BiliRestProfile(
     val appKey: String,
     val appSec: String,
+    val appKeyName: String,
     val build: String,
     val mobiApp: String,
     val statistics: String
@@ -18,6 +19,7 @@ enum class BiliRestProfile(
     APP(
         appKey = BiliConstants.APP_KEY,
         appSec = BiliConstants.APP_SEC,
+        appKeyName = BiliConstants.APP_KEY_NAME,
         build = BiliConstants.BUILD_STR,
         mobiApp = BiliConstants.MOBI_APP,
         statistics = BiliConstants.STATISTICS_JSON
@@ -25,6 +27,7 @@ enum class BiliRestProfile(
     HD(
         appKey = BiliConstants.APP_KEY_HD,
         appSec = BiliConstants.APP_SEC_HD,
+        appKeyName = BiliConstants.APP_KEY_NAME_HD,
         build = BiliConstants.BUILD_STR_HD,
         mobiApp = BiliConstants.MOBI_APP_HD,
         statistics = BiliConstants.STATISTICS_JSON_HD
@@ -32,6 +35,7 @@ enum class BiliRestProfile(
     SMS(
         appKey = BiliConstants.APP_KEY_SMS,
         appSec = BiliConstants.APP_SEC_SMS,
+        appKeyName = BiliConstants.APP_KEY_NAME,
         build = BiliConstants.BUILD_STR,
         mobiApp = BiliConstants.MOBI_APP,
         statistics = BiliConstants.STATISTICS_JSON

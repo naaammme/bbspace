@@ -50,7 +50,7 @@ class BiliRestClient @Inject constructor(
         val requestBody = signedBody.toRequestBody(null)
         return withContext(Dispatchers.IO) {
             val resp = okHttpClient.newCall(
-                Request.Builder().url(url).post(requestBody).withHeaders().build()
+                Request.Builder().url(url).post(requestBody).withHeaders(profile).build()
             ).execute()
             val json = JSONObject(resp.body?.string() ?: throw BiliApiException(-1, "Empty response"))
             requireSuccess(json) to resp.header(headerName).orEmpty()
@@ -69,7 +69,7 @@ class BiliRestClient @Inject constructor(
     ): JSONObject {
         val signedQuery = AppSigner.sign(params, profile.appKey, profile.appSec)
         val fullUrl = "$url?$signedQuery"
-        return requireSuccess(executeJson(Request.Builder().url(fullUrl).get().withHeaders().build()))
+        return requireSuccess(executeJson(Request.Builder().url(fullUrl).get().withHeaders(profile).build()))
     }
 
     /**
@@ -84,7 +84,7 @@ class BiliRestClient @Inject constructor(
     ): JSONObject {
         val signedBody = AppSigner.sign(params, profile.appKey, profile.appSec)
         val requestBody = signedBody.toRequestBody(null)
-        return executeJson(Request.Builder().url(url).post(requestBody).withHeaders().build())
+        return executeJson(Request.Builder().url(url).post(requestBody).withHeaders(profile).build())
     }
 
     /**
@@ -111,8 +111,8 @@ class BiliRestClient @Inject constructor(
     /**
      * 统一附加 RESTful 请求 Header
      */
-    private fun Request.Builder.withHeaders(): Request.Builder {
-        headerBuilder.build().forEach { (key, value) -> addHeader(key, value) }
+    private fun Request.Builder.withHeaders(profile: BiliRestProfile): Request.Builder {
+        headerBuilder.build(profile).forEach { (key, value) -> addHeader(key, value) }
         return this
     }
 }

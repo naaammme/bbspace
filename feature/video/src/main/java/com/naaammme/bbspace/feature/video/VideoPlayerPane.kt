@@ -50,7 +50,6 @@ import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.feature.danmaku.DanmakuLayer
 import com.naaammme.bbspace.feature.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.core.model.PlaybackAudio
-import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.feature.video.model.VideoViewModel
 import kotlinx.coroutines.delay
@@ -129,6 +128,11 @@ internal fun VideoPlayerPane(
     } else {
         0f
     }
+    val videoAspect = remember(state.currentStream) {
+        val width = state.currentStream?.width?.takeIf { it > 0 } ?: return@remember null
+        val height = state.currentStream?.height?.takeIf { it > 0 } ?: return@remember null
+        width.toFloat() / height.toFloat()
+    }
     val playerView = remember(context) {
         PlayerView(context).apply {
             useController = false
@@ -158,10 +162,9 @@ internal fun VideoPlayerPane(
             factory = { playerView },
             update = { view ->
                 val content = view.findViewById<AspectRatioFrameLayout>(Media3UiR.id.exo_content_frame)
-                val nextWarmAspect = state.expectedVideoAspect()
-                if (content != null && lastWarmAspect != nextWarmAspect) {
-                    content.setAspectRatio(nextWarmAspect ?: 0f)
-                    lastWarmAspect = nextWarmAspect
+                if (content != null && lastWarmAspect != videoAspect) {
+                    content.setAspectRatio(videoAspect ?: 0f)
+                    lastWarmAspect = videoAspect
                 }
                 if (view.player !== player) {
                     view.player = player
@@ -343,15 +346,6 @@ internal fun VideoPlayerPane(
             onDismiss = { showPlaybackSheet = false }
         )
     }
-}
-
-private fun PlaybackViewState.expectedVideoAspect(): Float? {
-    val width = videoWidth.takeIf { it > 0 }
-        ?: currentStream?.width?.takeIf { it > 0 }
-    val height = videoHeight.takeIf { it > 0 }
-        ?: currentStream?.height?.takeIf { it > 0 }
-    if (width == null || height == null || width <= 0 || height <= 0) return null
-    return width.toFloat() / height.toFloat()
 }
 
 @Composable

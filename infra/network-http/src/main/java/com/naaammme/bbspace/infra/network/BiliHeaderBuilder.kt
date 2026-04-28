@@ -28,11 +28,11 @@ class BiliHeaderBuilder @Inject constructor(
     private val ticketGenerator: TicketGenerator,
     private val guestIdGenerator: GuestIdGenerator
 ) {
-    fun build(): Map<String, String> {
+    fun build(profile: BiliRestProfile = BiliRestProfile.APP): Map<String, String> {
         val mid = authProvider.mid
         return buildMap {
             put("accept", "*/*")
-            put("app-key", BiliConstants.MOBI_APP)
+            put("app-key", profile.appKeyName)
             put("bili-http-engine", "ignet")
             put("buvid", deviceIdentity.buvid)
             put("content-type", "application/x-www-form-urlencoded; charset=utf-8")

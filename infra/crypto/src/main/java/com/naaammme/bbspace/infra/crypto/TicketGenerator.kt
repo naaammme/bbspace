@@ -304,7 +304,7 @@ class TicketGenerator(
             .addHeader("x-bili-ticket", oldTicket)
             .addHeader("buvid", deviceIdentity.buvid)
             .addHeader("env", BiliConstants.ENV)
-            .addHeader("app-key", BiliConstants.MOBI_APP)
+            .addHeader("app-key", BiliConstants.APP_KEY_NAME)
             .apply {
                 if (accessKey.isNotEmpty()) {
                     addHeader("authorization", "identify_v1 $accessKey")
@@ -411,7 +411,7 @@ class TicketGenerator(
     private fun buildFawkesProtobuf(): ByteArray {
         val sessionId = UUID.randomUUID().toString().replace("-", "").substring(0, 8)
         return Fawkes.FawkesReq.newBuilder().apply {
-            appkey = BiliConstants.MOBI_APP
+            appkey = BiliConstants.APP_KEY_NAME
             env = BiliConstants.ENV
             this.sessionId = sessionId
         }.build().toByteArray()
