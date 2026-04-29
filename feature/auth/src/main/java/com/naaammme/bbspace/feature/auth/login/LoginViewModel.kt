@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.auth.model
+package com.naaammme.bbspace.feature.auth.login
 
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel

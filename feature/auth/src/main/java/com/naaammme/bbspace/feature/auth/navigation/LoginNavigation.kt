@@ -3,9 +3,9 @@ package com.naaammme.bbspace.feature.auth.navigation
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.naaammme.bbspace.feature.auth.AccountScreen
-import com.naaammme.bbspace.feature.auth.LoginScreen
-import com.naaammme.bbspace.feature.auth.SmsLoginScreen
+import com.naaammme.bbspace.feature.auth.account.AccountScreen
+import com.naaammme.bbspace.feature.auth.login.LoginScreen
+import com.naaammme.bbspace.feature.auth.sms.SmsLoginScreen
 
 const val LOGIN_ROUTE = "login"
 const val SMS_LOGIN_ROUTE = "sms_login"

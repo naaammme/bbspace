@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.download.model
+package com.naaammme.bbspace.feature.download.player
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

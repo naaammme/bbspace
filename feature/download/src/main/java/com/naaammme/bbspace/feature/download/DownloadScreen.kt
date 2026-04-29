@@ -58,10 +58,6 @@ import com.naaammme.bbspace.core.model.VideoDownloadProgress
 import com.naaammme.bbspace.core.model.VideoDownloadTask
 import com.naaammme.bbspace.core.model.VideoDownloadTaskStatus
 import com.naaammme.bbspace.core.model.summaryLabel
-import com.naaammme.bbspace.feature.download.model.DownloadExportState
-import com.naaammme.bbspace.feature.download.model.DownloadTab
-import com.naaammme.bbspace.feature.download.model.DownloadUiState
-import com.naaammme.bbspace.feature.download.model.DownloadViewModel
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)

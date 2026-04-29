@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.live.model
+package com.naaammme.bbspace.feature.live
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -14,6 +14,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -25,7 +26,7 @@ class LiveViewModel @Inject constructor(
     playerSettings: PlayerSettings
 ) : ViewModel() {
 
-    val route: LiveRoute? = savedStateHandle.toLiveRoute()
+    private val route: LiveRoute? = savedStateHandle.toLiveRoute()
     val player = playbackController.player
     val playbackState: StateFlow<LivePlaybackViewState> = playbackController.state
     val backgroundPlaybackEnabled = playerSettings.state
@@ -35,6 +36,20 @@ class LiveViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = false
         )
+    val uiState: StateFlow<LiveUiState> = combine(
+        playbackState,
+        backgroundPlaybackEnabled
+    ) { playbackState, backgroundPlaybackEnabled ->
+        LiveUiState(
+            route = route,
+            playbackState = playbackState,
+            backgroundPlaybackEnabled = backgroundPlaybackEnabled
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = LiveUiState(route = route)
+    )
 
     private var startJob: Job? = null
 

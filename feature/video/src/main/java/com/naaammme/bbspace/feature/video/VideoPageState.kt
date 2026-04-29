@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.video.model
+package com.naaammme.bbspace.feature.video
 
 import com.naaammme.bbspace.core.model.VideoDetail
 

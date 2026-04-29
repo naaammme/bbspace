@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.download
+package com.naaammme.bbspace.feature.download.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,7 +54,6 @@ import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.feature.danmaku.DanmakuLayer
 import com.naaammme.bbspace.feature.danmaku.DanmakuSettingsSection
 import com.naaammme.bbspace.feature.danmaku.rememberDanmakuOverlayState
-import com.naaammme.bbspace.feature.download.model.DownloadPlayerViewModel
 import kotlinx.coroutines.delay
 import java.util.Locale
 

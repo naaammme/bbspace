@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.auth
+package com.naaammme.bbspace.feature.auth.account
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +45,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.naaammme.bbspace.feature.auth.model.AccountViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.naaammme.bbspace.core.common.media.thumbnailUrl

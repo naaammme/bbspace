@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.download
+package com.naaammme.bbspace.feature.download.player
 
 import android.app.Activity
 import android.content.Context
@@ -45,7 +45,6 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import com.naaammme.bbspace.core.model.DownloadPlaybackStatus
-import com.naaammme.bbspace.feature.download.model.DownloadPlayerViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 

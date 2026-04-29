@@ -61,7 +61,8 @@ import com.naaammme.bbspace.core.model.VideoDownloadOption
 import com.naaammme.bbspace.core.model.VideoDownloadOptions
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.core.model.VideoRoute
-import com.naaammme.bbspace.feature.video.model.VideoViewModel
+import com.naaammme.bbspace.feature.video.detail.VideoDetailPage
+import com.naaammme.bbspace.feature.video.player.VideoPlayerPane
 import java.util.Locale
 
 internal val speedOps = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)

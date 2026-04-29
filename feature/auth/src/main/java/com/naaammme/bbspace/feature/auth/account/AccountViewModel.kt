@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.auth.model
+package com.naaammme.bbspace.feature.auth.account
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

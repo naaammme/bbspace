@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.download.model
+package com.naaammme.bbspace.feature.download.player
 
 import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.model.DanmakuItem

@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.auth
+package com.naaammme.bbspace.feature.auth.sms
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,7 +17,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.SmsLoginState
-import com.naaammme.bbspace.feature.auth.model.SmsLoginViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

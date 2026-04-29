@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
-import com.naaammme.bbspace.feature.bbspace.model.BbSpaceViewModel
 import com.naaammme.bbspace.feature.bbspace.playback.PlaybackHistoryPane
 
 @OptIn(ExperimentalMaterial3Api::class)

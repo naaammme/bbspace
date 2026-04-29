@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.video
+package com.naaammme.bbspace.feature.video.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,7 +51,13 @@ import com.naaammme.bbspace.feature.danmaku.DanmakuLayer
 import com.naaammme.bbspace.feature.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.QualityOption
-import com.naaammme.bbspace.feature.video.model.VideoViewModel
+import com.naaammme.bbspace.feature.video.detail.QualityOptionItem
+import com.naaammme.bbspace.feature.video.VideoViewModel
+import com.naaammme.bbspace.feature.video.formatPlaybackTime
+import com.naaammme.bbspace.feature.video.formatSpeed
+import com.naaammme.bbspace.feature.video.getAudioName
+import com.naaammme.bbspace.feature.video.getQualityName
+import com.naaammme.bbspace.feature.video.speedOps
 import kotlinx.coroutines.delay
 
 @Suppress("UnsafeOptInUsageError")

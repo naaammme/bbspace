@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.live
+package com.naaammme.bbspace.feature.live.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -48,7 +48,7 @@ import com.naaammme.bbspace.core.model.LiveQualityOption
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.LiveStatus
 import com.naaammme.bbspace.core.model.PlaybackState
-import com.naaammme.bbspace.feature.live.model.toUiMessage
+import com.naaammme.bbspace.feature.live.toUiMessage
 import kotlinx.coroutines.delay
 
 @Suppress("UnsafeOptInUsageError")

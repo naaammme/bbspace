@@ -1,4 +1,4 @@
-﻿package com.naaammme.bbspace.feature.video
+﻿package com.naaammme.bbspace.feature.video.detail
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -73,7 +73,8 @@ import com.naaammme.bbspace.core.model.VideoSeason
 import com.naaammme.bbspace.core.model.VideoSeasonEpisode
 import com.naaammme.bbspace.core.model.VideoStat
 import com.naaammme.bbspace.feature.comment.CommentPanel
-import com.naaammme.bbspace.feature.video.model.VideoPageState
+import com.naaammme.bbspace.feature.video.VideoPageState
+import com.naaammme.bbspace.feature.video.formatDuration
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable

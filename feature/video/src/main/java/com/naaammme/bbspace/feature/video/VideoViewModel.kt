@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.video.model
+package com.naaammme.bbspace.feature.video
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -24,6 +24,7 @@ import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.core.model.toPlayableParams
+import com.naaammme.bbspace.feature.video.player.VodDanmakuSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import androidx.media3.common.Player

@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.auth
+package com.naaammme.bbspace.feature.auth.login
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.naaammme.bbspace.feature.auth.model.LoginViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.LoginState

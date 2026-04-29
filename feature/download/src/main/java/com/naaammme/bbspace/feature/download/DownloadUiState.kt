@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.download.model
+package com.naaammme.bbspace.feature.download
 
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadTask

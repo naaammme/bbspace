@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.download.model
+package com.naaammme.bbspace.feature.download
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

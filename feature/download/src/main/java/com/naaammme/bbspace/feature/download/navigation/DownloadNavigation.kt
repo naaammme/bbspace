@@ -5,9 +5,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.naaammme.bbspace.feature.download.DownloadPlayerScreen
 import com.naaammme.bbspace.feature.download.DownloadScreen
-import com.naaammme.bbspace.feature.download.model.DownloadViewModel
+import com.naaammme.bbspace.feature.download.DownloadViewModel
+import com.naaammme.bbspace.feature.download.player.DownloadPlayerScreen
 
 private const val DOWNLOAD_ROUTE = "download"
 private const val TASK_ID_ARG = "taskId"

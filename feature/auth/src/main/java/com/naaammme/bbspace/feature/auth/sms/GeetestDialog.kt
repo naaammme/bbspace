@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.auth
+package com.naaammme.bbspace.feature.auth.sms
 
 import android.annotation.SuppressLint
 import android.webkit.JavascriptInterface

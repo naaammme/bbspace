@@ -49,7 +49,7 @@ import com.naaammme.bbspace.feature.space.navigation.navigateToSpace
 import com.naaammme.bbspace.feature.space.navigation.spaceScreen
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
-import com.naaammme.bbspace.feature.download.model.DownloadViewModel
+import com.naaammme.bbspace.feature.download.DownloadViewModel
 import com.naaammme.bbspace.feature.user.UserScreen
 import com.naaammme.bbspace.feature.video.navigation.navigateToVideo
 import com.naaammme.bbspace.feature.video.navigation.videoScreen

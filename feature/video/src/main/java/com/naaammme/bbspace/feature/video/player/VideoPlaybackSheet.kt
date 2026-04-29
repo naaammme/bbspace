@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.video
+package com.naaammme.bbspace.feature.video.player
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +39,12 @@ import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.feature.danmaku.DanmakuSettingsSection
-import com.naaammme.bbspace.feature.video.model.VideoViewModel
+import com.naaammme.bbspace.feature.video.VideoViewModel
+import com.naaammme.bbspace.feature.video.formatDuration
+import com.naaammme.bbspace.feature.video.formatSpeed
+import com.naaammme.bbspace.feature.video.getAudioName
+import com.naaammme.bbspace.feature.video.getCodecName
+import com.naaammme.bbspace.feature.video.getQualityName
 
 private enum class PlaybackSheetSection(
     val title: String

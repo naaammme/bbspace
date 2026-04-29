@@ -36,8 +36,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.feature.live.model.LiveViewModel
-import com.naaammme.bbspace.feature.live.model.toUiMessage
+import com.naaammme.bbspace.feature.live.player.LivePlayerPane
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,10 +44,8 @@ fun LiveScreen(
     onBack: () -> Unit,
     viewModel: LiveViewModel = hiltViewModel()
 ) {
-    val route = viewModel.route
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
-    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-    val backgroundPlaybackEnabled by viewModel.backgroundPlaybackEnabled.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     val procOwner = remember { ProcessLifecycleOwner.get() }
 
@@ -74,10 +71,10 @@ fun LiveScreen(
         }
     }
 
-    DisposableEffect(procOwner, viewModel, backgroundPlaybackEnabled) {
+    DisposableEffect(procOwner, viewModel, state.backgroundPlaybackEnabled) {
         val lifecycle = procOwner.lifecycle
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !backgroundPlaybackEnabled) {
+            if (event == Lifecycle.Event.ON_STOP && !state.backgroundPlaybackEnabled) {
                 viewModel.pause()
             }
         }
@@ -95,7 +92,7 @@ fun LiveScreen(
         TopAppBar(
             title = {
                 Text(
-                    text = route?.title ?: "直播"
+                    text = state.route?.title ?: "直播"
                 )
             },
             navigationIcon = {
@@ -109,9 +106,9 @@ fun LiveScreen(
         )
 
         LivePlayerPane(
-            route = route,
+            route = state.route,
             player = player,
-            playbackState = playbackState,
+            playbackState = state.playbackState,
             onTogglePlay = viewModel::togglePlayPause,
             onRetry = viewModel::retry,
             onSwitchQuality = viewModel::switchQuality,
@@ -121,8 +118,8 @@ fun LiveScreen(
         )
 
         LiveDetailSection(
-            route = route,
-            playbackState = playbackState,
+            route = state.route,
+            playbackState = state.playbackState,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
