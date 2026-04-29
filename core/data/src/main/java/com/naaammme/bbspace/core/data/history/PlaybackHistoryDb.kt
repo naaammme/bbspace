@@ -4,10 +4,10 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [LocalHistoryEntity::class],
+    entities = [PlaybackHistoryEntity::class],
     version = 2,
     exportSchema = false
 )
-abstract class LocalHistoryDb : RoomDatabase() {
-    abstract fun dao(): LocalHistoryDao
+abstract class PlaybackHistoryDb : RoomDatabase() {
+    abstract fun dao(): PlaybackHistoryDao
 }

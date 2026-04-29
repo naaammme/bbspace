@@ -50,18 +50,16 @@ abstract class SearchHistoryDao {
         SELECT keyword
         FROM search_history
         ORDER BY updatedAt DESC, searchCount DESC, keyword ASC
-        LIMIT :limit
         """
     )
-    abstract fun observeTopKeywordsByTime(limit: Int): Flow<List<String>>
+    abstract fun observeTopKeywordsByTime(): Flow<List<String>>
 
     @Query(
         """
         SELECT keyword
         FROM search_history
         ORDER BY searchCount DESC, updatedAt DESC, keyword ASC
-        LIMIT :limit
         """
     )
-    abstract fun observeTopKeywordsByHot(limit: Int): Flow<List<String>>
+    abstract fun observeTopKeywordsByHot(): Flow<List<String>>
 }

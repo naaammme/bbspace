@@ -94,12 +94,11 @@ class SearchRepoImpl @Inject constructor(
     }
 
     override fun observeHistory(
-        order: SearchHistoryOrder,
-        limit: Int
+        order: SearchHistoryOrder
     ): Flow<List<String>> {
         val source = when (order) {
-            SearchHistoryOrder.TIME -> searchHistoryDao.observeTopKeywordsByTime(limit)
-            SearchHistoryOrder.HOT -> searchHistoryDao.observeTopKeywordsByHot(limit)
+            SearchHistoryOrder.TIME -> searchHistoryDao.observeTopKeywordsByTime()
+            SearchHistoryOrder.HOT -> searchHistoryDao.observeTopKeywordsByHot()
         }
         return source.map { list -> list.filter { it.isNotBlank() } }
     }

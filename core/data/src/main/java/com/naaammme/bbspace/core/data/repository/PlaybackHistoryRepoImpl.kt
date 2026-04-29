@@ -1,33 +1,37 @@
 package com.naaammme.bbspace.core.data.repository
 
-import com.naaammme.bbspace.core.data.history.LocalHistoryDao
-import com.naaammme.bbspace.core.data.history.LocalHistoryEntity
-import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
-import com.naaammme.bbspace.core.model.LocalHistoryKey
-import com.naaammme.bbspace.core.model.VideoHistory
+import com.naaammme.bbspace.core.data.history.PlaybackHistoryDao
+import com.naaammme.bbspace.core.data.history.PlaybackHistoryEntity
+import com.naaammme.bbspace.core.domain.history.PlaybackHistoryRepository
+import com.naaammme.bbspace.core.model.PlaybackHistory
+import com.naaammme.bbspace.core.model.PlaybackHistoryKey
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 @Singleton
-class LocalHistoryRepoImpl @Inject constructor(
-    private val dao: LocalHistoryDao
-) : LocalHistoryRepository {
+class PlaybackHistoryRepoImpl @Inject constructor(
+    private val dao: PlaybackHistoryDao
+) : PlaybackHistoryRepository {
 
-    override suspend fun upsertVideo(item: VideoHistory) {
-        dao.upsert(item.toEntity())
+    override suspend fun upsertVideo(item: PlaybackHistory) {
+         dao.upsert(item.toEntity())
     }
 
     override suspend fun getVideo(
         uid: Long,
         key: String
-    ): VideoHistory? {
-        return dao.getById(LocalHistoryKey.videoId(uid, key))?.toModel()
+    ): PlaybackHistory? {
+        return dao.getById(PlaybackHistoryKey.videoId(uid, key))?.toModel()
     }
 
-    override fun observeVideos(): Flow<List<VideoHistory>> {
-        return dao.observeVideos().map { list -> list.map(LocalHistoryEntity::toModel) }
+    override fun observeVideoCount(): Flow<Int> {
+        return dao.observeCount()
+    }
+
+    override fun observeVideos(): Flow<List<PlaybackHistory>> {
+        return dao.observeVideos().map { list -> list.map(PlaybackHistoryEntity::toModel) }
     }
 
     override suspend fun deleteVideo(id: String) {
@@ -39,13 +43,12 @@ class LocalHistoryRepoImpl @Inject constructor(
     }
 }
 
-private fun VideoHistory.toEntity() = LocalHistoryEntity(
-    id = LocalHistoryKey.videoId(uid, key),
+private fun PlaybackHistory.toEntity() = PlaybackHistoryEntity(
+    id = PlaybackHistoryKey.videoId(uid, key),
     uid = uid,
     biz = biz,
     aid = aid,
     cid = cid,
-    bvid = bvid,
     epId = epId,
     seasonId = seasonId,
     title = title,
@@ -61,9 +64,9 @@ private fun VideoHistory.toEntity() = LocalHistoryEntity(
     finished = finished
 )
 
-private fun LocalHistoryEntity.toModel() = VideoHistory(
+private fun PlaybackHistoryEntity.toModel() = PlaybackHistory(
     uid = uid,
-    key = LocalHistoryKey.video(
+    key = PlaybackHistoryKey.video(
         biz = biz,
         aid = aid,
         cid = cid,
@@ -72,7 +75,6 @@ private fun LocalHistoryEntity.toModel() = VideoHistory(
     biz = biz,
     aid = aid,
     cid = cid,
-    bvid = bvid,
     epId = epId,
     seasonId = seasonId,
     title = title,

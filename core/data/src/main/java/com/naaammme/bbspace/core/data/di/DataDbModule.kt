@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.naaammme.bbspace.core.data.download.VideoDownloadDao
 import com.naaammme.bbspace.core.data.download.VideoDownloadDb
-import com.naaammme.bbspace.core.data.history.LocalHistoryDao
-import com.naaammme.bbspace.core.data.history.LocalHistoryDb
+import com.naaammme.bbspace.core.data.history.PlaybackHistoryDao
+import com.naaammme.bbspace.core.data.history.PlaybackHistoryDb
 import com.naaammme.bbspace.core.data.search.SearchHistoryDao
 import com.naaammme.bbspace.core.data.search.SearchHistoryDb
 import dagger.Module
@@ -20,19 +20,19 @@ import javax.inject.Singleton
 object DataDbModule {
     @Provides
     @Singleton
-    fun provideLocalHistoryDb(
+    fun providePlaybackHistoryDb(
         @ApplicationContext context: Context
-    ): LocalHistoryDb {
+    ): PlaybackHistoryDb {
         return Room.databaseBuilder(
             context,
-            LocalHistoryDb::class.java,
-            "local_history.db"
-        ).fallbackToDestructiveMigration(false)
+            PlaybackHistoryDb::class.java,
+            "playback_history.db"
+        ).fallbackToDestructiveMigration(true)
             .build()
     }
 
     @Provides
-    fun provideLocalHistoryDao(db: LocalHistoryDb): LocalHistoryDao {
+    fun providePlaybackHistoryDao(db: PlaybackHistoryDb): PlaybackHistoryDao {
         return db.dao()
     }
 

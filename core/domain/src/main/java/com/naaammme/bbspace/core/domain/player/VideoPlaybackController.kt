@@ -2,8 +2,8 @@ package com.naaammme.bbspace.core.domain.player
 
 import androidx.media3.common.Player
 import com.naaammme.bbspace.core.model.PlaybackRequest
+import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.PlaybackViewState
-import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import kotlinx.coroutines.flow.StateFlow
 
 interface VideoPlaybackController {
@@ -23,7 +23,7 @@ interface VideoPlaybackController {
         fun switchAudio(audioId: Int)
         fun switchCdn(index: Int)
 
-        fun updateMeta(meta: VideoHistoryMeta?)
+        fun updateMeta(meta: PlaybackHistoryMeta?)
         fun release()
     }
 }

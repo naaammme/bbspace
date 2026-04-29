@@ -66,7 +66,7 @@ class SearchViewModel @Inject constructor(
     val currentHistoryOrder = historyOrder.asStateFlow()
     val histories = historyOrder
         .flatMapLatest { order ->
-            repo.observeHistory(order, HISTORY_PREVIEW_LIMIT)
+            repo.observeHistory(order)
         }
         .stateIn(
             scope = viewModelScope,
@@ -304,7 +304,6 @@ class SearchViewModel @Inject constructor(
 
     private companion object {
         const val TAG = "SearchViewModel"
-        const val HISTORY_PREVIEW_LIMIT = 240
         const val SORT_KEY = "sort"
         const val SINCE_KEY = "since"
         const val CUSTOM_TIME = "custom"

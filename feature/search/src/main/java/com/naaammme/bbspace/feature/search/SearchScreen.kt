@@ -269,6 +269,12 @@ private fun SearchHistoryPanel(
     onSearch: (String) -> Unit,
     onDelete: (String) -> Unit
 ) {
+    var displayCap by remember { mutableStateOf(DISPLAY_STEP) }
+    val visible = remember(histories, displayCap) {
+        histories.take(displayCap)
+    }
+    val hasMore = histories.size > displayCap
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
@@ -307,13 +313,29 @@ private fun SearchHistoryPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                histories.forEachIndexed { index, item ->
+                visible.forEachIndexed { index, item ->
                     SearchHistoryChip(
                         text = item,
                         featured = index == 0,
                         onClick = { onSearch(item) },
                         onLongClick = { onDelete(item) }
                     )
+                }
+
+                if (hasMore) {
+                    val remaining = histories.size - displayCap
+                    Surface(
+                        onClick = { displayCap += DISPLAY_STEP },
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow
+                    ) {
+                        Text(
+                            text = "展开更多 ($remaining)",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
@@ -972,6 +994,7 @@ private fun endOfDay(timeS: Long): Long {
 
 private const val INIT_SKELETON_COUNT = 8
 private const val LOAD_MORE_SKELETON_COUNT = 2
+private const val DISPLAY_STEP = 100
 private const val SORT_KEY = "sort"
 private const val SINCE_KEY = "since"
 private const val CUSTOM_TIME = "custom"

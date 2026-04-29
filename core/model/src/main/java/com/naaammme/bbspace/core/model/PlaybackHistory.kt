@@ -4,13 +4,12 @@ import androidx.compose.runtime.Immutable
 import java.util.Locale
 
 @Immutable
-data class VideoHistory(
+data class PlaybackHistory(
     val uid: Long,
     val key: String,
     val biz: String,
     val aid: Long,
     val cid: Long,
-    val bvid: String? = null,
     val epId: Long? = null,
     val seasonId: Long? = null,
     val title: String = "",
@@ -26,11 +25,11 @@ data class VideoHistory(
     val finished: Boolean = false
 ) {
     val id: String
-        get() = LocalHistoryKey.videoId(uid, key)
+        get() = PlaybackHistoryKey.videoId(uid, key)
 }
 
 @Immutable
-data class VideoHistoryMeta(
+data class PlaybackHistoryMeta(
     val title: String = "",
     val cover: String? = null,
     val ownerUid: Long? = null,
@@ -39,7 +38,7 @@ data class VideoHistoryMeta(
     val partTitle: String? = null
 )
 
-object LocalHistoryKey {
+object PlaybackHistoryKey {
     fun video(report: PlayReportParams): String {
         return video(
             biz = report.biz.name,

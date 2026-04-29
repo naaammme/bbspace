@@ -7,13 +7,13 @@ import com.naaammme.bbspace.core.data.player.DownloadPlaybackControllerImpl
 import com.naaammme.bbspace.core.data.player.LivePlaybackControllerImpl
 import com.naaammme.bbspace.core.data.player.PlayerSettingsImpl
 import com.naaammme.bbspace.core.data.player.VideoPlaybackControllerImpl
-import com.naaammme.bbspace.core.data.repository.LocalHistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.AuthRepoImpl
 import com.naaammme.bbspace.core.data.repository.CommentRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
 import com.naaammme.bbspace.core.data.repository.HistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRecommendRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRepoImpl
+import com.naaammme.bbspace.core.data.repository.PlaybackHistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.SearchRepoImpl
 import com.naaammme.bbspace.core.data.repository.SpaceRepoImpl
 import com.naaammme.bbspace.core.data.repository.VodDanmakuRepoImpl
@@ -25,7 +25,7 @@ import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
 import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
 import com.naaammme.bbspace.core.domain.history.HistoryRepository
-import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
+import com.naaammme.bbspace.core.domain.history.PlaybackHistoryRepository
 import com.naaammme.bbspace.core.domain.live.LivePlaybackController
 import com.naaammme.bbspace.core.domain.live.LiveRecommendRepository
 import com.naaammme.bbspace.core.domain.live.LiveRepository
@@ -118,5 +118,5 @@ abstract class DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindLocalHistoryRepo(impl: LocalHistoryRepoImpl): LocalHistoryRepository
+    abstract fun bindPlaybackHistoryRepo(impl: PlaybackHistoryRepoImpl): PlaybackHistoryRepository
 }

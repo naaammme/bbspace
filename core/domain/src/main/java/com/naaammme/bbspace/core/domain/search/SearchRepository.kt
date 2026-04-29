@@ -13,7 +13,6 @@ interface SearchRepository {
     suspend fun deleteHistory(keyword: String)
 
     fun observeHistory(
-        order: SearchHistoryOrder,
-        limit: Int
+        order: SearchHistoryOrder
     ): Flow<List<String>>
 }

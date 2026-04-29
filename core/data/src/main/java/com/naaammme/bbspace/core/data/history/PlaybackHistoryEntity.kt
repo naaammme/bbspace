@@ -5,18 +5,17 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "local_history",
+    tableName = "playback_history",
     indices = [
         Index(value = ["uid", "updatedAt"])
     ]
 )
-data class LocalHistoryEntity(
+data class PlaybackHistoryEntity(
     @PrimaryKey val id: String,
     val uid: Long,
     val biz: String,
     val aid: Long,
     val cid: Long,
-    val bvid: String?,
     val epId: Long?,
     val seasonId: Long?,
     val title: String,

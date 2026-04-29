@@ -4,10 +4,13 @@ import androidx.media3.common.Player
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.history.LocalHistoryRepository
+import com.naaammme.bbspace.core.domain.history.PlaybackHistoryRepository
+import com.naaammme.bbspace.core.model.PlayBiz
+import com.naaammme.bbspace.core.model.PlaybackHistory
+import com.naaammme.bbspace.core.model.PlaybackHistoryKey
+import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
-import com.naaammme.bbspace.core.model.LocalHistoryKey
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
@@ -16,7 +19,6 @@ import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerSessionState
-import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineDiscontinuityReason
@@ -54,15 +56,15 @@ class VideoPlaybackControllerImpl @Inject constructor(
     private val playerSettingsStore: PlayerSettingsStore,
     private val reporter: PlaybackReporter,
     private val authProvider: AuthProvider,
-    private val localHistoryRepo: LocalHistoryRepository,
+    private val playbackHistoryRepo: PlaybackHistoryRepository,
     private val playerEngine: PlayerEngine
 ) : VideoPlaybackController {
     private val _sessionState = MutableStateFlow(PlayerSessionState())
     val sessionState: StateFlow<PlayerSessionState> = _sessionState.asStateFlow()
     private val _viewState = MutableStateFlow(PlaybackViewState())
     val playbackState: StateFlow<PlaybackViewState> = _viewState.asStateFlow()
-    private val _pageMeta = MutableStateFlow<VideoHistoryMeta?>(null)
-    val pageMeta: StateFlow<VideoHistoryMeta?> = _pageMeta.asStateFlow()
+    private val _pageMeta = MutableStateFlow<PlaybackHistoryMeta?>(null)
+    val pageMeta: StateFlow<PlaybackHistoryMeta?> = _pageMeta.asStateFlow()
     val playerState: StateFlow<Player?> = playerEngine.player
     private val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val prepMu = Mutex()
@@ -207,10 +209,10 @@ class VideoPlaybackControllerImpl @Inject constructor(
             }
         }
 
-        override fun updateMeta(meta: VideoHistoryMeta?) {
+        override fun updateMeta(meta: PlaybackHistoryMeta?) {
             if (!isOwner(sessionId)) return
             _pageMeta.value = meta
-            reporter.updateVideoMeta(meta)
+            reporter.updatePlaybackMeta(meta)
         }
 
         override fun release() {
@@ -257,9 +259,10 @@ class VideoPlaybackControllerImpl @Inject constructor(
             isPreparing = true
         )
         try {
-            val (source, preferredQuality, preferredAudioId, preferredCdnIndex) = coroutineScope {
+            val openCfg = coroutineScope {
                 val prepareJob = async { prepareEngine() }
                 val sourceJob = async { repository.fetchPlaybackSource(request) }
+                val localResumeJob = async(Dispatchers.IO) { readLocalResumeIfResolvable(request) }
                 val qualityJob = async {
                     request.preferredQuality ?: appSettings.defaultVideoQuality.first()
                 }
@@ -268,19 +271,25 @@ class VideoPlaybackControllerImpl @Inject constructor(
 
                 prepareJob.await()
                 OpenConfig(
-                    sourceJob.await(),
-                    qualityJob.await(),
-                    audioJob.await(),
-                    cdnJob.await()
+                    source = sourceJob.await(),
+                    preferredQuality = qualityJob.await(),
+                    preferredAudioId = audioJob.await(),
+                    preferredCdnIndex = cdnJob.await(),
+                    localResume = localResumeJob.await()
                 )
             }
+            val source = openCfg.source
+            val preferredQuality = openCfg.preferredQuality
+            val preferredAudioId = openCfg.preferredAudioId
+            val preferredCdnIndex = openCfg.preferredCdnIndex
+            val localResume = openCfg.localResume
             if (openId.get() != token) return
             val stream = source.streams.firstOrNull { it.quality == preferredQuality }
                 ?: source.streams.firstOrNull()
             val audio = selectAudio(stream, source.audios, preferredAudioId)
             val engineSource = buildEngineSource(stream, audio, preferredCdnIndex)
                 ?: throw NoPlayableStreamException("暂无可用播放流")
-            val startMs = resolveStartMs(request, source)
+            val startMs = resolveStartMs(request, source, localResume)
             if (openId.get() != token) return
             _sessionState.value = PlayerSessionState(
                 currentRequest = request,
@@ -444,18 +453,34 @@ class VideoPlaybackControllerImpl @Inject constructor(
 
     private suspend fun resolveStartMs(
         request: PlaybackRequest,
-        source: PlaybackSource
+        source: PlaybackSource,
+        prefetchedLocal: PlaybackHistory?
     ): Long? {
         request.seekToMs?.let { return it }
-        val key = LocalHistoryKey.video(source.report)
-        val local = localHistoryRepo.getVideo(authProvider.mid, key)
-        if (local != null) {
-            if (canResume(local.progressMs, local.finished, source.durationMs)) {
-                return local.progressMs
-            }
-            return 0L
+        val key = PlaybackHistoryKey.video(source.report)
+        val local = when {
+            prefetchedLocal?.key == key -> prefetchedLocal
+            else -> playbackHistoryRepo.getVideo(authProvider.mid, key)
         }
-        return source.resumePositionMs
+        if (local != null && canResume(local.progressMs, local.finished, source.durationMs)) {
+            return local.progressMs
+        }
+        if (canResume(source.resumePositionMs, finished = false, durationMs = source.durationMs)) {
+            return source.resumePositionMs
+        }
+        return 0L
+    }
+
+    private suspend fun readLocalResumeIfResolvable(request: PlaybackRequest): PlaybackHistory? {
+        if (request.seekToMs != null) return null
+        val report = request.playable.getReportCommonParams()
+        val key = when {
+            report.cid <= 0L -> null
+            report.biz == PlayBiz.PGC && (report.epId ?: 0L) > 0L -> PlaybackHistoryKey.video(report)
+            report.biz != PlayBiz.PGC && report.aid > 0L -> PlaybackHistoryKey.video(report)
+            else -> null
+        } ?: return null
+        return playbackHistoryRepo.getVideo(authProvider.mid, key)
     }
 
     private fun canResume(
@@ -525,7 +550,8 @@ private data class OpenConfig(
     val source: PlaybackSource,
     val preferredQuality: Int,
     val preferredAudioId: Int,
-    val preferredCdnIndex: Int
+    val preferredCdnIndex: Int,
+    val localResume: PlaybackHistory?
 )
 
 private class NoPlayableStreamException(

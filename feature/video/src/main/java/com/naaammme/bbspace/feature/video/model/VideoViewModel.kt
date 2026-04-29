@@ -11,6 +11,7 @@ import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayBiz
+import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackViewState
@@ -20,7 +21,6 @@ import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadMeta
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
-import com.naaammme.bbspace.core.model.VideoHistoryMeta
 import com.naaammme.bbspace.core.model.VideoRoute
 import com.naaammme.bbspace.core.model.VideoRouteTool
 import com.naaammme.bbspace.core.model.toPlayableParams
@@ -325,7 +325,7 @@ class VideoViewModel @Inject constructor(
             handle.value = playbackHandle
             launch {
                 combine(_detail, _req, playbackHandle.state) { detail, req, playbackState ->
-                    detail.toHistoryMeta(playbackState.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
+                    detail.toPlaybackHistoryMeta(playbackState.playbackSource?.videoId?.cid ?: req?.videoId?.cid)
                 }.collect { meta ->
                     playbackHandle.updateMeta(meta)
                 }
@@ -471,11 +471,11 @@ private fun PlaybackError.toUiMsg(): String {
     }
 }
 
-private fun VideoDetail?.toHistoryMeta(cid: Long?): VideoHistoryMeta? {
+private fun VideoDetail?.toPlaybackHistoryMeta(cid: Long?): PlaybackHistoryMeta? {
     this ?: return null
     val idx = cid?.let { target -> pages.indexOfFirst { it.cid == target } } ?: -1
     val part = if (idx >= 0) pages[idx] else null
-    return VideoHistoryMeta(
+    return PlaybackHistoryMeta(
         title = title,
         cover = cover,
         ownerUid = owner?.mid?.takeIf { it > 0L },
