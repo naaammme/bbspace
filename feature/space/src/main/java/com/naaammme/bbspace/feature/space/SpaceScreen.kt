@@ -24,7 +24,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.VideoRoute
-import com.naaammme.bbspace.feature.space.model.SpaceViewModel
+import com.naaammme.bbspace.feature.space.archive.spaceArchiveSection
+import com.naaammme.bbspace.feature.space.component.SpaceError
+import com.naaammme.bbspace.feature.space.component.SpaceLoading
+import com.naaammme.bbspace.feature.space.header.spaceHeaderSection
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 

@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.space
+package com.naaammme.bbspace.feature.space.header
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +30,7 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
-import com.naaammme.bbspace.feature.space.model.SpaceHeaderUiState
+import com.naaammme.bbspace.feature.space.SpaceHeaderUiState
 import java.util.Locale
 
 internal fun LazyListScope.spaceHeaderSection(

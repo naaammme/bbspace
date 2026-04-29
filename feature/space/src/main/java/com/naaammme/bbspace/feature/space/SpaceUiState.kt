@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.space.model
+package com.naaammme.bbspace.feature.space
 
 import androidx.compose.runtime.Immutable
 import com.naaammme.bbspace.core.model.SpaceOrderOption

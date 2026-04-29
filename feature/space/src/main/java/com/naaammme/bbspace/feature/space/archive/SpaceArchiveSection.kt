@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.space
+package com.naaammme.bbspace.feature.space.archive
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +33,9 @@ import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
 import com.naaammme.bbspace.core.model.SpaceVideo
 import com.naaammme.bbspace.core.model.VideoRoute
-import com.naaammme.bbspace.feature.space.model.SpaceArchiveUiState
+import com.naaammme.bbspace.feature.space.SpaceArchiveUiState
+import com.naaammme.bbspace.feature.space.component.RetryCard
+import com.naaammme.bbspace.feature.space.component.StateCard
 import java.util.Locale
 
 internal fun LazyListScope.spaceArchiveSection(

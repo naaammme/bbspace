@@ -1,13 +1,13 @@
-package com.naaammme.bbspace.feature.user.model
+package com.naaammme.bbspace.feature.user
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.domain.auth.AuthRepository
-import com.naaammme.bbspace.core.model.User
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -16,21 +16,18 @@ class UserViewModel @Inject constructor(
     private val authRepo: AuthRepository
 ) : ViewModel() {
 
-    private val _user = MutableStateFlow<User?>(null)
-    val user: StateFlow<User?> = _user.asStateFlow()
-    private val _showAccountExpiredDialog = MutableStateFlow(false)
-    val showAccountExpiredDialog: StateFlow<Boolean> = _showAccountExpiredDialog.asStateFlow()
+    private val _uiState = MutableStateFlow(UserUiState())
+    val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
 
     init {
-        _user.value = authRepo.getUserInfo()
+        _uiState.update { it.copy(user = authRepo.getUserInfo()) }
         viewModelScope.launch {
             authRepo.currentMidFlow
                 .collect { mid ->
                     if (mid > 0) {
                         fetchMineInfo()
                     } else {
-                        _user.value = null
-                        _showAccountExpiredDialog.value = false
+                        _uiState.value = UserUiState()
                     }
                 }
         }
@@ -41,17 +38,25 @@ class UserViewModel @Inject constructor(
         viewModelScope.launch {
             authRepo.fetchMineInfo(credential).onSuccess {
                 if (it.mid == 0L) {
-                    _user.value = null
-                    _showAccountExpiredDialog.value = true
+                    _uiState.update { state ->
+                        state.copy(
+                            user = null,
+                            showAccountExpiredDialog = true
+                        )
+                    }
                 } else {
-                    _user.value = it
-                    _showAccountExpiredDialog.value = false
+                    _uiState.update { state ->
+                        state.copy(
+                            user = it,
+                            showAccountExpiredDialog = false
+                        )
+                    }
                 }
             }
         }
     }
 
     fun dismissAccountExpiredDialog() {
-        _showAccountExpiredDialog.value = false
+        _uiState.update { it.copy(showAccountExpiredDialog = false) }
     }
 }

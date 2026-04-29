@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.space
+package com.naaammme.bbspace.feature.space.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
