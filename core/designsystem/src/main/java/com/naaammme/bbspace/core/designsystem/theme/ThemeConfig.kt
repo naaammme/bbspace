@@ -9,12 +9,18 @@ data class ThemeConfig(
     val seedColor: Color = Color(0xFFFB7299),
     val useDynamicColor: Boolean = false,
     val fontScale: Float = 1.0f,
+    val pullRefreshDistanceDp: Float = DEFAULT_PULL_REFRESH_DISTANCE_DP,
     val animationSpeed: AnimationSpeed = AnimationSpeed.NORMAL,
     val transitionStyle: TransitionStyle = TransitionStyle.SHARED_AXIS_X,
     val isPureBlack: Boolean = false,
     val preferredFrameRate: FrameRateMode = FrameRateMode.AUTO,
     val cornerStyle: CornerStyle = CornerStyle.STANDARD
 )
+
+const val MIN_PULL_REFRESH_DISTANCE_DP = 16f
+const val MAX_PULL_REFRESH_DISTANCE_DP = 160f
+const val PULL_REFRESH_DISTANCE_STEP_DP = 8f
+const val DEFAULT_PULL_REFRESH_DISTANCE_DP = 80f
 
 enum class CornerStyle {
     SQUARE,

@@ -86,26 +86,6 @@ class PrivacyViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(importResult = null)
     }
 
-    fun clearTicketCache() {
-        cacheManager.clearTicketCache()
-        refresh()
-    }
-
-    fun clearGuestCache() {
-        cacheManager.clearGuestCache()
-        refresh()
-    }
-
-    fun clearSessionCache() {
-        cacheManager.clearSession()
-        refresh()
-    }
-
-    fun clearRegionCache() {
-        cacheManager.clearRegionCache()
-        refresh()
-    }
-
     fun clearImageCache() {
         cacheManager.clearImageCache()
     }

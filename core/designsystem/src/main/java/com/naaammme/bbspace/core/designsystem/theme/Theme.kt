@@ -59,12 +59,14 @@ fun BiliTheme(
     val shapes = remember(config.cornerStyle) { buildShapes(config.cornerStyle) }
 
     ProvideAnimations(config.animationSpeed) {
-        MaterialTheme(
-            colorScheme = colorScheme,
-            typography = typography,
-            shapes = shapes,
-            content = content
-        )
+        ProvidePullRefresh(config.pullRefreshDistanceDp) {
+            MaterialTheme(
+                colorScheme = colorScheme,
+                typography = typography,
+                shapes = shapes,
+                content = content
+            )
+        }
     }
 }
 

@@ -27,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +47,7 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.BiliPullToRefreshBox
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
@@ -126,7 +126,7 @@ fun HistoryScreen(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
             )
 
-            PullToRefreshBox(
+            BiliPullToRefreshBox(
                 isRefreshing = state.isRefreshing,
                 onRefresh = viewModel::refresh,
                 modifier = Modifier.weight(1f)

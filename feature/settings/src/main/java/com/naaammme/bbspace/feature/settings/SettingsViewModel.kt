@@ -86,6 +86,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updatePullRefreshDistance(distanceDp: Float) {
+        viewModelScope.launch {
+            appSettings.updatePullRefreshDistance(distanceDp)
+        }
+    }
+
     fun updateAnimationSpeed(speed: AnimationSpeed) {
         viewModelScope.launch {
             appSettings.updateAnimationSpeed(speed)

@@ -23,6 +23,10 @@ import com.naaammme.bbspace.feature.settings.SettingsViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.theme.AnimationSpeed
 import com.naaammme.bbspace.core.designsystem.theme.CornerStyle
+import com.naaammme.bbspace.core.designsystem.theme.DEFAULT_PULL_REFRESH_DISTANCE_DP
+import com.naaammme.bbspace.core.designsystem.theme.MAX_PULL_REFRESH_DISTANCE_DP
+import com.naaammme.bbspace.core.designsystem.theme.MIN_PULL_REFRESH_DISTANCE_DP
+import com.naaammme.bbspace.core.designsystem.theme.PULL_REFRESH_DISTANCE_STEP_DP
 import com.naaammme.bbspace.core.designsystem.theme.PresetColors
 import com.naaammme.bbspace.core.designsystem.theme.ThemeMode
 import com.naaammme.bbspace.core.designsystem.theme.TransitionStyle
@@ -92,6 +96,13 @@ fun AppearanceSettingsScreen(
                 FontScaleSelector(
                     scale = config.fontScale,
                     onScaleChange = viewModel::updateFontScale
+                )
+            }
+
+            item {
+                PullRefreshDistanceSelector(
+                    distanceDp = config.pullRefreshDistanceDp,
+                    onDistanceChange = viewModel::updatePullRefreshDistance
                 )
             }
 
@@ -210,6 +221,11 @@ private fun ColorItem(
 }
 
 private val FONT_SCALES = listOf(0.8f, 0.85f, 0.9f, 0.95f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f)
+private val PULL_REFRESH_DISTANCES = List(
+    ((MAX_PULL_REFRESH_DISTANCE_DP - MIN_PULL_REFRESH_DISTANCE_DP) / PULL_REFRESH_DISTANCE_STEP_DP).toInt() + 1
+) { index ->
+    MIN_PULL_REFRESH_DISTANCE_DP + index * PULL_REFRESH_DISTANCE_STEP_DP
+}
 
 @Composable
 private fun FontScaleSelector(
@@ -247,6 +263,55 @@ private fun FontScaleSelector(
                 Text("小", style = MaterialTheme.typography.bodySmall)
                 Text("标准", style = MaterialTheme.typography.bodySmall)
                 Text("大", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PullRefreshDistanceSelector(
+    distanceDp: Float,
+    onDistanceChange: (Float) -> Unit
+) {
+    val idx = remember(distanceDp) {
+        PULL_REFRESH_DISTANCES.indexOfFirst { kotlin.math.abs(it - distanceDp) < 0.01f }
+            .takeIf { it >= 0 }
+            ?: PULL_REFRESH_DISTANCES.indexOf(DEFAULT_PULL_REFRESH_DISTANCE_DP).coerceAtLeast(0)
+    }
+    Card {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("下拉刷新行程", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "数值越大，下拉越长才会触发刷新",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    "${PULL_REFRESH_DISTANCES[idx].toInt()}dp",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Slider(
+                value = idx.toFloat(),
+                onValueChange = { onDistanceChange(PULL_REFRESH_DISTANCES[it.toInt()]) },
+                valueRange = 0f..(PULL_REFRESH_DISTANCES.size - 1).toFloat(),
+                steps = PULL_REFRESH_DISTANCES.size - 2
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("短", style = MaterialTheme.typography.bodySmall)
+                Text("标准", style = MaterialTheme.typography.bodySmall)
+                Text("长", style = MaterialTheme.typography.bodySmall)
             }
         }
     }

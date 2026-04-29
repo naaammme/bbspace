@@ -4,8 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,7 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.ui.Alignment
-import androidx.compose.runtime.collectAsState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -40,13 +37,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
-import com.naaammme.bbspace.feature.settings.privacy.PrivacyViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -121,13 +117,7 @@ fun PrivacySettingsScreen(
                 SectionTitle("会话信息")
             }
             item {
-                InfoCardLongPress(
-                    entries = state.sessionInfo.map { (k, v) -> k to v },
-                    onLongPress = {
-                        viewModel.clearSessionCache()
-                        Toast.makeText(context, "已清除会话信息", Toast.LENGTH_SHORT).show()
-                    }
-                )
+                InfoCard(state.sessionInfo.map { (k, v) -> k to v })
             }
 
             // Ticket 缓存
@@ -142,13 +132,7 @@ fun PrivacySettingsScreen(
                         k to v
                     }
                 }
-                InfoCardLongPress(
-                    entries = ticketEntries,
-                    onLongPress = {
-                        viewModel.clearTicketCache()
-                        Toast.makeText(context, "已清除 Ticket 缓存", Toast.LENGTH_SHORT).show()
-                    }
-                )
+                InfoCard(ticketEntries)
             }
 
             // Guest 缓存
@@ -163,13 +147,7 @@ fun PrivacySettingsScreen(
                         k to v
                     }
                 }
-                InfoCardLongPress(
-                    entries = guestEntries,
-                    onLongPress = {
-                        viewModel.clearGuestCache()
-                        Toast.makeText(context, "已清除 Guest 缓存", Toast.LENGTH_SHORT).show()
-                    }
-                )
+                InfoCard(guestEntries)
             }
 
             // 地区码
@@ -177,13 +155,7 @@ fun PrivacySettingsScreen(
                 SectionTitle("地区码 ")
             }
             item {
-                InfoCardLongPress(
-                    entries = listOf("regionCode" to state.regionCode),
-                    onLongPress = {
-                        viewModel.clearRegionCache()
-                        Toast.makeText(context, "已清除地区码", Toast.LENGTH_SHORT).show()
-                    }
-                )
+                InfoCard(listOf("regionCode" to state.regionCode))
             }
 
             // 缓存管理
@@ -192,16 +164,18 @@ fun PrivacySettingsScreen(
             }
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
                             onClick = {
                                 viewModel.clearImageCache()
                                 Toast.makeText(context, "已清除图片缓存", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text("清除图片缓存")
                         }
@@ -210,7 +184,7 @@ fun PrivacySettingsScreen(
                                 viewModel.clearAllCache()
                                 Toast.makeText(context, "已清除所有缓存", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text("清除所有缓存")
                         }
@@ -314,28 +288,6 @@ private fun InfoCard(entries: List<Pair<String, String>>) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun InfoCardLongPress(
-    entries: List<Pair<String, String>>,
-    onLongPress: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = {},
-                onLongClick = onLongPress
-            )
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            entries.forEach { (key, value) ->
-                InfoRow(key, value)
-            }
-        }
-    }
-}
-
 @Composable
 private fun InfoRow(key: String, value: String) {
     Row(
@@ -354,7 +306,6 @@ private fun InfoRow(key: String, value: String) {
             text = value.ifEmpty { "--" },
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -364,5 +315,8 @@ private fun InfoRow(key: String, value: String) {
 
 private fun formatTimestamp(ms: Long): String {
     if (ms == 0L) return "--"
-    return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(ms))
+    return TIMESTAMP_FORMAT.format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))
 }
+
+private val TIMESTAMP_FORMAT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.getDefault())

@@ -1,7 +1,9 @@
 package com.naaammme.bbspace.feature.download
 
+import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -10,6 +12,7 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.ContextCompat
 import com.naaammme.bbspace.core.model.VideoDownloadTask
 import com.naaammme.bbspace.core.model.VideoDownloadTaskStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -159,6 +162,9 @@ class DownloadExporter @Inject constructor(
         mime: String
     ): String {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED
+            ) error("需要存储权限才能导出文件，请在系统设置中授予存储权限")
             val dir = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                 ALBUM

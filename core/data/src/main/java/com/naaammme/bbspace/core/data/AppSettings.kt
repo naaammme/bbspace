@@ -10,7 +10,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.naaammme.bbspace.core.designsystem.theme.AnimationSpeed
 import com.naaammme.bbspace.core.designsystem.theme.CornerStyle
+import com.naaammme.bbspace.core.designsystem.theme.DEFAULT_PULL_REFRESH_DISTANCE_DP
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
+import com.naaammme.bbspace.core.designsystem.theme.MAX_PULL_REFRESH_DISTANCE_DP
+import com.naaammme.bbspace.core.designsystem.theme.MIN_PULL_REFRESH_DISTANCE_DP
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.ThemeMode
 import com.naaammme.bbspace.core.designsystem.theme.TransitionStyle
@@ -29,6 +32,7 @@ class AppSettings @Inject constructor(
     private val seedColorKey = intPreferencesKey("seed_color")
     private val useDynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val fontScaleKey = floatPreferencesKey("font_scale")
+    private val pullRefreshDistanceKey = floatPreferencesKey("pull_refresh_distance")
     private val animationSpeedKey = stringPreferencesKey("animation_speed")
     private val transitionStyleKey = stringPreferencesKey("transition_style")
     private val isPureBlackKey = booleanPreferencesKey("is_pure_black")
@@ -47,6 +51,8 @@ class AppSettings @Inject constructor(
             seedColor = Color(prefs[seedColorKey] ?: 0xFFFB7299.toInt()),
             useDynamicColor = prefs[useDynamicColorKey] ?: true,
             fontScale = prefs[fontScaleKey] ?: 1.0f,
+            pullRefreshDistanceDp = (prefs[pullRefreshDistanceKey] ?: DEFAULT_PULL_REFRESH_DISTANCE_DP)
+                .coerceIn(MIN_PULL_REFRESH_DISTANCE_DP, MAX_PULL_REFRESH_DISTANCE_DP),
             animationSpeed = prefs[animationSpeedKey]?.let { AnimationSpeed.valueOf(it) } ?: AnimationSpeed.NORMAL,
             transitionStyle = prefs[transitionStyleKey]?.let { TransitionStyle.valueOf(it) } ?: TransitionStyle.SHARED_AXIS_X,
             isPureBlack = prefs[isPureBlackKey] ?: false,
@@ -69,6 +75,15 @@ class AppSettings @Inject constructor(
 
     suspend fun updateFontScale(scale: Float) {
         context.appSettingsDataStore.edit { it[fontScaleKey] = scale }
+    }
+
+    suspend fun updatePullRefreshDistance(distanceDp: Float) {
+        context.appSettingsDataStore.edit {
+            it[pullRefreshDistanceKey] = distanceDp.coerceIn(
+                MIN_PULL_REFRESH_DISTANCE_DP,
+                MAX_PULL_REFRESH_DISTANCE_DP
+            )
+        }
     }
 
     suspend fun updateAnimationSpeed(speed: AnimationSpeed) {

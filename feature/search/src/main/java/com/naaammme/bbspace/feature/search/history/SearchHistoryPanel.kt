@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -76,7 +77,7 @@ fun SearchHistoryPanel(
         ) {
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 visible.forEachIndexed { index, item ->
@@ -97,7 +98,7 @@ fun SearchHistoryPanel(
                     ) {
                         Text(
                             text = "展开更多 ($remaining)",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -117,10 +118,12 @@ private fun SearchHistoryChip(
     onLongClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.combinedClickable(
-            onClick = onClick,
-            onLongClick = onLongClick
-        ),
+        modifier = Modifier
+            .widthIn(max = 160.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = MaterialTheme.shapes.large,
         color = if (featured) {
             MaterialTheme.colorScheme.tertiaryContainer
@@ -130,7 +133,7 @@ private fun SearchHistoryChip(
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             style = MaterialTheme.typography.bodyMedium,
             color = if (featured) {
                 MaterialTheme.colorScheme.onTertiaryContainer
