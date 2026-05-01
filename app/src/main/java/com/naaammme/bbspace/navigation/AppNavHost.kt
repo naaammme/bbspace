@@ -11,6 +11,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,7 @@ import com.naaammme.bbspace.feature.download.DownloadViewModel
 import com.naaammme.bbspace.feature.user.UserScreen
 import com.naaammme.bbspace.feature.video.VideoViewModel
 import com.naaammme.bbspace.playback.PlaybackHost
+import com.naaammme.bbspace.playback.PlaybackHostMode
 import com.naaammme.bbspace.playback.PlaybackHostViewModel
 
 private const val MAIN_ROUTE = "main"
@@ -76,6 +78,12 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
     val navBackStackEntry by rootNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route.orEmpty()
     val hostMode = playbackHostViewModel.hostMode
+    var forcedDismissMode by remember { mutableStateOf<PlaybackHostMode?>(null) }
+    val playbackMode = when {
+        hostMode != PlaybackHostMode.Expanded -> hostMode
+        forcedDismissMode != null -> forcedDismissMode!!
+        else -> hostMode
+    }
     val closeVideoHost: () -> Unit = {
         playbackHostViewModel.close()
     }
@@ -89,11 +97,22 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             }
         }
     }
+    val collapseExpandedPlayback = {
+        if (hostMode == PlaybackHostMode.Expanded) {
+            forcedDismissMode = if (miniPlayerAvailable && target != null) {
+                PlaybackHostMode.Mini
+            } else {
+                PlaybackHostMode.Hidden
+            }
+        }
+    }
     val openSpaceFromVideo: (SpaceRoute) -> Unit = { route ->
+        collapseExpandedPlayback()
         dismissPlaybackHost()
         rootNavController.navigateToSpace(route)
     }
     val openDownloadFromVideo: () -> Unit = {
+        collapseExpandedPlayback()
         dismissPlaybackHost()
         rootNavController.navigateToDownload()
     }
@@ -110,6 +129,12 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             themeConfig.transitionStyle,
             themeConfig.animationSpeed
         )
+    }
+
+    LaunchedEffect(hostMode, forcedDismissMode) {
+        if (forcedDismissMode != null && hostMode != PlaybackHostMode.Expanded) {
+            forcedDismissMode = null
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -184,7 +209,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
         }
 
         PlaybackHost(
-            mode = hostMode,
+            mode = playbackMode,
             target = target,
             player = player,
             sessionState = sessionState,

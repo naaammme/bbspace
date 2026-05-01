@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -803,12 +804,15 @@ private fun SeasonSheet(
     onOpenEpisode: (VideoTarget.Ugc) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val initIdx = remember(season, curCid) { seasonSheetIndex(season, curCid) }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initIdx)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding(),
@@ -880,12 +884,15 @@ private fun PageSheet(
     onSwitchPage: (Long) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val initIdx = remember(pages, curCid) { pageSheetIndex(pages, curCid) }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initIdx)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding(),
@@ -1243,6 +1250,28 @@ private fun pageEntryText(
         curPage?.durationSec?.takeIf { it > 0L }?.let { formatDuration(it * 1000) }.orEmpty(),
         "${pages.size} 个分 P"
     )
+}
+
+private fun seasonSheetIndex(season: VideoSeason, curCid: Long?): Int {
+    if (curCid == null) return 0
+    var secItemIdx = 1
+    season.sections.forEach { sec ->
+        val epIdx = sec.eps.indexOfFirst { it.target.cid == curCid }
+        if (epIdx >= 0) {
+            return secItemIdx + 1 + epIdx
+        }
+        secItemIdx += 1 + sec.eps.size
+    }
+    return 0
+}
+
+private fun pageSheetIndex(
+    pages: List<VideoPagePart>,
+    curCid: Long?
+): Int {
+    if (curCid == null) return 0
+    val pageIdx = pages.indexOfFirst { it.cid == curCid }
+    return if (pageIdx >= 0) pageIdx + 1 else 0
 }
 
 private fun pageTitle(

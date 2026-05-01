@@ -53,16 +53,19 @@ fun PlaybackHost(
         mode == PlaybackHostMode.Mini &&
             miniPlayerAvailable &&
             target != null -> {
-            InAppMiniPlayer(
-                player = player,
-                target = target,
-                sessionState = sessionState,
-                pageMeta = pageMeta,
-                onExpand = onExpand,
-                onTogglePlay = onTogglePlay,
-                onClose = onClose,
+            DraggableMiniPlayerHost(
                 modifier = miniPlayerModifier
-            )
+            ) {
+                InAppMiniPlayer(
+                    player = player,
+                    target = target,
+                    sessionState = sessionState,
+                    pageMeta = pageMeta,
+                    onExpand = onExpand,
+                    onTogglePlay = onTogglePlay,
+                    onClose = onClose
+                )
+            }
         }
     }
 }

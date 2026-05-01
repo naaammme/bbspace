@@ -57,6 +57,8 @@ fun SearchScreen(
     val videos by viewModel.videos.collectAsStateWithLifecycle()
     val histories by viewModel.histories.collectAsStateWithLifecycle()
     val historyOrder by viewModel.currentHistoryOrder.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val sortFilter = viewModel.filters.firstOrNull { it.key == SORT_KEY }
     val filters = viewModel.filters.filterNot { it.key == SORT_KEY }
@@ -66,6 +68,12 @@ fun SearchScreen(
             onBack()
         }
     }
+
+    fun dismissKeyboard() {
+        focusManager.clearFocus(force = true)
+        keyboard?.hide()
+    }
+
     val shouldLoadMore by remember(
         listState,
         videos,
@@ -99,7 +107,10 @@ fun SearchScreen(
                 autoFocus = viewModel.keyword.isBlank() && viewModel.input.isBlank(),
                 onTextChange = viewModel::updateInput,
                 onBack = handleBack,
-                onSearch = { viewModel.submitSearch() },
+                onSearch = {
+                    dismissKeyboard()
+                    viewModel.submitSearch()
+                },
                 scrollBehavior = scrollBehavior
             )
         }
@@ -119,6 +130,7 @@ fun SearchScreen(
                                 selectedMap = buildSelectedMap(filters, viewModel),
                                 time = viewModel.time,
                                 active = hasActiveExtraFilter,
+                                onDismissKeyboard = ::dismissKeyboard,
                                 onApply = viewModel::applyFilters
                             )
                         }
@@ -129,7 +141,10 @@ fun SearchScreen(
                     filter = filter,
                     selected = viewModel.selectedOf(filter.key),
                     trailing = trailing,
-                    onSelect = { params -> viewModel.applyFilter(filter.key, params) }
+                    onSelect = { params ->
+                        dismissKeyboard()
+                        viewModel.applyFilter(filter.key, params)
+                    }
                 )
             }
             if (sortFilter == null && filters.isNotEmpty()) {
@@ -145,6 +160,7 @@ fun SearchScreen(
                         selectedMap = buildSelectedMap(filters, viewModel),
                         time = viewModel.time,
                         active = hasActiveExtraFilter,
+                        onDismissKeyboard = ::dismissKeyboard,
                         onApply = viewModel::applyFilters
                     )
                 }
@@ -156,7 +172,10 @@ fun SearchScreen(
                 viewModel.errorMessage != null && videos.isEmpty() -> {
                     SearchError(
                         message = viewModel.errorMessage.orEmpty(),
-                        onRetry = { viewModel.submitSearch(recordHistory = false) }
+                        onRetry = {
+                            dismissKeyboard()
+                            viewModel.submitSearch(recordHistory = false)
+                        }
                     )
                 }
 
@@ -168,7 +187,10 @@ fun SearchScreen(
                             histories = histories,
                             order = historyOrder,
                             onToggleOrder = viewModel::toggleHistoryOrder,
-                            onSearch = { keyword -> viewModel.submitSearch(keyword) },
+                            onSearch = { keyword ->
+                                dismissKeyboard()
+                                viewModel.submitSearch(keyword)
+                            },
                             onDelete = viewModel::deleteHistory
                         )
                     }
@@ -251,17 +273,15 @@ private fun SearchFilterAction(
     selectedMap: Map<String, Set<String>>,
     time: SearchTime,
     active: Boolean,
+    onDismissKeyboard: () -> Unit,
     onApply: (Map<String, Set<String>>, SearchTime) -> Unit
 ) {
-    val focusManager = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
     var showFilterSheet by remember { mutableStateOf(false) }
 
     SearchFilterButton(
         active = active,
         onClick = {
-            focusManager.clearFocus(force = true)
-            keyboard?.hide()
+            onDismissKeyboard()
             showFilterSheet = true
         }
     )

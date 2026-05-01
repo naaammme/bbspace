@@ -6,15 +6,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -42,8 +45,7 @@ fun InAppMiniPlayer(
     pageMeta: PlaybackHistoryMeta?,
     onExpand: () -> Unit,
     onTogglePlay: () -> Unit,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    onClose: () -> Unit
 ) {
     val context = LocalContext.current
     val playerView = remember(context) {
@@ -84,9 +86,8 @@ fun InAppMiniPlayer(
     }
 
     Surface(
-        modifier = modifier
-            .width(220.dp)
-            .aspectRatio(16f / 9f)
+        modifier = Modifier
+            .fillMaxSize()
             .clickable(onClick = onExpand),
         shape = MaterialTheme.shapes.large,
         color = Color.Black
@@ -160,17 +161,17 @@ fun InAppMiniPlayer(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onTogglePlay) {
-                        Text(
-                            text = if (sessionState.isPlaying) "停" else "播",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White
+                        Icon(
+                            imageVector = if (sessionState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (sessionState.isPlaying) "暂停" else "播放",
+                            tint = Color.White
                         )
                     }
                     IconButton(onClick = onClose) {
-                        Text(
-                            text = "关",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "关闭",
+                            tint = Color.White
                         )
                     }
                 }

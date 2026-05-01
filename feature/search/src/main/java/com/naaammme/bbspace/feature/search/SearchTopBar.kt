@@ -69,8 +69,6 @@ internal fun SearchTopBar(
                 ),
                 keyboardActions = KeyboardActions(
                     onSearch = {
-                        focusManager.clearFocus(force = true)
-                        keyboard?.hide()
                         onSearch()
                     }
                 )

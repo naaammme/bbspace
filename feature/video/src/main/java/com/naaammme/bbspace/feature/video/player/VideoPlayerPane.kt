@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -23,7 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
+
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -223,25 +223,19 @@ internal fun VideoPlayerPane(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = if (settingsState.danmaku.enabled) 0.42f else 0.26f),
+                    Text(
+                        text = if (danmakuOn) "弹幕" else "弹幕关",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
                         modifier = Modifier
-                            .clip(CircleShape)
                             .clickable {
                                 showCtrl = true
                                 viewModel.updateDanmaku(
                                     settingsState.danmaku.copy(enabled = !settingsState.danmaku.enabled)
                                 )
                             }
-                    ) {
-                        Text(
-                            text = if (danmakuOn) "弹幕" else "弹幕关",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        )
-                    }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
                     IconButton(
                         onClick = {
                             showCtrl = true
