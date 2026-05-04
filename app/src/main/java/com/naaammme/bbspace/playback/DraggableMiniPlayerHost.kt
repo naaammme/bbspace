@@ -165,91 +165,74 @@ internal fun DraggableMiniPlayerHost(
                         settleJobHolder.job = scope.launch {
                             isSettling = true
                             try {
-                                var curX = offsetX
-                                var curY = offsetY
-                                var endVelocityX = velocity.x * 0.35f
-                                var endVelocityY = velocity.y * 0.2f
+                                val startX = offsetX
+                                val startY = offsetY
+                                val velX = velocity.x * 0.35f
+                                val velY = velocity.y * 0.2f
                                 val shouldDecay = abs(velocity.x) >= miniPlayerSettleVelocityThreshold ||
                                     abs(velocity.y) >= miniPlayerSettleVelocityThreshold
-                                if (shouldDecay) {
-                                    coroutineScope {
-                                        launch {
-                                            val animX = Animatable(curX)
-                                            animX.updateBounds(
-                                                lowerBound = minXPx,
-                                                upperBound = maxStashedXPx
-                                            )
-                                            val result = animX.animateDecay(
-                                                initialVelocity = endVelocityX,
-                                                animationSpec = decay
-                                            ) {
-                                                offsetX = value
-                                            }
-                                            curX = animX.value
-                                            endVelocityX = result.endState.velocity
-                                        }
-                                        launch {
-                                            val animY = Animatable(curY)
-                                            animY.updateBounds(
-                                                lowerBound = minYPx,
-                                                upperBound = maxYPxFloat
-                                            )
-                                            val result = animY.animateDecay(
-                                                initialVelocity = endVelocityY,
-                                                animationSpec = decay
-                                            ) {
-                                                offsetY = value
-                                            }
-                                            curY = animY.value
-                                            endVelocityY = result.endState.velocity
-                                        }
-                                    }
-                                }
 
-                                val targetX = when {
+                                fun targetX(curX: Float): Float = when {
                                     maxVisibleXPx <= minVisibleXPx -> minVisibleXPx
                                     curX < minVisibleXPx -> {
                                         val hiddenWidth = minVisibleXPx - curX
                                         if (hiddenWidth >= stashTriggerPx) minXPx else minVisibleXPx
                                     }
-
                                     curX > maxVisibleXPx -> {
                                         val hiddenWidth = curX - maxVisibleXPx
                                         if (hiddenWidth >= stashTriggerPx) maxStashedXPx else maxVisibleXPx
                                     }
-
                                     else -> {
                                         val distLeft = curX - minVisibleXPx
                                         val distRight = maxVisibleXPx - curX
                                         if (distLeft <= distRight) minVisibleXPx else maxVisibleXPx
                                     }
                                 }
-                                val targetY = curY.coerceIn(minYPx, maxYPxFloat)
 
                                 coroutineScope {
                                     launch {
+                                        var curX = startX
+                                        var endVelX = velX
+                                        if (shouldDecay) {
+                                            val animX = Animatable(curX)
+                                            animX.updateBounds(lowerBound = minXPx, upperBound = maxStashedXPx)
+                                            val result = animX.animateDecay(
+                                                initialVelocity = velX,
+                                                animationSpec = decay
+                                            ) { offsetX = value }
+                                            curX = animX.value
+                                            endVelX = result.endState.velocity
+                                        }
                                         Animatable(curX).animateTo(
-                                            targetValue = targetX,
+                                            targetValue = targetX(curX),
                                             animationSpec = spring(
                                                 stiffness = Spring.StiffnessMediumLow,
                                                 dampingRatio = Spring.DampingRatioNoBouncy
                                             ),
-                                            initialVelocity = endVelocityX
-                                        ) {
-                                            offsetX = value
-                                        }
+                                            initialVelocity = endVelX
+                                        ) { offsetX = value }
                                     }
                                     launch {
+                                        var curY = startY
+                                        var endVelY = velY
+                                        if (shouldDecay) {
+                                            val animY = Animatable(curY)
+                                            animY.updateBounds(lowerBound = minYPx, upperBound = maxYPxFloat)
+                                            val result = animY.animateDecay(
+                                                initialVelocity = velY,
+                                                animationSpec = decay
+                                            ) { offsetY = value }
+                                            curY = animY.value
+                                            endVelY = result.endState.velocity
+                                        }
                                         Animatable(curY).animateTo(
-                                            targetValue = targetY,
+                                            targetValue = curY.coerceIn(minYPx, maxYPxFloat),
                                             animationSpec = spring(
                                                 stiffness = Spring.StiffnessMediumLow,
                                                 dampingRatio = Spring.DampingRatioNoBouncy
                                             ),
-                                            initialVelocity = endVelocityY
-                                        ) {
-                                            offsetY = value
-                                        }
+                                            initialVelocity = endVelY
+                                        ) { offsetY = value }
                                     }
                                 }
                             } finally {

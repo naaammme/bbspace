@@ -69,4 +69,5 @@ include(":feature:bbspace")
 include(":feature:live")
 include(":feature:history")
 include(":feature:download")
+include(":feature:webview")
 

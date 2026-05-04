@@ -1,7 +1,11 @@
 package com.naaammme.bbspace.feature.settings.about
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -137,6 +141,27 @@ fun AboutScreen(
 
             item {
                 LinkCard(
+                    title = "加入 QQ 群",
+                    subtitle = "924787418",
+                    onClick = {
+                        val qqGroupNumber = "924787418"
+                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        cm.setPrimaryClip(ClipData.newPlainText("QQ群号", qqGroupNumber))
+                        Toast.makeText(context, "已复制QQ群号", Toast.LENGTH_SHORT).show()
+                        runCatching {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("mqqapi://card/show_pslcard?src_type=internal&version=1&uin=$qqGroupNumber&card_type=group&source=qrcode")
+                                )
+                            )
+                        }
+                    }
+                )
+            }
+
+            item {
+                LinkCard(
                     title = "加入 Telegram 群组",
                     subtitle = "t.me/ourbbspace",
                     url = "https://t.me/ourbbspace"
@@ -166,11 +191,23 @@ fun AboutScreen(
 }
 
 @Composable
-private fun LinkCard(title: String, subtitle: String, url: String) {
+private fun LinkCard(
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null,
+    url: String? = null
+) {
     val context = LocalContext.current
+    val enabled = onClick != null || url != null
+    val resolvedOnClick: () -> Unit = onClick ?: {
+        if (url != null) {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        onClick = resolvedOnClick,
+        enabled = enabled
     ) {
         Column(
             modifier = Modifier

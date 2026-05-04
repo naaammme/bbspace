@@ -22,7 +22,9 @@ const val PLAYBACK_ROUTE = "settings/playback"
 const val ERROR_LOG_ROUTE = "settings/error_log"
 const val ABOUT_ROUTE = "settings/about"
 
-fun NavGraphBuilder.settingsScreen(navController: NavHostController) {
+fun NavGraphBuilder.settingsScreen(
+    navController: NavHostController
+) {
     composable(SETTINGS_ROUTE) {
         SettingsScreen(
             onBack = { navController.popBackStack() },
