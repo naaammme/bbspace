@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,7 +55,8 @@ import com.naaammme.bbspace.feature.live.player.LivePlayerPane
 @Composable
 fun LiveScreen(
     onBack: () -> Unit,
-    viewModel: LiveViewModel = hiltViewModel()
+    viewModel: LiveViewModel = hiltViewModel(),
+    hostExpanded: Boolean = true
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
@@ -64,17 +66,26 @@ fun LiveScreen(
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
     var isFull by rememberSaveable { mutableStateOf(false) }
+    val fullOn = hostExpanded && isFull
 
     val toggleFull = { isFull = !isFull }
     val handleBack = {
-        if (isFull) {
+        if (fullOn) {
             isFull = false
         } else {
             onBack()
         }
     }
 
-    BackHandler(onBack = handleBack)
+    if (hostExpanded) {
+        BackHandler(onBack = handleBack)
+    }
+
+    LaunchedEffect(hostExpanded) {
+        if (!hostExpanded) {
+            isFull = false
+        }
+    }
 
     DisposableEffect(owner, viewModel) {
         val lifecycle = owner.lifecycle
@@ -105,14 +116,14 @@ fun LiveScreen(
         }
     }
 
-    DisposableEffect(act, isFull) {
+    DisposableEffect(act, fullOn) {
         val activity = act
         if (activity == null) {
             onDispose { }
         } else {
             val win = activity.window
             val ctrl = WindowInsetsControllerCompat(win, win.decorView)
-            if (isFull) {
+            if (fullOn) {
                 ctrl.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 ctrl.hide(WindowInsetsCompat.Type.systemBars())
@@ -125,9 +136,9 @@ fun LiveScreen(
         }
     }
 
-    DisposableEffect(act, isFull, settingsState.playback.autoRotateFullscreen) {
+    DisposableEffect(act, fullOn, settingsState.playback.autoRotateFullscreen) {
         val activity = act ?: return@DisposableEffect onDispose { }
-        activity.requestedOrientation = if (isFull && settingsState.playback.autoRotateFullscreen) {
+        activity.requestedOrientation = if (fullOn && settingsState.playback.autoRotateFullscreen) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -140,7 +151,7 @@ fun LiveScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (isFull) {
+        if (fullOn) {
             LivePlayerPane(
                 route = state.route,
                 player = player,

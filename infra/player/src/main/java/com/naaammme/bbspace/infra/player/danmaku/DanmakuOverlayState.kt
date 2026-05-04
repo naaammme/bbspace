@@ -1,17 +1,16 @@
-package com.naaammme.bbspace.feature.danmaku
+package com.naaammme.bbspace.infra.player.danmaku
 
 import android.view.View
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.DanmakuItem
-import com.naaammme.bbspace.core.model.VOD_DANMAKU_SEGMENT_DURATION_MS
+import com.naaammme.bbspace.core.model.DanmakuSessionState
+import com.naaammme.bbspace.core.model.DanmakuWindow
+import com.naaammme.bbspace.core.model.toDanmakuWindowId
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import master.flame.danmaku.api.DanmakuSegmentData
 import master.flame.danmaku.api.SegmentDanmakuSession
-import master.flame.danmaku.controller.DrawHandler
 import master.flame.danmaku.controller.IDanmakuView
-import master.flame.danmaku.danmaku.model.BaseDanmaku
-import master.flame.danmaku.danmaku.model.DanmakuTimer
 import master.flame.danmaku.danmaku.model.android.DanmakuContext
 
 class DanmakuOverlayState internal constructor(
@@ -19,8 +18,7 @@ class DanmakuOverlayState internal constructor(
     private val danmakuCtrl: IDanmakuView,
     private val danmakuContext: DanmakuContext,
     private val timeProvider: DanmakuPlayerTimeProvider,
-    private val session: SegmentDanmakuSession<DanmakuItem>,
-    private val onDanmakuTick: (Long) -> Unit
+    private val session: SegmentDanmakuSession<DanmakuItem>
 ) {
     private val released = AtomicBoolean(false)
     private var lastSourceKey: String? = null
@@ -30,21 +28,9 @@ class DanmakuOverlayState internal constructor(
     private var lastPlaybackSpeed = 1f
     private var lastSeekEventId = 0L
     private val appliedWindowIds = linkedSetOf<Long>()
-    private val callback = object : DrawHandler.Callback {
-        override fun prepared() = Unit
-
-        override fun updateTimer(timer: DanmakuTimer) {
-            onDanmakuTick(timer.currMillisecond.coerceAtLeast(0L))
-        }
-
-        override fun danmakuShown(danmaku: BaseDanmaku) = Unit
-
-        override fun drawingFinished() = Unit
-    }
 
     fun prepare() {
         if (released.get()) return
-        session.setCallback(callback)
         session.prepare()
     }
 
@@ -115,6 +101,7 @@ class DanmakuOverlayState internal constructor(
         lastPlayState = nextState
 
         if (!enabled || !hasSource) {
+            danmakuView.visibility = View.INVISIBLE
             session.hide()
             session.pause()
             danmakuCtrl.clearDanmakusOnScreen()
@@ -122,6 +109,7 @@ class DanmakuOverlayState internal constructor(
             return
         }
 
+        danmakuView.visibility = View.VISIBLE
         session.show()
         if (isPlaying) {
             session.resume()
@@ -149,7 +137,6 @@ class DanmakuOverlayState internal constructor(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         appliedWindowIds.clear()
-        session.setCallback(null)
         session.setPlayerTimeProvider(null)
         session.pause()
         timeProvider.release()
@@ -199,10 +186,18 @@ class DanmakuOverlayState internal constructor(
 
         val curReady = nextWindows.any { it.key == targetWindowId }
         if (requireTargetWindow && !curReady) {
+            // 目标窗口未就绪但加载可用窗口，避免弹幕完全消失
+            // 等目标窗口到达时通过 syncPosition seek 到正确位置
             if (appliedWindowIds.isNotEmpty()) {
                 appliedWindowIds.clear()
                 session.clearSegments()
             }
+            val segs = nextWindows.map { (windowId, window) ->
+                DanmakuSegmentData(windowId, window.items)
+            }
+            session.replaceSegments(segs)
+            appliedWindowIds.addAll(nextWindows.map { it.key })
+            pendingSeek = true
             return
         }
 
@@ -245,7 +240,3 @@ private data class DanmakuPlayState(
     val hasSource: Boolean,
     val isPlaying: Boolean
 )
-
-private fun Long.toDanmakuWindowId(): Long {
-    return (coerceAtLeast(0L) / VOD_DANMAKU_SEGMENT_DURATION_MS) + 1L
-}

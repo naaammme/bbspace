@@ -1,15 +1,17 @@
-package com.naaammme.bbspace.feature.danmaku
+package com.naaammme.bbspace.infra.player.danmaku
 
-import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.model.DanmakuConfig
+import com.naaammme.bbspace.core.model.DanmakuSessionState
 import master.flame.danmaku.api.SegmentDanmakuSession
 import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.ui.widget.DanmakuSurfaceView
@@ -19,11 +21,10 @@ fun rememberDanmakuOverlayState(
     initialConfig: DanmakuConfig,
     initialPositionMs: Long,
     initialIsPlaying: Boolean,
-    initialSpeed: Float,
-    onDanmakuTick: (Long) -> Unit
+    initialSpeed: Float
 ): DanmakuOverlayState {
     val context = LocalContext.current
-    return remember(context, onDanmakuTick) {
+    return remember(context) {
         val danmakuView = DanmakuSurfaceView(context).apply {
             // 绘制缓存 内存换cpu占用
             enableDanmakuDrawingCache(true)
@@ -52,8 +53,7 @@ fun rememberDanmakuOverlayState(
                 danmakuContext,
                 DefaultDanmakuItemMapper(),
                 timeProvider
-            ),
-            onDanmakuTick = onDanmakuTick
+            )
         )
     }
 }
@@ -68,12 +68,15 @@ fun DanmakuLayer(
     isPlaying: Boolean,
     speed: Float,
     seekEventId: Long,
-    hasSource: Boolean
+    hasSource: Boolean,
+    manageLifecycle: Boolean = true
 ) {
-    DisposableEffect(overlayState) {
-        overlayState.prepare()
-        onDispose {
-            overlayState.release()
+    if (manageLifecycle) {
+        DisposableEffect(overlayState) {
+            overlayState.prepare()
+            onDispose {
+                overlayState.release()
+            }
         }
     }
 
@@ -109,11 +112,6 @@ fun DanmakuLayer(
     }
 
     SideEffect {
-        overlayState.danmakuView.visibility = if (hasSource) {
-            View.VISIBLE
-        } else {
-            View.INVISIBLE
-        }
         overlayState.sync(
             danmakuState = danmakuState,
             config = danmakuConfig,

@@ -76,7 +76,6 @@ internal fun LivePlayerPane(
     val playerView = remember(context) {
         PlayerView(context).apply {
             useController = false
-            setKeepContentOnPlayerReset(true)
             setEnableComposeSurfaceSyncWorkaround(true)
         }
     }
@@ -107,7 +106,8 @@ internal fun LivePlayerPane(
     }
 
     Box(
-        modifier = modifier.background(Color.Black)
+        modifier = modifier
+            .background(Color.Black)
     ) {
         AndroidView(
             factory = { playerView },

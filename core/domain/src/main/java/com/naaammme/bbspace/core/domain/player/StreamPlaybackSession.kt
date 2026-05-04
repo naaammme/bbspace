@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.core.domain.player
 
 import androidx.media3.common.Player
+import com.naaammme.bbspace.core.model.DanmakuSessionState
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
@@ -17,6 +18,7 @@ interface StreamPlaybackSession {
     val videoState: StateFlow<PlaybackViewState>
     val liveState: StateFlow<LivePlaybackViewState>
     val pageMeta: StateFlow<PlaybackHistoryMeta?>
+    val danmakuState: StateFlow<DanmakuSessionState>
 
     suspend fun prepare()
 

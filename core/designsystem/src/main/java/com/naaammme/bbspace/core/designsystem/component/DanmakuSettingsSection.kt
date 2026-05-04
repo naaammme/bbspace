@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.danmaku
+package com.naaammme.bbspace.core.designsystem.component
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,6 +63,7 @@ import com.naaammme.bbspace.core.model.VideoDownloadOptions
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.feature.video.detail.VideoDetailPage
 import com.naaammme.bbspace.feature.video.player.VideoPlayerPane
+import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
 import java.util.Locale
 
 internal val speedOps = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
@@ -74,7 +76,9 @@ fun VideoScreen(
     onOpenSpace: (SpaceRoute) -> Unit,
     onOpenDownloadCache: () -> Unit,
     onStartDownload: (VideoDownloadRequest) -> Unit,
-    viewModel: VideoViewModel
+    viewModel: VideoViewModel,
+    hostExpanded: Boolean = true,
+    danmakuOverlayState: DanmakuOverlayState? = null
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
     val playerState by viewModel.playerState.collectAsStateWithLifecycle()
@@ -86,10 +90,11 @@ fun VideoScreen(
     val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
     var isFull by rememberSaveable { mutableStateOf(false) }
     var downloadSheetOn by rememberSaveable { mutableStateOf(false) }
+    val fullOn = hostExpanded && isFull
 
     val toggleFull = { isFull = !isFull }
     val handleBack = {
-        if (isFull) {
+        if (fullOn) {
             isFull = false
         } else if (!viewModel.popPage()) {
             onBack()
@@ -98,24 +103,26 @@ fun VideoScreen(
         }
     }
 
-    BackHandler {
-        handleBack()
-    }
-
-    DisposableEffect(viewModel) {
-        onDispose {
-            viewModel.releaseUi()
+    if (hostExpanded) {
+        BackHandler {
+            handleBack()
         }
     }
 
-    DisposableEffect(act, isFull) {
+    LaunchedEffect(hostExpanded) {
+        if (!hostExpanded) {
+            downloadSheetOn = false
+        }
+    }
+
+    DisposableEffect(act, fullOn) {
         val a = act
         if (a == null) {
             onDispose { }
         } else {
             val win = a.window
             val ctrl = WindowInsetsControllerCompat(win, win.decorView)
-            if (isFull) {
+            if (fullOn) {
                 ctrl.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 ctrl.hide(WindowInsetsCompat.Type.systemBars())
@@ -128,9 +135,9 @@ fun VideoScreen(
         }
     }
 
-    DisposableEffect(act, isFull, settingsState.playback.autoRotateFullscreen) {
+    DisposableEffect(act, fullOn, settingsState.playback.autoRotateFullscreen) {
         val a = act ?: return@DisposableEffect onDispose { }
-        a.requestedOrientation = if (isFull && settingsState.playback.autoRotateFullscreen) {
+        a.requestedOrientation = if (fullOn && settingsState.playback.autoRotateFullscreen) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -181,7 +188,7 @@ fun VideoScreen(
         val expandedPlayerW = expandedContentW * 0.54f
         val expandedPlayerH = (maxHeight - statusTop - (playerTopPad * 2)).coerceAtLeast(0.dp)
 
-        if (!isFull) {
+        if (hostExpanded && !fullOn) {
             VideoDetailPage(
                 pageState = pageState,
                 commentSubject = viewModel.commentSubject,
@@ -197,7 +204,7 @@ fun VideoScreen(
         }
 
         val playerHostMod = when {
-            isFull -> Modifier.fillMaxSize()
+            fullOn -> Modifier.fillMaxSize()
             isExpanded -> Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
@@ -209,7 +216,7 @@ fun VideoScreen(
         }
 
         val playerPaneMod = when {
-            isFull -> Modifier.fillMaxSize()
+            fullOn -> Modifier.fillMaxSize()
             isExpanded -> Modifier
                 .width(expandedPlayerW)
                 .height(expandedPlayerH)
@@ -224,14 +231,15 @@ fun VideoScreen(
             VideoPlayerPane(
                 modifier = playerPaneMod,
                 viewModel = viewModel,
-                isFull = isFull,
+                isFull = fullOn,
                 onToggleFull = toggleFull,
-                onBackClick = handleBack
+                onBackClick = handleBack,
+                danmakuOverlayState = danmakuOverlayState
             )
         }
     }
 
-    if (downloadSheetOn) {
+    if (hostExpanded && downloadSheetOn) {
         val sheetVideoQuality = playerState.currentStream?.quality ?: 80
         val sheetAudioQuality = playerState.currentAudio?.id ?: 0
         DownloadTaskSheet(

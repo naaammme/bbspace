@@ -1,4 +1,4 @@
-package com.naaammme.bbspace.feature.danmaku
+package com.naaammme.bbspace.infra.player.danmaku
 
 import android.graphics.Color
 import android.os.SystemClock

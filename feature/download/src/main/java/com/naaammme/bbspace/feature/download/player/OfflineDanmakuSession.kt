@@ -2,10 +2,10 @@ package com.naaammme.bbspace.feature.download.player
 
 import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.model.DanmakuItem
+import com.naaammme.bbspace.core.model.DanmakuSessionState
+import com.naaammme.bbspace.core.model.DanmakuWindow
 import com.naaammme.bbspace.core.model.DownloadPlaybackState
-import com.naaammme.bbspace.core.model.VOD_DANMAKU_SEGMENT_DURATION_MS
-import com.naaammme.bbspace.feature.danmaku.DanmakuSessionState
-import com.naaammme.bbspace.feature.danmaku.DanmakuWindow
+import com.naaammme.bbspace.core.model.toDanmakuWindowId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -152,9 +152,5 @@ internal class OfflineDanmakuSession(
             grouped.getOrPut(windowId) { mutableListOf() }.add(item)
         }
         return grouped
-    }
-
-    private fun Long.toDanmakuWindowId(): Long {
-        return (coerceAtLeast(0L) / VOD_DANMAKU_SEGMENT_DURATION_MS) + 1L
     }
 }

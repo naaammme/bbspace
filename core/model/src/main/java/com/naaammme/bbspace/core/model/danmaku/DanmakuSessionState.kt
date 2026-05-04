@@ -1,7 +1,6 @@
-package com.naaammme.bbspace.feature.danmaku
+package com.naaammme.bbspace.core.model
 
 import androidx.compose.runtime.Immutable
-import com.naaammme.bbspace.core.model.DanmakuItem
 
 @Immutable
 data class DanmakuWindow(

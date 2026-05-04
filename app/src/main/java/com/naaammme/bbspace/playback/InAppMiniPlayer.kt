@@ -51,7 +51,6 @@ fun InAppMiniPlayer(
     val playerView = remember(context) {
         PlayerView(context).apply {
             useController = false
-            setKeepContentOnPlayerReset(true)
             setEnableComposeSurfaceSyncWorkaround(true)
         }
     }

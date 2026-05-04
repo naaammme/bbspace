@@ -49,15 +49,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
+import com.naaammme.bbspace.core.designsystem.component.DanmakuSettingsSection
+import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
+import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayerSettingsState
-import com.naaammme.bbspace.feature.danmaku.DanmakuLayer
-import com.naaammme.bbspace.feature.danmaku.DanmakuSettingsSection
-import com.naaammme.bbspace.feature.danmaku.rememberDanmakuOverlayState
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-private val noOpDanmakuTick: (Long) -> Unit = {}
 private val downloadSpeedOptions = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
 @Suppress("UnsafeOptInUsageError")
@@ -123,8 +122,7 @@ internal fun DownloadPlayerPane(
         initialConfig = danmakuConfig,
         initialPositionMs = state.positionMs,
         initialIsPlaying = state.isPlaying,
-        initialSpeed = state.speed,
-        onDanmakuTick = noOpDanmakuTick
+        initialSpeed = state.speed
     )
 
     DisposableEffect(playerView) {

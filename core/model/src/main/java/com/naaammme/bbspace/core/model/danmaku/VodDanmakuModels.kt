@@ -4,6 +4,14 @@ import androidx.compose.runtime.Immutable
 
 const val VOD_DANMAKU_SEGMENT_DURATION_MS = 360_000L
 
+fun Long.toDanmakuWindowId(): Long {
+    return (coerceAtLeast(0L) / VOD_DANMAKU_SEGMENT_DURATION_MS) + 1L
+}
+
+fun danmakuWindowStartMs(windowId: Long): Long {
+    return (windowId.coerceAtLeast(1L) - 1L) * VOD_DANMAKU_SEGMENT_DURATION_MS
+}
+
 @Immutable
 data class DanmakuItem(
     val id: Long,
@@ -35,10 +43,10 @@ data class VodDanmakuRequest(
     val durationMs: Long
 ) {
     val segmentIndex: Long
-        get() = (positionMs.coerceAtLeast(0L) / VOD_DANMAKU_SEGMENT_DURATION_MS) + 1L
+        get() = positionMs.toDanmakuWindowId()
 
     val segmentStartMs: Long
-        get() = (segmentIndex - 1L) * VOD_DANMAKU_SEGMENT_DURATION_MS
+        get() = danmakuWindowStartMs(segmentIndex)
 }
 
 @Immutable

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -47,8 +46,9 @@ import androidx.media3.ui.R as Media3UiR
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import com.naaammme.bbspace.feature.danmaku.DanmakuLayer
-import com.naaammme.bbspace.feature.danmaku.rememberDanmakuOverlayState
+import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
+import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
+import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.feature.video.detail.QualityOptionItem
@@ -68,7 +68,8 @@ internal fun VideoPlayerPane(
     viewModel: VideoViewModel,
     isFull: Boolean,
     onToggleFull: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    danmakuOverlayState: DanmakuOverlayState? = null
 ) {
     val context = LocalContext.current
     val state by viewModel.playerState.collectAsStateWithLifecycle()
@@ -142,19 +143,17 @@ internal fun VideoPlayerPane(
     val playerView = remember(context) {
         PlayerView(context).apply {
             useController = false
-            setKeepContentOnPlayerReset(true)
             setEnableComposeSurfaceSyncWorkaround(true)
         }
     }
-    val danmakuOverlayState = rememberDanmakuOverlayState(
+    val externalOverlay = danmakuOverlayState
+    val danmakuOverlayState = externalOverlay ?: rememberDanmakuOverlayState(
         initialConfig = settingsState.danmaku,
         initialPositionMs = state.positionMs,
         initialIsPlaying = state.isPlaying,
-        initialSpeed = state.speed,
-        onDanmakuTick = viewModel::onDanmakuTick
+        initialSpeed = state.speed
     )
     var lastWarmAspect by remember(playerView) { mutableStateOf<Float?>(null) }
-
     DisposableEffect(playerView) {
         onDispose {
             playerView.player = null
@@ -162,7 +161,8 @@ internal fun VideoPlayerPane(
     }
 
     Box(
-        modifier = modifier.background(Color.Black)
+        modifier = modifier
+            .background(Color.Black)
     ) {
         AndroidView(
             factory = { playerView },
@@ -189,7 +189,8 @@ internal fun VideoPlayerPane(
             isPlaying = state.isPlaying,
             speed = state.speed,
             seekEventId = state.seekEventId,
-            hasSource = state.playbackSource != null
+            hasSource = state.playbackSource != null,
+            manageLifecycle = externalOverlay == null
         )
 
         Box(

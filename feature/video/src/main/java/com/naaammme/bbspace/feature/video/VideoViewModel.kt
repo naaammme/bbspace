@@ -3,12 +3,12 @@ package com.naaammme.bbspace.feature.video
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
-import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
+import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackError
@@ -16,7 +16,6 @@ import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerBufferSettings
 import com.naaammme.bbspace.core.model.PlayerPlaybackPrefs
-import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadMeta
@@ -24,7 +23,6 @@ import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.isSameEntry
-import com.naaammme.bbspace.feature.video.player.VodDanmakuSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,24 +36,25 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class VideoViewModel @Inject constructor(
-    private val playbackSession: StreamPlaybackSession,
+    private val streamPlaybackSession: StreamPlaybackSession,
     private val playerSettings: PlayerSettings,
-    private val detailRepo: VideoDetailRepository,
-    vodDanmakuRepository: VodDanmakuRepository
+    private val detailRepo: VideoDetailRepository
 ) : ViewModel() {
 
     private val _targetStack = MutableStateFlow<List<VideoTarget>>(emptyList())
     private val _detail = MutableStateFlow<VideoDetail?>(null)
     private val _detailLoading = MutableStateFlow(false)
     private val _detailError = MutableStateFlow<String?>(null)
-    private val danmakuSession = VodDanmakuSession(
-        scope = viewModelScope,
-        repository = vodDanmakuRepository
-    )
 
-    val player: StateFlow<Player?> = playbackSession.player
-    val playerState: StateFlow<PlaybackViewState> = playbackSession.videoState
-    private val currentTarget = playbackSession.currentTarget
+    val player: StateFlow<Player?> = streamPlaybackSession.player
+    val playerState: StateFlow<PlaybackViewState> = streamPlaybackSession.videoState
+    private val currentTarget = streamPlaybackSession.currentTarget
+        .map { (it as? StreamPlaybackTarget.Video)?.target }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = null
+        )
     val settingsState = playerSettings.state
     val currentPageTarget: StateFlow<VideoTarget?> = _targetStack
         .map { it.lastOrNull() }
@@ -109,7 +108,7 @@ class VideoViewModel @Inject constructor(
             return CommentSubjectTool.video(aid, src)
         }
 
-    internal val danmakuState = danmakuSession.state
+    internal val danmakuState = streamPlaybackSession.danmakuState
 
     init {
         bindPlaybackMeta()
@@ -120,7 +119,7 @@ class VideoViewModel @Inject constructor(
     fun openRoot(target: VideoTarget) {
         _targetStack.value = listOf(target)
         loadTargetDetail(target)
-        playbackSession.openVideo(target)
+        streamPlaybackSession.openVideo(target)
     }
 
     fun openTarget(target: VideoTarget) {
@@ -132,7 +131,7 @@ class VideoViewModel @Inject constructor(
             else -> _targetStack.value + target
         }
         loadTargetDetail(target)
-        playbackSession.openVideo(target)
+        streamPlaybackSession.openVideo(target)
     }
 
     fun syncToPlayback(target: VideoTarget) {
@@ -155,7 +154,7 @@ class VideoViewModel @Inject constructor(
         val nextTarget = nextStack.last()
         _targetStack.value = nextStack
         loadTargetDetail(nextTarget)
-        playbackSession.openVideo(nextTarget)
+        streamPlaybackSession.openVideo(nextTarget)
         return true
     }
 
@@ -164,53 +163,44 @@ class VideoViewModel @Inject constructor(
         _detail.value = null
         _detailLoading.value = false
         _detailError.value = null
-        danmakuSession.clear()
     }
 
     fun ensureStarted() {
-        danmakuSession.bind(
-            playbackStateFlow = playerState,
-            enabledFlow = settingsState.map { it.danmaku.enabled }
-        )
         val pageTarget = currentPageTarget.value ?: return
         if (hasActivePageSession(pageTarget)) return
-        playbackSession.openVideo(pageTarget)
+        streamPlaybackSession.openVideo(pageTarget)
     }
 
     fun togglePlayPause() {
         if (playerState.value.isPlaying) {
-            playbackSession.pause()
+            streamPlaybackSession.pause()
         } else {
-            playbackSession.play()
+            streamPlaybackSession.play()
         }
     }
 
-    fun onDanmakuTick(positionMs: Long) {
-        danmakuSession.onTick(positionMs)
-    }
-
     fun switchQuality(quality: Int) {
-        playbackSession.switchVideoQuality(quality)
+        streamPlaybackSession.switchVideoQuality(quality)
     }
 
     fun switchAudio(audioId: Int) {
-        playbackSession.switchVideoAudio(audioId)
+        streamPlaybackSession.switchVideoAudio(audioId)
     }
 
     fun switchCdn(cdnIndex: Int) {
-        playbackSession.switchVideoCdn(cdnIndex)
+        streamPlaybackSession.switchVideoCdn(cdnIndex)
     }
 
     fun pause() {
-        playbackSession.pause()
+        streamPlaybackSession.pause()
     }
 
     fun seekTo(positionMs: Long) {
-        playbackSession.seekTo(positionMs)
+        streamPlaybackSession.seekTo(positionMs)
     }
 
     fun setSpeed(speed: Float) {
-        playbackSession.setSpeed(speed)
+        streamPlaybackSession.setSpeed(speed)
     }
 
     fun updateBackgroundPlayback(enabled: Boolean) {
@@ -268,13 +258,13 @@ class VideoViewModel @Inject constructor(
         val activeTarget = pageSessionTarget(pageTarget) as? VideoTarget.Ugc
         if (activeTarget != null) {
             if (activeTarget.cid == cid) return
-            playbackSession.switchVideoPage(cid)
+            streamPlaybackSession.switchVideoPage(cid)
             return
         }
         if (pageTarget.cid == cid) return
         val nextTarget = pageTarget.copy(cid = cid)
         _targetStack.value = _targetStack.value.dropLast(1) + nextTarget
-        playbackSession.openVideo(nextTarget)
+        streamPlaybackSession.openVideo(nextTarget)
     }
 
     fun currentDownloadRequest(
@@ -324,25 +314,11 @@ class VideoViewModel @Inject constructor(
         }
     }
 
-    fun releaseUi() {
-        danmakuSession.clear()
-    }
-
-    override fun onCleared() {
-        danmakuSession.clear()
-        super.onCleared()
-    }
-
     private fun syncWithPlaybackTarget() {
         viewModelScope.launch {
             currentTarget.collect { target ->
-                val active = (target as? StreamPlaybackTarget.Video)?.target
-                if (active == null) {
-                    if (_targetStack.value.isNotEmpty()) {
-                        clearContent()
-                    }
-                    return@collect
-                }
+                val active = target
+                if (active == null) return@collect
                 val pageTarget = currentPageTarget.value ?: return@collect
                 if (!active.isSameEntry(pageTarget)) return@collect
                 if (pageTarget != active) {
@@ -363,7 +339,7 @@ class VideoViewModel @Inject constructor(
                 )
             }.collect { meta ->
                 if (meta != null) {
-                    playbackSession.updatePlaybackMeta(meta)
+                    streamPlaybackSession.updatePlaybackMeta(meta)
                 }
             }
         }
@@ -468,10 +444,10 @@ class VideoViewModel @Inject constructor(
 
     private fun pageSessionTarget(
         pageTarget: VideoTarget? = currentPageTarget.value,
-        activeTarget: StreamPlaybackTarget? = currentTarget.value
+        activeTarget: VideoTarget? = currentTarget.value
     ): VideoTarget? {
         val page = pageTarget ?: return null
-        val active = (activeTarget as? StreamPlaybackTarget.Video)?.target ?: return null
+        val active = activeTarget ?: return null
         return active.takeIf { it.isSameEntry(page) }
     }
 
@@ -491,7 +467,7 @@ private fun PlaybackError.toUiMsg(): String {
 
 private data class PageStateSnapshot(
     val playbackState: PlaybackViewState,
-    val activeTarget: StreamPlaybackTarget?,
+    val activeTarget: VideoTarget?,
     val pageTarget: VideoTarget?,
     val detail: VideoDetail?,
     val detailLoading: Boolean

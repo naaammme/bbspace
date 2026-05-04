@@ -1,8 +1,13 @@
 package com.naaammme.bbspace.playback
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.media3.common.Player
+import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
@@ -12,6 +17,7 @@ import com.naaammme.bbspace.feature.live.LiveScreen
 import com.naaammme.bbspace.feature.live.LiveViewModel
 import com.naaammme.bbspace.feature.video.VideoScreen
 import com.naaammme.bbspace.feature.video.VideoViewModel
+import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 
 @Composable
 fun PlaybackHost(
@@ -32,27 +38,53 @@ fun PlaybackHost(
     liveViewModel: LiveViewModel,
     miniPlayerModifier: Modifier = Modifier
 ) {
-    when {
-        mode == PlaybackHostMode.Expanded && target is StreamPlaybackTarget.Video -> {
-            VideoScreen(
-                onBack = onDismissExpanded,
-                onOpenSpace = onOpenSpace,
-                onOpenDownloadCache = onOpenDownloadCache,
-                onStartDownload = onStartDownload,
-                viewModel = videoViewModel
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (target) {
+            is StreamPlaybackTarget.Video -> {
+                val danmakuOverlayState = key(target) {
+                    rememberDanmakuOverlayState(
+                        initialConfig = DanmakuConfig(),
+                        initialPositionMs = 0L,
+                        initialIsPlaying = false,
+                        initialSpeed = 1f
+                    )
+                }
+                DisposableEffect(danmakuOverlayState) {
+                    danmakuOverlayState.prepare()
+                    onDispose {
+                        danmakuOverlayState.release()
+                    }
+                }
+                if (mode == PlaybackHostMode.Expanded) {
+                    VideoScreen(
+                        onBack = onDismissExpanded,
+                        onOpenSpace = onOpenSpace,
+                        onOpenDownloadCache = onOpenDownloadCache,
+                        onStartDownload = onStartDownload,
+                        viewModel = videoViewModel,
+                        hostExpanded = true,
+                        danmakuOverlayState = danmakuOverlayState
+                    )
+                }
+            }
+
+            is StreamPlaybackTarget.Live -> {
+                if (mode == PlaybackHostMode.Expanded) {
+                    LiveScreen(
+                        onBack = onDismissExpanded,
+                        viewModel = liveViewModel,
+                        hostExpanded = true
+                    )
+                }
+            }
+
+            null -> {}
         }
 
-        mode == PlaybackHostMode.Expanded && target is StreamPlaybackTarget.Live -> {
-            LiveScreen(
-                onBack = onDismissExpanded,
-                viewModel = liveViewModel
-            )
-        }
-
-        mode == PlaybackHostMode.Mini &&
+        if (mode == PlaybackHostMode.Mini &&
             miniPlayerAvailable &&
-            target != null -> {
+            target != null
+        ) {
             DraggableMiniPlayerHost(
                 modifier = miniPlayerModifier
             ) {
