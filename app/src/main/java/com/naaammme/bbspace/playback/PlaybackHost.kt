@@ -5,7 +5,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.media3.common.Player
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
@@ -27,8 +31,10 @@ fun PlaybackHost(
     sessionState: StreamPlaybackSessionState,
     pageMeta: PlaybackHistoryMeta?,
     miniPlayerAvailable: Boolean,
+    backgroundPlaybackEnabled: Boolean,
     onExpand: () -> Unit,
     onTogglePlay: () -> Unit,
+    onPauseInBackground: () -> Unit,
     onClose: () -> Unit,
     onDismissExpanded: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
@@ -38,6 +44,22 @@ fun PlaybackHost(
     liveViewModel: LiveViewModel,
     miniPlayerModifier: Modifier = Modifier
 ) {
+    val procOwner = remember { ProcessLifecycleOwner.get() }
+    DisposableEffect(procOwner, target, backgroundPlaybackEnabled) {
+        if (target == null || backgroundPlaybackEnabled) {
+            return@DisposableEffect onDispose { }
+        }
+        val lifecycle = procOwner.lifecycle
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                onPauseInBackground()
+            }
+        }
+        lifecycle.addObserver(obs)
+        onDispose {
+            lifecycle.removeObserver(obs)
+        }
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         when (target) {
             is StreamPlaybackTarget.Video -> {

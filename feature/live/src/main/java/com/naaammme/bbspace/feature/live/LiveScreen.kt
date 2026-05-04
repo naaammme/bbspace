@@ -44,7 +44,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
@@ -62,7 +61,6 @@ fun LiveScreen(
     val player by viewModel.player.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
-    val procOwner = remember { ProcessLifecycleOwner.get() }
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
     var isFull by rememberSaveable { mutableStateOf(false) }
@@ -98,19 +96,6 @@ fun LiveScreen(
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             viewModel.ensureStarted()
         }
-        onDispose {
-            lifecycle.removeObserver(observer)
-        }
-    }
-
-    DisposableEffect(procOwner, viewModel, state.backgroundPlaybackEnabled) {
-        val lifecycle = procOwner.lifecycle
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !state.backgroundPlaybackEnabled) {
-                viewModel.pause()
-            }
-        }
-        lifecycle.addObserver(observer)
         onDispose {
             lifecycle.removeObserver(observer)
         }

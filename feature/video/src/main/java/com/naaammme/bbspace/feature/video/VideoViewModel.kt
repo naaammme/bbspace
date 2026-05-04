@@ -191,10 +191,6 @@ class VideoViewModel @Inject constructor(
         streamPlaybackSession.switchVideoCdn(cdnIndex)
     }
 
-    fun pause() {
-        streamPlaybackSession.pause()
-    }
-
     fun seekTo(positionMs: Long) {
         streamPlaybackSession.seekTo(positionMs)
     }

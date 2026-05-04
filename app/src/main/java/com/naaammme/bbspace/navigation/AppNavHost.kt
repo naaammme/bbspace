@@ -71,6 +71,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
     val target by playbackHostViewModel.currentTarget.collectAsStateWithLifecycle()
     val sessionState by playbackHostViewModel.sessionState.collectAsStateWithLifecycle()
     val pageMeta by playbackHostViewModel.pageMeta.collectAsStateWithLifecycle()
+    val backgroundPlaybackEnabled by playbackHostViewModel.backgroundPlaybackEnabled.collectAsStateWithLifecycle()
     val miniPlayerAvailable by playbackHostViewModel.miniPlayerAvailable.collectAsStateWithLifecycle()
     val hostMode = playbackHostViewModel.hostMode
     var forcedDismissMode by remember { mutableStateOf<PlaybackHostMode?>(null) }
@@ -210,6 +211,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             sessionState = sessionState,
             pageMeta = pageMeta,
             miniPlayerAvailable = miniPlayerAvailable,
+            backgroundPlaybackEnabled = backgroundPlaybackEnabled,
             onExpand = {
                 playbackHostViewModel.expand()
                 when (val playbackTarget = target) {
@@ -219,6 +221,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                 }
             },
             onTogglePlay = playbackHostViewModel::togglePlayPause,
+            onPauseInBackground = playbackHostViewModel::pause,
             onClose = {
                 when (target) {
                     is StreamPlaybackTarget.Video -> closeVideoHost()

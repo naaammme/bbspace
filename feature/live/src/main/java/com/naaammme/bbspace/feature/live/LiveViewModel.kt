@@ -37,13 +37,11 @@ class LiveViewModel @Inject constructor(
     val settingsState: StateFlow<PlayerSettingsState> = playerSettings.state
     val uiState: StateFlow<LiveUiState> = combine(
         route,
-        playbackState,
-        settingsState
-    ) { route, playbackState, settingsState ->
+        playbackState
+    ) { route, playbackState ->
         LiveUiState(
             route = route,
-            playbackState = playbackState,
-            backgroundPlaybackEnabled = settingsState.playback.backgroundPlayback
+            playbackState = playbackState
         )
     }.stateIn(
         scope = viewModelScope,
@@ -93,10 +91,6 @@ class LiveViewModel @Inject constructor(
                 reportEntry = false
             )
         }
-    }
-
-    fun pause() {
-        playbackSession.pause()
     }
 
     override fun onCleared() {
