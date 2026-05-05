@@ -341,8 +341,16 @@ class VideoViewModel @Inject constructor(
             combine(currentPageTarget, currentTarget, playerState) { pageTarget, activeTarget, playbackState ->
                 Triple(pageTarget, activeTarget, playbackState)
             }.collect { (pageTarget, activeTarget, playbackState) ->
-                if (pageTarget !is VideoTarget.Pgc && pageTarget !is VideoTarget.Pugv) return@collect
-                if (pageSessionTarget(pageTarget, activeTarget) == null) return@collect
+                if (pageTarget !is VideoTarget.Pgc && pageTarget !is VideoTarget.Pugv) {
+                    loadedAid = 0L
+                    loadedBvid = ""
+                    return@collect
+                }
+                if (pageSessionTarget(pageTarget, activeTarget) == null) {
+                    loadedAid = 0L
+                    loadedBvid = ""
+                    return@collect
+                }
                 val videoId = playbackState.playbackSource?.videoId
                 val aid = videoId?.aid?.takeIf { it > 0L }
                 if (aid != null) {

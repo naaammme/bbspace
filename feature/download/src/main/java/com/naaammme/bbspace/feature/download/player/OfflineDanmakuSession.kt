@@ -22,12 +22,27 @@ internal class OfflineDanmakuSession(
     val state: StateFlow<DanmakuSessionState> = _state.asStateFlow()
 
     private var loadJob: Job? = null
+    private var cachedWindows: Map<Long, DanmakuWindow> = emptyMap()
+    private var currentSourceKey: String? = null
+    private var currentWindowId: Long? = null
 
     fun bind(taskId: Long) {
         if (loadJob?.isActive == true) return
         loadJob = scope.launch {
             load(taskId)
         }
+    }
+
+    fun onTick(positionMs: Long) {
+        val sourceKey = currentSourceKey ?: return
+        val windowId = positionMs.coerceAtLeast(0L).toDanmakuWindowId()
+        if (windowId == currentWindowId) return
+        currentWindowId = windowId
+        _state.value = DanmakuSessionState(
+            sourceKey = sourceKey,
+            window = cachedWindows[windowId],
+            lastError = _state.value.lastError
+        )
     }
 
     fun clear() {
@@ -66,16 +81,22 @@ internal class OfflineDanmakuSession(
             aid = cache.aid,
             cid = cache.cid
         )
-        val windows = withContext(Dispatchers.Default) {
+        cachedWindows = withContext(Dispatchers.Default) {
             cache.items.toWindows()
         }
+        currentSourceKey = sourceKey
+        currentWindowId = null
         _state.value = DanmakuSessionState(
             sourceKey = sourceKey,
-            windows = windows
+            window = cachedWindows[1L]
         )
+        currentWindowId = _state.value.window?.id
     }
 
     private fun reset() {
+        cachedWindows = emptyMap()
+        currentSourceKey = null
+        currentWindowId = null
         _state.value = DanmakuSessionState()
     }
 

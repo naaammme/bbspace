@@ -27,7 +27,7 @@ class DanmakuOverlayState internal constructor(
     private var lastPlayState: DanmakuPlayState? = null
     private var lastPlaybackSpeed = 1f
     private var lastSeekEventId = 0L
-    private val appliedWindowIds = linkedSetOf<Long>()
+    private var appliedWindowId: Long? = null
 
     fun prepare() {
         if (released.get()) return
@@ -55,12 +55,12 @@ class DanmakuOverlayState internal constructor(
             pendingSeek = true
         }
         applyConfig(config)
-        syncWindows(
-            windows = danmakuState.windows,
+        syncWindow(
+            window = danmakuState.window,
             targetWindowId = requiredWindowId,
             requireTargetWindow = pendingSeek || hasSeek
         )
-        val curReady = appliedWindowIds.contains(requiredWindowId)
+        val curReady = appliedWindowId == requiredWindowId
         if (config.enabled && hasSource) {
             syncPosition(
                 positionMs = clampedPositionMs,
@@ -136,7 +136,7 @@ class DanmakuOverlayState internal constructor(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        appliedWindowIds.clear()
+        appliedWindowId = null
         session.setPlayerTimeProvider(null)
         session.pause()
         timeProvider.release()
@@ -155,7 +155,7 @@ class DanmakuOverlayState internal constructor(
         lastSourceKey = sourceKey
         lastSeekEventId = 0L
         pendingSeek = true
-        appliedWindowIds.clear()
+        appliedWindowId = null
         session.clearSegments()
     }
 
@@ -170,60 +170,27 @@ class DanmakuOverlayState internal constructor(
         danmakuCtrl.forceRender()
     }
 
-    private fun syncWindows(
-        windows: Map<Long, DanmakuWindow>,
+    private fun syncWindow(
+        window: DanmakuWindow?,
         targetWindowId: Long,
         requireTargetWindow: Boolean
     ) {
-        val nextWindows = windows.entries.sortedBy { it.key }
-        if (nextWindows.isEmpty()) {
-            if (appliedWindowIds.isEmpty()) return
-
-            appliedWindowIds.clear()
-            session.clearSegments()
-            return
-        }
-
-        val curReady = nextWindows.any { it.key == targetWindowId }
-        if (requireTargetWindow && !curReady) {
-            // 目标窗口未就绪但加载可用窗口，避免弹幕完全消失
-            // 等目标窗口到达时通过 syncPosition seek 到正确位置
-            replaceAllWindows(nextWindows)
+        val targetWindow = window?.takeIf { it.id == targetWindowId }
+        if (targetWindow == null) {
+            if (requireTargetWindow || appliedWindowId != null) {
+                appliedWindowId = null
+                session.clearSegments()
+            }
             pendingSeek = true
             return
         }
-
-        val nextWindowIds = nextWindows.mapTo(linkedSetOf()) { it.key }
-        val missingApplied = appliedWindowIds - nextWindowIds
-        if (missingApplied.isNotEmpty()) {
-            val shouldReload =
-                targetWindowId in missingApplied ||
-                    nextWindows.firstOrNull()?.key != appliedWindowIds.firstOrNull()
-            if (shouldReload) {
-                replaceAllWindows(nextWindows)
-            } else {
-                appliedWindowIds.removeAll(missingApplied)
-            }
+        if (appliedWindowId == targetWindow.id) {
             return
         }
-
-        nextWindows.forEach { (windowId, window) ->
-            if (appliedWindowIds.add(windowId)) {
-                session.appendSegment(DanmakuSegmentData(windowId, window.items))
-            }
-        }
-    }
-
-    private fun replaceAllWindows(
-        windows: List<Map.Entry<Long, DanmakuWindow>>
-    ) {
         session.replaceSegments(
-            windows.map { (windowId, window) ->
-                DanmakuSegmentData(windowId, window.items)
-            }
+            listOf(DanmakuSegmentData(targetWindow.id, targetWindow.items))
         )
-        appliedWindowIds.clear()
-        appliedWindowIds.addAll(windows.map { it.key })
+        appliedWindowId = targetWindow.id
     }
 
     private fun consumeSeekEvent(seekEventId: Long): Boolean {

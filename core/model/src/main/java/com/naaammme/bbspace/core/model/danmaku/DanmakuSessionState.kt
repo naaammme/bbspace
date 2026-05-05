@@ -11,6 +11,6 @@ data class DanmakuWindow(
 @Immutable
 data class DanmakuSessionState(
     val sourceKey: String? = null,
-    val windows: Map<Long, DanmakuWindow> = emptyMap(),
+    val window: DanmakuWindow? = null,
     val lastError: String? = null
 )

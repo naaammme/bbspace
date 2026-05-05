@@ -9,7 +9,7 @@ import com.naaammme.bbspace.core.model.VideoPlaybackId
 import com.naaammme.bbspace.core.model.VodDanmakuRequest
 import com.naaammme.bbspace.core.model.danmakuWindowStartMs
 import com.naaammme.bbspace.core.model.toDanmakuWindowId
-import kotlin.math.abs
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -28,12 +28,12 @@ internal class VodDanmakuSession(
     private val _state = MutableStateFlow(DanmakuSessionState())
     val state: StateFlow<DanmakuSessionState> = _state.asStateFlow()
 
-    private val loadingJobs = mutableMapOf<Long, Job>()
+    private var loadingJob: Job? = null
+    private var loadingWindowId: Long? = null
     private var currentSource: PlaybackSource? = null
     private var currentVideoId: VideoPlaybackId? = null
     private var currentDurationMs = 0L
-    private var activeWindowId: Long? = null
-    private var lastPositionMs: Long? = null
+    private var currentWindowId: Long? = null
     @Volatile
     private var lastTickSec = -1L
     private var observerJob: Job? = null
@@ -59,11 +59,9 @@ internal class VodDanmakuSession(
         lastTickSec = second
         val source = currentSource ?: return
         val windowId = clampedPositionMs.toDanmakuWindowId()
-        activeWindowId = windowId
+        currentWindowId = windowId
         updateCursor(source.videoId.toDanmakuSourceKey())
-        trimCacheAround(windowId)
-        ensureWindowRangeLoaded(windowId)
-        lastPositionMs = clampedPositionMs
+        ensureWindowLoaded(windowId)
     }
 
     private fun handlePlaybackUpdate(
@@ -90,37 +88,22 @@ internal class VodDanmakuSession(
         currentSource = source
         currentDurationMs = durationMs
         val windowId = positionMs.toDanmakuWindowId()
-        activeWindowId = windowId
+        currentWindowId = windowId
         updateCursor(sourceKey)
-        val shouldTrim = run {
-            val last = lastPositionMs
-            last != null && (positionMs < last || abs(positionMs - last) >= SEEK_RESET_THRESHOLD_MS)
-        }
-        if (shouldTrim) {
-            trimCacheAround(windowId)
-        }
 
-        if (!playbackState.hasRenderedFirstFrame && _state.value.windows.isEmpty()) {
-            lastPositionMs = positionMs
+        if (!playbackState.hasRenderedFirstFrame && _state.value.window == null) {
+            lastTickSec = positionMs / 1000L
             return
         }
 
-        ensureWindowRangeLoaded(windowId)
-        lastPositionMs = positionMs
+        ensureWindowLoaded(windowId)
         lastTickSec = positionMs / 1000L
     }
 
-    private fun ensureWindowRangeLoaded(centerWindowId: Long) {
-        buildWindowRange(centerWindowId).forEach { windowId ->
-            buildRequest(windowId)?.let(::ensureSegmentLoaded)
-        }
-    }
-
-    private fun buildWindowRange(centerWindowId: Long): List<Long> {
-        val maxWindowId = maxOf(currentDurationMs.toDanmakuWindowId(), centerWindowId, 1L)
-        return listOf(centerWindowId - 1L, centerWindowId, centerWindowId + 1L)
-            .filter { it in 1L..maxWindowId }
-            .distinct()
+    private fun ensureWindowLoaded(windowId: Long) {
+        if (_state.value.window?.id == windowId) return
+        if (loadingWindowId == windowId && loadingJob?.isActive == true) return
+        buildRequest(windowId)?.let(::loadWindow)
     }
 
     private fun buildRequest(windowId: Long): VodDanmakuRequest? {
@@ -138,51 +121,42 @@ internal class VodDanmakuSession(
         )
     }
 
-    private fun ensureSegmentLoaded(request: VodDanmakuRequest) {
+    private fun loadWindow(request: VodDanmakuRequest) {
         val windowId = request.segmentIndex
-        if (_state.value.windows.containsKey(windowId)) return
-        if (loadingJobs.containsKey(windowId)) return
+        if (loadingWindowId != windowId) {
+            loadingJob?.cancel()
+        }
+        loadingWindowId = windowId
         clearError()
 
-        loadingJobs[windowId] = scope.launch {
+        loadingJob = scope.launch {
             runCatching {
                 repository.fetchSegment(request)
             }.onSuccess { segment ->
-                loadingJobs.remove(windowId)
-                if (segment.request.videoId != currentVideoId) return@onSuccess
+                if (segment.request.videoId != currentVideoId || windowId != currentWindowId) {
+                    return@onSuccess
+                }
                 _state.update { state ->
-                    val updated = state.windows.toMutableMap()
-                    updated[windowId] = DanmakuWindow(
-                        id = windowId,
-                        items = segment.items
+                    state.copy(
+                        window = DanmakuWindow(
+                            id = windowId,
+                            items = segment.items
+                        ),
+                        lastError = null
                     )
-                    trimWindows(updated, activeWindowId)
-                    state.copy(windows = updated, lastError = null)
                 }
             }.onFailure { error ->
-                loadingJobs.remove(windowId)
-                if (request.videoId != currentVideoId) return@onFailure
+                if (error is CancellationException) return@onFailure
+                if (request.videoId != currentVideoId || windowId != currentWindowId) {
+                    return@onFailure
+                }
                 _state.update { it.copy(lastError = error.message ?: "Failed to load danmaku segment") }
             }
+            if (loadingWindowId == windowId) {
+                loadingWindowId = null
+                loadingJob = null
+            }
         }
-    }
-
-    private fun trimCacheAround(centerWindowId: Long) {
-        _state.update { state ->
-            val keep = buildWindowRange(centerWindowId).toSet()
-            val trimmed = state.windows.filterKeys { it in keep }
-            if (trimmed.size == state.windows.size) return@update state
-            state.copy(windows = trimmed)
-        }
-    }
-
-    private fun trimWindows(
-        windows: MutableMap<Long, DanmakuWindow>,
-        centerWindowId: Long?
-    ) {
-        if (centerWindowId == null) return
-        val keep = buildWindowRange(centerWindowId).toSet()
-        windows.keys.removeAll { it !in keep }
     }
 
     private fun clearError() {
@@ -206,16 +180,12 @@ internal class VodDanmakuSession(
         currentSource = null
         currentVideoId = videoId
         currentDurationMs = 0L
-        activeWindowId = null
-        lastPositionMs = null
+        currentWindowId = null
         lastTickSec = -1L
-        loadingJobs.values.forEach { it.cancel() }
-        loadingJobs.clear()
+        loadingJob?.cancel()
+        loadingJob = null
+        loadingWindowId = null
         _state.update { DanmakuSessionState(sourceKey = sourceKey) }
-    }
-
-    private companion object {
-        const val SEEK_RESET_THRESHOLD_MS = 10_000L
     }
 }
 

@@ -34,6 +34,11 @@ class DownloadPlayerViewModel @Inject constructor(
     init {
         danmakuSession.bind(taskId)
         viewModelScope.launch {
+            state.collect { playback ->
+                danmakuSession.onTick(playback.positionMs)
+            }
+        }
+        viewModelScope.launch {
             playbackController.open(taskId)
         }
     }
