@@ -113,37 +113,42 @@ class PlaybackReporter @Inject constructor(
     }
 
     suspend fun finishSession(snapshot: PlaybackSnapshot) {
-        val active = mu.withLock {
+        val active = detachSession(snapshot) ?: return
+        finalizeSession(active)
+    }
+
+    internal suspend fun detachSession(
+        snapshot: PlaybackSnapshot,
+        meta: PlaybackHistoryMeta? = null
+    ): DetachedPlaybackReport? {
+        return mu.withLock {
             val current = ctx ?: return@withLock null
             current.sync(snapshot, null)
             current.lastSnapshot = snapshot
-            current.copy()
-        }
-        active ?: return
-
-        if (!active.playbackHistoryStarted) {
-            mu.withLock {
-                val current = ctx ?: return@withLock
-                if (current.sessionId == active.sessionId) {
-                    ctx = null
-                }
-            }
-            return
-        }
-
-        if (!active.finalized) {
-            reportPlaybackHistory(
-                active,
-                snapshot,
-                complete = active.isComplete(snapshot, allowEndedOnly = false)
+            val detached = DetachedPlaybackReport(
+                session = current.copy(),
+                meta = meta ?: pageMeta,
+                snapshot = snapshot
             )
-            endHeartbeat(active)
-        }
-
-        mu.withLock {
-            val current = ctx ?: return@withLock
-            if (current.sessionId == active.sessionId) {
+            if (ctx?.sessionId == current.sessionId) {
                 ctx = null
+            }
+            detached
+        }
+    }
+
+    internal suspend fun finalizeSession(report: DetachedPlaybackReport) {
+        val active = report.session
+        if (!active.playbackHistoryStarted) return
+        if (!active.finalized) {
+            recordAndReportPlaybackHistory(
+                active = active,
+                meta = report.meta,
+                snapshot = report.snapshot,
+                complete = active.isComplete(report.snapshot, allowEndedOnly = false)
+            )
+            if (active.heartbeatStarted && !active.heartbeatEnded) {
+                remoteReporter.endHeartbeat(active)
             }
         }
     }
@@ -182,13 +187,27 @@ class PlaybackReporter @Inject constructor(
         snapshot: PlaybackSnapshot,
         complete: Boolean
     ) {
-        localHistoryRecorder.record(active, pageMeta, snapshot)
-        remoteReporter.reportPlaybackHistory(active, snapshot, complete)
+        recordAndReportPlaybackHistory(
+            active = active,
+            meta = pageMeta,
+            snapshot = snapshot,
+            complete = complete
+        )
         mu.withLock {
             val current = ctx ?: return@withLock
             if (current.sessionId != active.sessionId) return@withLock
             ctx = current.copy(playbackHistoryStarted = true)
         }
+    }
+
+    private suspend fun recordAndReportPlaybackHistory(
+        active: PlaybackReportSession,
+        meta: PlaybackHistoryMeta?,
+        snapshot: PlaybackSnapshot,
+        complete: Boolean
+    ) {
+        localHistoryRecorder.record(active, meta, snapshot)
+        remoteReporter.reportPlaybackHistory(active, snapshot, complete)
     }
 
     private data class SnapshotEdge(
@@ -203,3 +222,9 @@ class PlaybackReporter @Inject constructor(
         const val DEFAULT_QN = 64
     }
 }
+
+internal data class DetachedPlaybackReport(
+    val session: PlaybackReportSession,
+    val meta: PlaybackHistoryMeta?,
+    val snapshot: PlaybackSnapshot
+)

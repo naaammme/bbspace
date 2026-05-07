@@ -69,7 +69,6 @@ class Media3PlayerEngine @Inject constructor(
     private var firstFrameSeq = 0L
     private var lastEventsPlaybackState = Player.STATE_IDLE
     private var lastEventsIsPlaying = false
-    private var lastEventsSnapshotMs = 0L
     private var progressJob: Job? = null
 
     private val playerListener = object : Player.Listener {
@@ -103,15 +102,10 @@ class Media3PlayerEngine @Inject constructor(
             if (state != lastEventsPlaybackState || playing != lastEventsIsPlaying) {
                 lastEventsPlaybackState = state
                 lastEventsIsPlaying = playing
-                lastEventsSnapshotMs = 0L
                 updateSnapshot()
                 updateProgressPolling()
                 return
             }
-            val now = SystemClock.elapsedRealtime()
-            if (now - lastEventsSnapshotMs < 250) return
-            lastEventsSnapshotMs = now
-            updateSnapshot()
         }
     }
     private val analyticsListener = object : AnalyticsListener {

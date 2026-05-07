@@ -366,9 +366,14 @@ class StreamPlaybackSessionImpl @Inject constructor(
             )
             syncSessionState()
         } else {
-            finishVideoPlayback(invalidateOpen = false, releasePlayer = false, nextTarget = target)
-            vodSession.value = PlayerSessionState(isPreparing = true)
-            _videoState.value = PlaybackViewState(isPreparing = true)
+            finishVideoPlayback(
+                invalidateOpen = false,
+                releasePlayer = false,
+                nextTarget = target,
+                nextState = PlayerSessionState(isPreparing = true),
+                nextViewState = PlaybackViewState(isPreparing = true),
+                finalizeReportAsync = true
+            )
         }
 
         try {
@@ -503,24 +508,38 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private suspend fun finishVideoPlayback(
         invalidateOpen: Boolean,
         releasePlayer: Boolean,
-        nextTarget: VideoTarget? = null
+        nextTarget: VideoTarget? = null,
+        nextState: PlayerSessionState? = null,
+        nextViewState: PlaybackViewState? = null,
+        finalizeReportAsync: Boolean = false
     ) {
         val snapshot = latestSnapshot()
         val hadVideo = vodSession.value.playbackSource != null
         val hasEngineMedia = playerEngine.currentSource.value != null ||
             player.value?.currentMediaItem != null
+        val pageMeta = _pageMeta.value
         if (invalidateOpen) openId.incrementAndGet()
         _currentTarget.value = nextTarget?.let { StreamPlaybackTarget.Video(it) }
         nextPlayWhenReady = true
         _pageMeta.value = null
-        vodSession.value = PlayerSessionState()
-        _videoState.value = PlaybackViewState()
+        vodSession.value = nextState ?: PlayerSessionState()
+        _videoState.value = nextViewState ?: PlaybackViewState()
+        syncSessionState()
         if (hasEngineMedia) {
-            if (releasePlayer) playerEngine.release()
-            else playerEngine.stopForReuse(resetPosition = true)
+            when {
+                releasePlayer -> playerEngine.release()
+                else -> playerEngine.stopForReuse(resetPosition = true)
+            }
         }
-        if (hadVideo) {
-            reporter.finishSession(snapshot)
+
+        val detached = if (hadVideo) reporter.detachSession(snapshot, pageMeta) else null
+        detached ?: return
+        if (!finalizeReportAsync) {
+            reporter.finalizeSession(detached)
+            return
+        }
+        runtimeScope.launch(Dispatchers.IO) {
+            reporter.finalizeSession(detached)
         }
     }
 
