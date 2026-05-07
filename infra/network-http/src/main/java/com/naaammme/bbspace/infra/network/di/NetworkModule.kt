@@ -4,6 +4,7 @@ import android.content.Context
 import com.naaammme.bbspace.infra.crypto.BuvidFetcher
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.crypto.GuestIdGenerator
+import com.naaammme.bbspace.infra.crypto.HwIdGenerator
 import com.naaammme.bbspace.infra.crypto.LegalRegionCache
 import com.naaammme.bbspace.infra.crypto.RegionCodeCache
 import com.naaammme.bbspace.infra.crypto.TicketGenerator
@@ -25,6 +26,12 @@ object NetworkModule {
     @Singleton
     fun provideDeviceIdentity(@ApplicationContext context: Context): DeviceIdentity {
         return DeviceIdentity(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHwIdGenerator(deviceIdentity: DeviceIdentity): HwIdGenerator {
+        return HwIdGenerator(deviceIdentity)
     }
 
     @Provides

@@ -41,6 +41,8 @@ class MainActivity : ComponentActivity() {
 
     private var updateDialog by mutableStateOf<AppUpdateDialogState?>(null)
 
+    private var cachedDisplayModes: Array<Display.Mode>? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
@@ -101,9 +103,10 @@ class MainActivity : ComponentActivity() {
         val currentMode = display?.mode ?: return null
         val w = currentMode.physicalWidth
         val h = currentMode.physicalHeight
-        return display?.supportedModes
-            ?.filter { it.physicalWidth == w && it.physicalHeight == h }
-            ?.minByOrNull { abs(it.refreshRate - targetHz) }
+        val modes = cachedDisplayModes ?: display?.supportedModes?.also { cachedDisplayModes = it } ?: return null
+        return modes
+            .filter { it.physicalWidth == w && it.physicalHeight == h }
+            .minByOrNull { abs(it.refreshRate - targetHz) }
             ?.takeIf { abs(it.refreshRate - targetHz) < 5f }
     }
 }

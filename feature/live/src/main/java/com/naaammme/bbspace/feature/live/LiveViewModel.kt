@@ -2,52 +2,63 @@ package com.naaammme.bbspace.feature.live
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.naaammme.bbspace.core.domain.live.LiveRoomMessageRepository
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.LiveRoomSessionState
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LiveViewModel @Inject constructor(
     private val playbackSession: StreamPlaybackSession,
+    liveRoomMessageRepository: LiveRoomMessageRepository,
     playerSettings: PlayerSettings
 ) : ViewModel() {
 
     val player = playbackSession.player
-    private val route: StateFlow<LiveRoute?> = playbackSession.currentTarget
+    val route: StateFlow<LiveRoute?> = playbackSession.currentTarget
         .map { target -> (target as? StreamPlaybackTarget.Live)?.route }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = null
         )
     val playbackState: StateFlow<LivePlaybackViewState> = playbackSession.liveState
     val settingsState: StateFlow<PlayerSettingsState> = playerSettings.state
-    val uiState: StateFlow<LiveUiState> = combine(
-        route,
-        playbackState
-    ) { route, playbackState ->
-        LiveUiState(
-            route = route,
-            playbackState = playbackState
+    private val emptyRoomSession = MutableStateFlow(LiveRoomSessionState())
+    val roomSession: StateFlow<LiveRoomSessionState> = route
+        .flatMapLatest { curRoute ->
+            val roomId = curRoute?.roomId ?: 0L
+            if (roomId > 0L) {
+                liveRoomMessageRepository.observeRoomSession(roomId)
+            } else {
+                emptyRoomSession
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(
+                stopTimeoutMillis = 5_000,
+                replayExpirationMillis = 0
+            ),
+            initialValue = LiveRoomSessionState()
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = LiveUiState()
-    )
 
     private var startJob: Job? = null
 

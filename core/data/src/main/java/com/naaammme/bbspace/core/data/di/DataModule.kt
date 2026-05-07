@@ -11,6 +11,7 @@ import com.naaammme.bbspace.core.data.repository.CommentRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
 import com.naaammme.bbspace.core.data.repository.HistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRecommendRepoImpl
+import com.naaammme.bbspace.core.data.repository.LiveRoomMessageRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRepoImpl
 import com.naaammme.bbspace.core.data.repository.PlaybackHistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.SearchRepoImpl
@@ -26,6 +27,7 @@ import com.naaammme.bbspace.core.domain.feed.FeedRepository
 import com.naaammme.bbspace.core.domain.history.HistoryRepository
 import com.naaammme.bbspace.core.domain.history.PlaybackHistoryRepository
 import com.naaammme.bbspace.core.domain.live.LiveRecommendRepository
+import com.naaammme.bbspace.core.domain.live.LiveRoomMessageRepository
 import com.naaammme.bbspace.core.domain.live.LiveRepository
 import com.naaammme.bbspace.core.domain.player.DownloadPlaybackController
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
@@ -64,6 +66,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindLiveRecommendRepo(impl: LiveRecommendRepoImpl): LiveRecommendRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLiveRoomMessageRepo(impl: LiveRoomMessageRepoImpl): LiveRoomMessageRepository
 
     @Binds
     @Singleton
