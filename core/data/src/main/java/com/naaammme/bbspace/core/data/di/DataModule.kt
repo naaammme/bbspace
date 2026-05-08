@@ -8,6 +8,7 @@ import com.naaammme.bbspace.core.data.player.PlayerSettingsImpl
 import com.naaammme.bbspace.core.data.player.StreamPlaybackSessionImpl
 import com.naaammme.bbspace.core.data.repository.AuthRepoImpl
 import com.naaammme.bbspace.core.data.repository.CommentRepoImpl
+import com.naaammme.bbspace.core.data.repository.DynamicRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
 import com.naaammme.bbspace.core.data.repository.HistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRecommendRepoImpl
@@ -21,6 +22,7 @@ import com.naaammme.bbspace.core.data.repository.VideoDetailRepoImpl
 import com.naaammme.bbspace.core.data.repository.VideoPlayerRepoImpl
 import com.naaammme.bbspace.core.domain.auth.AuthRepository
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
+import com.naaammme.bbspace.core.domain.dynamic.DynamicRepository
 import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
 import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
@@ -74,6 +76,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindCommentRepo(impl: CommentRepoImpl): CommentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDynamicRepo(impl: DynamicRepoImpl): DynamicRepository
 
     @Binds
     @Singleton

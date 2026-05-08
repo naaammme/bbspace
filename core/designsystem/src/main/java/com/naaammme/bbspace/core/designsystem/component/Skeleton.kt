@@ -4,14 +4,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -127,6 +131,117 @@ fun VideoListCardSkeleton(modifier: Modifier = Modifier) {
                     shape = MaterialTheme.shapes.extraSmall
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun DynamicCardSkeleton(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = MaterialTheme.shapes.large
+            )
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SkeletonBlock(
+                modifier = Modifier.size(42.dp),
+                shape = CircleShape
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SkeletonBlock(
+                    modifier = Modifier
+                        .fillMaxWidth(0.32f)
+                        .height(18.dp),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+                SkeletonBlock(
+                    modifier = Modifier
+                        .fillMaxWidth(0.24f)
+                        .height(12.dp),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+            }
+        }
+
+        SkeletonBlock(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .height(16.dp),
+            shape = MaterialTheme.shapes.extraSmall
+        )
+        SkeletonBlock(
+            modifier = Modifier
+                .fillMaxWidth(0.68f)
+                .height(16.dp),
+            shape = MaterialTheme.shapes.extraSmall
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SkeletonBlock(
+                modifier = Modifier
+                    .width(140.dp)
+                    .aspectRatio(16f / 10f),
+                shape = MaterialTheme.shapes.medium
+            )
+            SkeletonBlock(
+                modifier = Modifier
+                    .width(140.dp)
+                    .aspectRatio(16f / 10f),
+                shape = MaterialTheme.shapes.medium
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SkeletonBlock(
+                modifier = Modifier
+                    .width(56.dp)
+                    .height(12.dp),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            SkeletonBlock(
+                modifier = Modifier
+                    .width(56.dp)
+                    .height(12.dp),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            SkeletonBlock(
+                modifier = Modifier
+                    .width(56.dp)
+                    .height(12.dp),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+        }
+    }
+}
+
+@Composable
+fun DynamicFeedSkeleton(
+    modifier: Modifier = Modifier,
+    count: Int = 6
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(
+            count = count,
+            key = { "dynamic_skeleton_$it" },
+            contentType = { "dynamic_skeleton" }
+        ) {
+            DynamicCardSkeleton()
         }
     }
 }

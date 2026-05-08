@@ -34,6 +34,7 @@ import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.feature.dynamic.DynamicScreen
 import com.naaammme.bbspace.feature.auth.navigation.ACCOUNT_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.LOGIN_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.SMS_LOGIN_ROUTE
@@ -310,7 +311,11 @@ private fun MainTabsScaffold(
                                 onOpenSpace = onNavigateToSpace,
                                 onOpenLive = onNavigateToLive
                             )
-                            TopLevelRoute.DYNAMIC -> PlaceholderScreen("动态")
+                            TopLevelRoute.DYNAMIC -> DynamicScreen(
+                                onOpenVideo = onNavigateToVideo,
+                                onOpenSpace = onNavigateToSpace,
+                                onOpenLive = onNavigateToLive
+                            )
                             TopLevelRoute.MESSAGE -> PlaceholderScreen("消息")
                             TopLevelRoute.PROFILE -> UserScreen(
                                 onNavigateToAccount = onNavigateToAccount,
