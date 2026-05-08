@@ -1,11 +1,15 @@
 package com.naaammme.bbspace.feature.dynamic
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +29,7 @@ import com.naaammme.bbspace.feature.dynamic.feed.DynamicFeed
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DynamicScreen(
     onOpenVideo: (VideoTarget) -> Unit,
@@ -54,44 +59,55 @@ fun DynamicScreen(
             }
     }
 
-    BiliPullToRefreshBox(
-        isRefreshing = state.isRefreshing,
-        onRefresh = viewModel::refresh,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        when {
-            state.isLoading && state.items.isEmpty() -> {
-                DynamicFeedSkeleton(modifier = Modifier.fillMaxSize())
-            }
+    Scaffold(
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            TopAppBar(
+                title = { Text("动态") }
+            )
+        }
+    ) { padding ->
+        BiliPullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            when {
+                state.isLoading && state.items.isEmpty() -> {
+                    DynamicFeedSkeleton(modifier = Modifier.fillMaxSize())
+                }
 
-            state.errorMessage != null && state.items.isEmpty() -> {
-                DynamicEmptyState(
-                    text = state.errorMessage.orEmpty().ifBlank { "加载动态失败" },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                state.errorMessage != null && state.items.isEmpty() -> {
+                    DynamicEmptyState(
+                        text = state.errorMessage.orEmpty().ifBlank { "加载动态失败" },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-            state.items.isEmpty() -> {
-                DynamicEmptyState(
-                    text = "暂无动态",
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                state.items.isEmpty() -> {
+                    DynamicEmptyState(
+                        text = "暂无动态",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-            else -> {
-                DynamicFeed(
-                    upList = state.upList,
-                    items = state.items,
-                    listState = listState,
-                    isLoadingMore = state.isLoadingMore,
-                    errorMessage = state.errorMessage,
-                    errorOnLoadMore = state.errorOnLoadMore,
-                    onRetry = if (state.errorOnLoadMore) viewModel::loadMore else viewModel::refresh,
-                    onOpenVideo = onOpenVideo,
-                    onOpenSpace = onOpenSpace,
-                    onOpenLive = onOpenLive,
-                    modifier = Modifier.fillMaxSize()
-                )
+                else -> {
+                    DynamicFeed(
+                        upList = state.upList,
+                        items = state.items,
+                        listState = listState,
+                        isLoadingMore = state.isLoadingMore,
+                        errorMessage = state.errorMessage,
+                        errorOnLoadMore = state.errorOnLoadMore,
+                        onRetry = if (state.errorOnLoadMore) viewModel::loadMore else viewModel::refresh,
+                        onOpenVideo = onOpenVideo,
+                        onOpenSpace = onOpenSpace,
+                        onOpenLive = onOpenLive,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }

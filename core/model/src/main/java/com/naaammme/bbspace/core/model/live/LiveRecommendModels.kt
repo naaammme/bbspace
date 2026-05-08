@@ -17,8 +17,23 @@ data class LiveRecommendItem(
 
 @Immutable
 data class LiveRecommendPage(
+    val upList: LiveRecommendUpList? = null,
     val items: List<LiveRecommendItem>,
     val hasMore: Boolean,
     val needRefresh: Boolean,
     val triggerTimeSec: Int
+)
+
+@Immutable
+data class LiveRecommendUpList(
+    val title: String?,
+    val items: List<LiveRecommendUpItem>
+)
+
+@Immutable
+data class LiveRecommendUpItem(
+    val uid: Long,
+    val name: String,
+    val face: String?,
+    val route: LiveRoute
 )

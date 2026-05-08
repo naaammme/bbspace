@@ -35,15 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImageRow
 import com.naaammme.bbspace.core.model.CommentReply
@@ -357,47 +352,25 @@ private fun UserAvatar(
     onClick: () -> Unit
 ) {
     val modifier = Modifier.size(44.dp)
-    if (!face.isNullOrBlank()) {
-        val context = LocalContext.current
-        val req = remember(face) {
-            ImageRequest.Builder(context)
-                .data(thumbnailUrl(face))
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .build()
-        }
-        Surface(
-            onClick = onClick,
-            modifier = modifier,
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            AsyncImage(
-                model = req,
-                contentDescription = name,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        }
-    } else {
-        Surface(
-            onClick = onClick,
-            modifier = modifier,
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer
-        ) {
-            Box(
-                contentAlignment = Alignment.Center
-            ) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        AvatarImage(
+            url = face?.let(::thumbnailUrl),
+            contentDescription = name,
+            modifier = Modifier.fillMaxSize(),
+            fallbackContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            fallbackContent = {
                 Text(
                     text = name.take(1).ifBlank { "?" },
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
-        }
+        )
     }
 }
 

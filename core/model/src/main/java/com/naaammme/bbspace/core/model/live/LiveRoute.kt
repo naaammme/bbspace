@@ -16,6 +16,7 @@ object LiveRouteTool {
     const val JUMP_FROM_UNKNOWN = 99998
     const val JUMP_FROM_HISTORY = 27007
     const val JUMP_FROM_LIVE_RECOMMEND = 24000
+    const val JUMP_FROM_LIVE_MY_IDOL = 24001
     const val JUMP_FROM_HOME_RECOMMEND = 29000
 
     fun normalizeJumpFrom(raw: Int?): Int {

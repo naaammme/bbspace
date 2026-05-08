@@ -1,9 +1,7 @@
 package com.naaammme.bbspace.feature.user.profile
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
@@ -23,11 +20,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.User
 
@@ -72,24 +68,13 @@ private fun UserInfoSection(
             .padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (user?.avatar?.isNotEmpty() == true) {
-            AsyncImage(
-                model = thumbnailUrl(user.avatar),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .then(avatarClickModifier)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                    .then(avatarClickModifier),
-                contentAlignment = Alignment.Center
-            ) {
+        AvatarImage(
+            url = user?.avatar?.takeIf(String::isNotBlank)?.let(::thumbnailUrl),
+            contentDescription = user?.name ?: "未登录",
+            modifier = Modifier
+                .size(72.dp)
+                .then(avatarClickModifier),
+            fallbackContent = {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = null,
@@ -97,7 +82,7 @@ private fun UserInfoSection(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
+        )
 
         Spacer(modifier = Modifier.width(16.dp))
 

@@ -49,7 +49,12 @@ class HomeLiveViewModel @Inject constructor(
                     isRefresh = hasLoaded,
                     loginEvent = loginEvent
                 )
-                _uiState.update { it.copy(items = page.items) }
+                _uiState.update {
+                    it.copy(
+                        upList = page.upList,
+                        items = page.items
+                    )
+                }
                 nextPage = 2
                 hasMore = page.hasMore
                 hasLoaded = true
@@ -80,7 +85,12 @@ class HomeLiveViewModel @Inject constructor(
                     isRefresh = false,
                     loginEvent = loginEvent
                 )
-                _uiState.update { it.copy(items = it.items + page.items) }
+                _uiState.update {
+                    it.copy(
+                        upList = it.upList ?: page.upList,
+                        items = it.items + page.items
+                    )
+                }
                 nextPage++
                 hasMore = page.hasMore
                 hasLoaded = true

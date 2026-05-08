@@ -1,8 +1,6 @@
 package com.naaammme.bbspace.feature.auth.account
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -40,14 +37,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.LoginCredential
 import com.naaammme.bbspace.core.model.User
@@ -171,20 +167,19 @@ private fun GuestCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            AvatarImage(
+                url = null,
+                contentDescription = "游客",
+                modifier = Modifier.size(56.dp),
+                fallbackContent = {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -262,22 +257,11 @@ private fun AccountCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 头像
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                if (userInfo?.avatar?.isNotEmpty() == true) {
-                    AsyncImage(
-                        model = thumbnailUrl(userInfo.avatar),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                    )
-                } else {
+            AvatarImage(
+                url = userInfo?.avatar?.takeIf(String::isNotBlank)?.let(::thumbnailUrl),
+                contentDescription = userInfo?.name ?: "UID: ${account.mid}",
+                modifier = Modifier.size(56.dp),
+                fallbackContent = {
                     Icon(
                         Icons.Default.Person,
                         contentDescription = null,
@@ -285,7 +269,7 @@ private fun AccountCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

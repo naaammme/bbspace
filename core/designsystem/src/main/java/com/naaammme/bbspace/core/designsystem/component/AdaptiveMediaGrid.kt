@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridItemScope
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,6 +67,7 @@ fun <T> AdaptiveMediaGrid(
     key: (index: Int, item: T) -> Any = { index, _ -> index },
     contentType: (index: Int, item: T) -> Any? = { _, _ -> null },
     loadingContent: @Composable LazyStaggeredGridItemScope.() -> Unit,
+    headerContent: (@Composable LazyStaggeredGridItemScope.() -> Unit)? = null,
     emptyContent: (@Composable LazyStaggeredGridItemScope.() -> Unit)? = null,
     errorContent: @Composable LazyStaggeredGridItemScope.(String) -> Unit = { msg ->
         DefaultGridError(msg)
@@ -143,6 +145,16 @@ fun <T> AdaptiveMediaGrid(
                             contentType = "error"
                         ) {
                             errorContent(err)
+                        }
+                    }
+
+                    if (headerContent != null) {
+                        item(
+                            key = "header",
+                            contentType = "header",
+                            span = StaggeredGridItemSpan.FullLine
+                        ) {
+                            headerContent()
                         }
                     }
 

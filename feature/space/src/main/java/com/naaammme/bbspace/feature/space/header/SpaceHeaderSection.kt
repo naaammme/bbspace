@@ -1,8 +1,6 @@
 package com.naaammme.bbspace.feature.space.header
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -11,25 +9,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.feature.space.SpaceHeaderUiState
 import java.util.Locale
 
@@ -166,39 +159,18 @@ private fun SpaceAvatar(
     imageUrl: String?,
     name: String
 ) {
-    val context = LocalContext.current
-    if (!imageUrl.isNullOrBlank()) {
-        val imageRequest = remember(context, imageUrl) {
-            ImageRequest.Builder(context)
-                .data(thumbnailUrl(imageUrl))
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .build()
-        }
-        AsyncImage(
-            model = imageRequest,
-            contentDescription = name,
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = ContentScale.Crop
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
+    AvatarImage(
+        url = imageUrl?.let(::thumbnailUrl),
+        contentDescription = name,
+        modifier = Modifier.size(72.dp),
+        fallbackContent = {
             Text(
                 text = name.take(1),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-    }
+    )
 }
 
 @Composable

@@ -34,6 +34,7 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.AdaptiveMediaGrid
+import com.naaammme.bbspace.core.designsystem.component.UpListRow
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.LiveRecommendItem
 import com.naaammme.bbspace.core.model.LiveRoute
@@ -64,6 +65,20 @@ fun HomeLivePage(
         key = { index, item -> "${item.roomId}_${item.sessionId ?: index}" },
         loadingContent = {
             VideoGridCardSkeleton()
+        },
+        headerContent = {
+            state.upList?.let { upList ->
+                UpListRow(
+                    title = upList.title,
+                    items = upList.items,
+                    key = { it.uid },
+                    name = { it.name },
+                    face = { it.face },
+                    onClick = { item ->
+                        onOpenLive(item.route)
+                    }
+                )
+            }
         },
         emptyContent = {
             LiveEmptyState(state.errorMessage)

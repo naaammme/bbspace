@@ -7,19 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +35,9 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.DynamicCardSkeleton
+import com.naaammme.bbspace.core.designsystem.component.UpListRow
 import com.naaammme.bbspace.core.model.DynamicBody
 import com.naaammme.bbspace.core.model.DynamicImage
 import com.naaammme.bbspace.core.model.DynamicItem
@@ -71,9 +71,15 @@ fun DynamicFeed(
                 key = "dynamic_up_list",
                 contentType = "dynamic_up_list"
             ) {
-                DynamicUpListRow(
-                    data = data,
-                    onOpenSpace = onOpenSpace
+                UpListRow(
+                    title = data.title,
+                    items = data.items,
+                    key = { it.uid },
+                    name = { it.name },
+                    face = { it.face },
+                    onClick = { item ->
+                        onOpenSpace(SpaceRoute(mid = item.uid, name = item.name))
+                    }
                 )
             }
         }
@@ -113,68 +119,6 @@ fun DynamicFeed(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun DynamicUpListRow(
-    data: DynamicUpList,
-    onOpenSpace: (SpaceRoute) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        data.title?.let { title ->
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        }
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(
-                items = data.items,
-                key = { it.uid }
-            ) { item ->
-                DynamicUpItem(
-                    face = item.face,
-                    name = item.name,
-                    onClick = {
-                        onOpenSpace(SpaceRoute(mid = item.uid, name = item.name))
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DynamicUpItem(
-    face: String?,
-    name: String,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .width(68.dp)
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Avatar(
-            url = face,
-            contentDescription = name
-        )
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 
@@ -471,21 +415,11 @@ private fun Avatar(
     url: String?,
     contentDescription: String
 ) {
-    if (url.isNullOrBlank()) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        )
-        return
-    }
-    CoverImage(
+    AvatarImage(
         url = url,
-        modifier = Modifier
-            .size(42.dp),
+        modifier = Modifier.size(42.dp),
         contentDescription = contentDescription,
-        shape = CircleShape
+        fallbackText = null
     )
 }
 

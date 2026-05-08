@@ -32,13 +32,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.LiveRoute
@@ -198,14 +197,11 @@ private fun HomeTopBar(
 
 @Composable
 private fun HomeProfileAvatar(avatar: String?) {
-    if (avatar.isNullOrBlank()) {
-        Box(
-            modifier = Modifier
-                .size(homeProfileAvatarSize)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
+    AvatarImage(
+        url = avatar?.let(::thumbnailUrl),
+        contentDescription = "我的",
+        modifier = Modifier.size(homeProfileAvatarSize),
+        fallbackContent = {
             Icon(
                 imageVector = Icons.Default.Person,
                 contentDescription = "我的",
@@ -213,15 +209,5 @@ private fun HomeProfileAvatar(avatar: String?) {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        return
-    }
-
-    AsyncImage(
-        model = thumbnailUrl(avatar),
-        contentDescription = "我的",
-        modifier = Modifier
-            .size(homeProfileAvatarSize)
-            .clip(androidx.compose.foundation.shape.CircleShape),
-        contentScale = ContentScale.Crop
     )
 }
