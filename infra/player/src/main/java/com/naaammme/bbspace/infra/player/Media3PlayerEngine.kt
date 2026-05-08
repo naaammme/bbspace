@@ -408,7 +408,7 @@ class Media3PlayerEngine @Inject constructor(
             if (progressJob?.isActive != true) {
                 progressJob = CoroutineScope(Dispatchers.Main).launch {
                     while (isActive) {
-                        delay(200)
+                        delay(1_000)
                         updateSnapshot()
                     }
                 }

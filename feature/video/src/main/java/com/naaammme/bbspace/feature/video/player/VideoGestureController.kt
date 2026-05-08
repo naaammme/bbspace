@@ -186,8 +186,8 @@ fun Modifier.videoGestures(
                                             else -> {
                                                 curTogglePlay()
                                                 state.showDoubleTap(
-                                                    if (curIsPlaying()) DoubleTapHint.Pause
-                                                    else DoubleTapHint.Play
+                                                    if (curIsPlaying()) DoubleTapHint.Play
+                                                    else DoubleTapHint.Pause
                                                 )
                                             }
                                         }
@@ -225,7 +225,7 @@ fun Modifier.videoGestures(
                                     isHorizontal == true -> DragType.Seek
                                     zoneX < 0.2f -> DragType.Brightness
                                     zoneX > 0.7f -> DragType.Volume
-                                    else -> DragType.Seek
+                                    else -> DragType.None
                                 }
                                 state.dragStartPosMs = curPositionMs()
                                 state.dragType = dragType

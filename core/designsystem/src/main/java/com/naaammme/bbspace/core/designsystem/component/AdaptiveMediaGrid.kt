@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -78,9 +79,10 @@ fun <T> AdaptiveMediaGrid(
     itemContent: @Composable LazyStaggeredGridItemScope.(item: T) -> Unit
 ) {
     val gridState = rememberLazyStaggeredGridState()
-    val shouldLoadMore by remember(gridState, items, loadMoreEnabled) {
+    val currentItems by rememberUpdatedState(items)
+    val shouldLoadMore by remember(gridState, loadMoreEnabled) {
         derivedStateOf {
-            loadMoreEnabled && !gridState.canScrollForward && items.isNotEmpty()
+            loadMoreEnabled && !gridState.canScrollForward && currentItems.isNotEmpty()
         }
     }
 

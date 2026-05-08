@@ -131,16 +131,18 @@ private fun FeedCard(
                 }
             }
             Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                val spaceRoute = item.args?.let { args ->
-                    if (args.upId <= 0L && args.upName.isNullOrBlank()) {
-                        null
-                    } else {
-                        SpaceRoute(
-                            mid = args.upId,
-                            name = args.upName,
-                            fromViewAid = args.aid.takeIf { it > 0L }
-                                ?: (item.target as? VideoTarget.Ugc)?.aid?.takeIf { it > 0L }
-                        )
+                val spaceRoute = remember(item.args, item.target) {
+                    item.args?.let { args ->
+                        if (args.upId <= 0L && args.upName.isNullOrBlank()) {
+                            null
+                        } else {
+                            SpaceRoute(
+                                mid = args.upId,
+                                name = args.upName,
+                                fromViewAid = args.aid.takeIf { it > 0L }
+                                    ?: (item.target as? VideoTarget.Ugc)?.aid?.takeIf { it > 0L }
+                            )
+                        }
                     }
                 }
                 Text(
@@ -156,10 +158,9 @@ private fun FeedCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val upNameClickModifier = if (spaceRoute == null) {
-                        Modifier
-                    } else {
-                        Modifier.clickable { onOpenSpace(spaceRoute) }
+                    val upNameClickModifier = remember(spaceRoute) {
+                        if (spaceRoute == null) Modifier
+                        else Modifier.clickable { onOpenSpace(spaceRoute) }
                     }
                     val upName = item.descButton?.text ?: item.args?.upName ?: ""
                     if (upName.isNotEmpty()) {
