@@ -20,9 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.feature.space.SpaceHeaderUiState
 import java.util.Locale
 
@@ -55,8 +54,8 @@ private fun BannerCard(imageUrl: String) {
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        AsyncImage(
-            model = imageUrl,
+        BiliAsyncImage(
+            url = imageUrl,
             contentDescription = null,
             modifier = Modifier
                 .fillMaxWidth()
@@ -85,9 +84,17 @@ private fun ProfileCard(state: SpaceHeaderUiState) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SpaceAvatar(
-                    imageUrl = profile.face,
-                    name = profile.name
+                AvatarImage(
+                    url = profile.face,
+                    contentDescription = profile.name,
+                    modifier = Modifier.size(72.dp),
+                    fallbackContent = {
+                        Text(
+                            text = profile.name.take(1),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 )
                 Column(
                     modifier = Modifier.weight(1f),
@@ -152,25 +159,6 @@ private fun ProfileCard(state: SpaceHeaderUiState) {
             }
         }
     }
-}
-
-@Composable
-private fun SpaceAvatar(
-    imageUrl: String?,
-    name: String
-) {
-    AvatarImage(
-        url = imageUrl?.let(::thumbnailUrl),
-        contentDescription = name,
-        modifier = Modifier.size(72.dp),
-        fallbackContent = {
-            Text(
-                text = name.take(1),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    )
 }
 
 @Composable

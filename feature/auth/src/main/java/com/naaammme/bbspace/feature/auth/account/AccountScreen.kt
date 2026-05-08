@@ -42,7 +42,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.LoginCredential
@@ -258,7 +257,7 @@ private fun AccountCard(
         ) {
             // 头像
             AvatarImage(
-                url = userInfo?.avatar?.takeIf(String::isNotBlank)?.let(::thumbnailUrl),
+                url = userInfo?.avatar?.takeIf(String::isNotBlank),
                 contentDescription = userInfo?.name ?: "UID: ${account.mid}",
                 modifier = Modifier.size(56.dp),
                 fallbackContent = {

@@ -28,6 +28,7 @@ android {
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:model"))
+    implementation(project(":core:designsystem"))
     implementation(project(":infra:player"))
 
     implementation(libs.hilt.android)

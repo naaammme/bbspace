@@ -36,7 +36,6 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
@@ -183,7 +182,19 @@ private fun HomeTopBar(
                 }
             }
             IconButton(onClick = onNavigateToProfile) {
-                HomeProfileAvatar(profileAvatar)
+                AvatarImage(
+                    url = profileAvatar,
+                    contentDescription = "我的",
+                    modifier = Modifier.size(homeProfileAvatarSize),
+                    fallbackContent = {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "我的",
+                            modifier = Modifier.size(homeProfileIconSize),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
             }
         }
         FilledTabRow(
@@ -193,21 +204,4 @@ private fun HomeTopBar(
             modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 0.dp, bottom = 3.dp)
         )
     }
-}
-
-@Composable
-private fun HomeProfileAvatar(avatar: String?) {
-    AvatarImage(
-        url = avatar?.let(::thumbnailUrl),
-        contentDescription = "我的",
-        modifier = Modifier.size(homeProfileAvatarSize),
-        fallbackContent = {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "我的",
-                modifier = Modifier.size(homeProfileIconSize),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    )
 }

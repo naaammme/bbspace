@@ -19,21 +19,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.AdaptiveMediaGrid
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.UpListRow
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.LiveRecommendItem
@@ -125,15 +120,6 @@ private fun LiveRecommendCard(
     onClick: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit
 ) {
-    val context = LocalContext.current
-    val imageRequest = remember(item.cover) {
-        ImageRequest.Builder(context)
-            .data(thumbnailUrl(item.cover))
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
-    }
-
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -145,8 +131,8 @@ private fun LiveRecommendCard(
                     .fillMaxWidth()
                     .aspectRatio(16f / 10f)
             ) {
-                AsyncImage(
-                    model = imageRequest,
+                BiliAsyncImage(
+                    url = item.cover,
                     contentDescription = item.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop

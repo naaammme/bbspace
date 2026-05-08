@@ -34,13 +34,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.model.PlaybackHistory
 import com.naaammme.bbspace.feature.bbspace.rememberExportJson
 
@@ -317,8 +317,8 @@ private fun PlaybackHistoryCard(
 @Composable
 private fun PlaybackHistoryCover(item: PlaybackHistory) {
     if (!item.cover.isNullOrBlank()) {
-        AsyncImage(
-            model = item.cover,
+        BiliAsyncImage(
+            url = item.cover,
             contentDescription = item.title,
             modifier = Modifier
                 .size(width = 96.dp, height = 60.dp)

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
@@ -23,18 +22,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.DynamicCardSkeleton
 import com.naaammme.bbspace.core.designsystem.component.UpListRow
@@ -195,9 +190,10 @@ private fun DynamicHeader(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Avatar(
+        AvatarImage(
             url = item.author?.avatar,
-            contentDescription = item.author?.name ?: "用户"
+            contentDescription = item.author?.name ?: "用户",
+            modifier = Modifier.size(42.dp)
         )
         Column(modifier = Modifier.weight(1f)) {
             val route = item.spaceRoute
@@ -411,36 +407,15 @@ private fun DynamicText(text: String) {
 }
 
 @Composable
-private fun Avatar(
-    url: String?,
-    contentDescription: String
-) {
-    AvatarImage(
-        url = url,
-        modifier = Modifier.size(42.dp),
-        contentDescription = contentDescription,
-        fallbackText = null
-    )
-}
-
-@Composable
 private fun CoverImage(
     url: String,
     modifier: Modifier,
     contentDescription: String? = null,
     shape: Shape? = null
 ) {
-    val context = LocalContext.current
-    val imageRequest = remember(url) {
-        ImageRequest.Builder(context)
-            .data(url)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
-    }
     val imageModifier = if (shape == null) modifier else modifier.clip(shape)
-    AsyncImage(
-        model = imageRequest,
+    BiliAsyncImage(
+        url = url,
         contentDescription = contentDescription,
         modifier = imageModifier,
         contentScale = ContentScale.Crop

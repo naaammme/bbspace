@@ -44,11 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
-import coil3.compose.AsyncImage
-import com.naaammme.bbspace.feature.live.LiveViewModel
-import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
-import com.naaammme.bbspace.infra.player.danmaku.DanmakuRenderMode
-import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
+import com.naaammme.bbspace.core.designsystem.component.BiliImageVariant
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveQualityOption
 import com.naaammme.bbspace.core.model.LiveRoomMessage
@@ -58,7 +55,11 @@ import com.naaammme.bbspace.core.model.LiveStatus
 import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.core.model.DanmakuItem
 import com.naaammme.bbspace.core.model.DanmakuSessionState
+import com.naaammme.bbspace.feature.live.LiveViewModel
 import com.naaammme.bbspace.feature.live.toUiMessage
+import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
+import com.naaammme.bbspace.infra.player.danmaku.DanmakuRenderMode
+import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import kotlinx.coroutines.delay
 
 @Suppress("UnsafeOptInUsageError")
@@ -188,11 +189,12 @@ internal fun LivePlayerPane(
         )
 
         if (!playbackState.hasRenderedFirstFrame && !route?.cover.isNullOrBlank()) {
-            AsyncImage(
-                model = route?.cover,
+            BiliAsyncImage(
+                url = route?.cover,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                variant = BiliImageVariant.Banner
             )
         }
 

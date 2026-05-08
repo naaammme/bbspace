@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.User
@@ -69,7 +68,7 @@ private fun UserInfoSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AvatarImage(
-            url = user?.avatar?.takeIf(String::isNotBlank)?.let(::thumbnailUrl),
+            url = user?.avatar?.takeIf(String::isNotBlank),
             contentDescription = user?.name ?: "未登录",
             modifier = Modifier
                 .size(72.dp)

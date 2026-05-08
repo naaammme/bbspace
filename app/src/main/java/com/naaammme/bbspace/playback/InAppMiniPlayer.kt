@@ -31,7 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
-import coil3.compose.AsyncImage
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
+import com.naaammme.bbspace.core.designsystem.component.BiliImageVariant
 import com.naaammme.bbspace.core.designsystem.icon.AppIcons
 import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
@@ -100,11 +101,12 @@ fun InAppMiniPlayer(
                 modifier = Modifier.fillMaxSize()
             )
             if (!sessionState.hasRenderedFirstFrame && !liveCover.isNullOrBlank()) {
-                AsyncImage(
-                    model = liveCover,
+                BiliAsyncImage(
+                    url = liveCover,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    variant = BiliImageVariant.Banner
                 )
             }
             Box(

@@ -5,9 +5,9 @@ private val thumbReg = Regex(
     options = setOf(RegexOption.IGNORE_CASE)
 )
 
-private const val defQ = 15
+const val BILI_IMAGE_DEFAULT_Q = 15
 
-fun thumbnailUrl(src: String?, q: Int = defQ): String? {
+fun thumbnailUrl(src: String?, q: Int = BILI_IMAGE_DEFAULT_Q): String? {
     if (src.isNullOrBlank()) return src
     var matched = false
     val url = src.toHttps().replace(thumbReg) { match ->

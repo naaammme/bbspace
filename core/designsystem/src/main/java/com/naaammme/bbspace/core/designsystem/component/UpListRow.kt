@@ -52,9 +52,10 @@ fun <T> UpListRow(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    UpListAvatar(
+                    AvatarImage(
                         url = face(item),
-                        contentDescription = name(item)
+                        contentDescription = name(item),
+                        modifier = Modifier.size(42.dp)
                     )
                     Text(
                         text = name(item),
@@ -67,16 +68,4 @@ fun <T> UpListRow(
             }
         }
     }
-}
-
-@Composable
-private fun UpListAvatar(
-    url: String?,
-    contentDescription: String
-) {
-    AvatarImage(
-        url = url,
-        contentDescription = contentDescription,
-        modifier = Modifier.size(42.dp)
-    )
 }

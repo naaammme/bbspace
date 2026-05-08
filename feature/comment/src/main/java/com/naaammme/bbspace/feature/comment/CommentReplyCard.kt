@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImageRow
@@ -146,7 +145,6 @@ private fun ReplyBody(
         reply.pictures.map { picture ->
             PreviewImage(
                 url = picture.url,
-                thumbnailUrl = thumbnailUrl(picture.url) ?: picture.url,
                 width = picture.width,
                 height = picture.height
             )
@@ -157,11 +155,26 @@ private fun ReplyBody(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
-        UserAvatar(
-            name = reply.user.name,
-            face = reply.user.face,
-            onClick = { onOpenUser(reply.user) }
-        )
+        Surface(
+            onClick = { onOpenUser(reply.user) },
+            modifier = Modifier.size(44.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            AvatarImage(
+                url = reply.user.face,
+                contentDescription = reply.user.name,
+                modifier = Modifier.fillMaxSize(),
+                fallbackContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                fallbackContent = {
+                    Text(
+                        text = reply.user.name.take(1).ifBlank { "?" },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            )
+        }
 
         Column(
             modifier = Modifier.weight(1f),
@@ -340,35 +353,6 @@ private fun ReplyMenuButton(
                 TextButton(onClick = { confirmDelete = false }) {
                     Text("取消")
                 }
-            }
-        )
-    }
-}
-
-@Composable
-private fun UserAvatar(
-    name: String,
-    face: String?,
-    onClick: () -> Unit
-) {
-    val modifier = Modifier.size(44.dp)
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        AvatarImage(
-            url = face?.let(::thumbnailUrl),
-            contentDescription = name,
-            modifier = Modifier.fillMaxSize(),
-            fallbackContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-            fallbackContent = {
-                Text(
-                    text = name.take(1).ifBlank { "?" },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
             }
         )
     }

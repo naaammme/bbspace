@@ -51,14 +51,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.VideoDetailInfoSkeleton
 import com.naaammme.bbspace.core.designsystem.component.VideoRelateCardSkeleton
 import com.naaammme.bbspace.core.model.CommentSubject
@@ -448,16 +444,8 @@ private fun OwnerCapsule(
             verticalAlignment = Alignment.CenterVertically
         ) {
             owner.face?.takeIf(String::isNotBlank)?.let { face ->
-                val context = LocalContext.current
-                val imgReq = remember(face) {
-                    ImageRequest.Builder(context)
-                        .data(thumbnailUrl(face))
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .build()
-                }
-                AsyncImage(
-                    model = imgReq,
+                BiliAsyncImage(
+                    url = face,
                     contentDescription = owner.name,
                     modifier = Modifier
                         .width(72.dp)
@@ -951,16 +939,8 @@ private fun SeasonEpisodeRow(
         verticalAlignment = Alignment.Top
     ) {
         ep.cover?.takeIf(String::isNotBlank)?.let { cover ->
-            val context = LocalContext.current
-            val imgReq = remember(cover) {
-                ImageRequest.Builder(context)
-                    .data(thumbnailUrl(cover))
-                    .memoryCachePolicy(CachePolicy.ENABLED)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .build()
-            }
-            AsyncImage(
-                model = imgReq,
+            BiliAsyncImage(
+                url = cover,
                 contentDescription = ep.title,
                 modifier = Modifier
                     .width(112.dp)
@@ -1050,14 +1030,6 @@ private fun RelateRow(
     onOpenVideo: (VideoTarget) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val imageReq = remember(relate.cover) {
-        ImageRequest.Builder(context)
-            .data(thumbnailUrl(relate.cover))
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
-    }
     val meta = listOfNotNull(
         relate.viewText?.let { "$it 播放" },
         relate.danmakuText?.let { "$it 弹幕" },
@@ -1075,8 +1047,8 @@ private fun RelateRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top
         ) {
-            AsyncImage(
-                model = imageReq,
+            BiliAsyncImage(
+                url = relate.cover,
                 contentDescription = relate.title,
                 modifier = Modifier
                     .weight(0.38f)

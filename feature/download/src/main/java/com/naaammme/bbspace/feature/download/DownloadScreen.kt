@@ -40,15 +40,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.VideoDownloadKind
@@ -430,16 +426,6 @@ private fun TaskCard(
     export: DownloadExportState,
     onOpenPlayer: (Long) -> Unit
 ) {
-    val context = LocalContext.current
-    val imageRequest = remember(task.cover, context) {
-        task.cover?.takeIf(String::isNotBlank)?.let { cover ->
-            ImageRequest.Builder(context)
-                .data(thumbnailUrl(cover))
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .build()
-        }
-    }
     val canToggle = task.status != VideoDownloadTaskStatus.DONE &&
             task.status != VideoDownloadTaskStatus.FAILED
     val exporting = export.taskId == task.id
@@ -476,9 +462,9 @@ private fun TaskCard(
                         .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    if (imageRequest != null) {
-                        AsyncImage(
-                            model = imageRequest,
+                    if (!task.cover.isNullOrBlank()) {
+                        BiliAsyncImage(
+                            url = task.cover,
                             contentDescription = task.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()

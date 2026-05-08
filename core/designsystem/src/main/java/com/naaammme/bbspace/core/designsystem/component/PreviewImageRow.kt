@@ -39,19 +39,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
 
 @Immutable
 data class PreviewImage(
     val url: String,
-    val thumbnailUrl: String = url,
     val width: Float = 0f,
     val height: Float = 0f
 )
@@ -65,7 +60,6 @@ fun PreviewImageRow(
 ) {
     if (images.isEmpty()) return
 
-    val context = LocalContext.current
     var previewIdx by remember { mutableIntStateOf(-1) }
 
     LazyRow(
@@ -76,13 +70,6 @@ fun PreviewImageRow(
             items = images,
             key = { index, image -> "${image.url}_$index" }
         ) { index, image ->
-            val req = remember(image.thumbnailUrl) {
-                ImageRequest.Builder(context)
-                    .data(image.thumbnailUrl)
-                    .memoryCachePolicy(CachePolicy.ENABLED)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .build()
-            }
             val ratio = remember(image.width, image.height) {
                 if (image.width > 0f && image.height > 0f) {
                     (image.width / image.height).coerceIn(0.75f, 2f)
@@ -90,15 +77,16 @@ fun PreviewImageRow(
                     4f / 3f
                 }
             }
-            AsyncImage(
-                model = req,
+            BiliAsyncImage(
+                url = image.url,
                 contentDescription = "图片",
                 modifier = Modifier
                     .width(168.dp)
                     .aspectRatio(ratio)
                     .clip(MaterialTheme.shapes.large)
                     .clickable { previewIdx = index },
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                variant = BiliImageVariant.PreviewThumb
             )
         }
     }
@@ -191,15 +179,7 @@ private fun PreviewImagePage(
     onSaveImage: (() -> Unit)?,
     onScaleChange: (Float) -> Unit
 ) {
-    val context = LocalContext.current
     val density = LocalDensity.current
-    val req = remember(image.url) {
-        ImageRequest.Builder(context)
-            .data(image.url)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
-    }
     var scale by remember(image.url) { mutableFloatStateOf(1f) }
     var offset by remember(image.url) { mutableStateOf(Offset.Zero) }
 
@@ -236,8 +216,8 @@ private fun PreviewImagePage(
             }
         }
 
-        AsyncImage(
-            model = req,
+        BiliAsyncImage(
+            url = image.url,
             contentDescription = "图片预览",
             modifier = Modifier
                 .fillMaxSize()
@@ -263,7 +243,8 @@ private fun PreviewImagePage(
                     state = tfState,
                     canPan = { scale > 1f }
                 ),
-            contentScale = ContentScale.Fit
+            contentScale = ContentScale.Fit,
+            variant = BiliImageVariant.Original
         )
     }
 }

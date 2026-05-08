@@ -33,13 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
-import com.naaammme.bbspace.core.common.media.thumbnailUrl
+import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.model.SearchFeedbackSec
 import com.naaammme.bbspace.core.model.SearchVideo
 
@@ -49,15 +45,6 @@ fun SearchCard(
     video: SearchVideo,
     onClick: () -> Unit
 ) {
-    val context = LocalContext.current
-    val imageRequest = remember(video.cover) {
-        ImageRequest.Builder(context)
-            .data(thumbnailUrl(video.cover))
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .build()
-    }
-
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -79,8 +66,8 @@ fun SearchCard(
                     .aspectRatio(16f / 10f)
                     .clip(MaterialTheme.shapes.medium)
             ) {
-                AsyncImage(
-                    model = imageRequest,
+                BiliAsyncImage(
+                    url = video.cover,
                     contentDescription = video.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
