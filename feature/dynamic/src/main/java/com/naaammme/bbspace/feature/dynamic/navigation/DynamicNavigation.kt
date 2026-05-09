@@ -1,10 +1,13 @@
 package com.naaammme.bbspace.feature.dynamic.navigation
 
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.window.core.layout.WindowWidthSizeClass
+import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.feature.dynamic.detail.DynamicDetailScreen
 
 const val DYNAMIC_ROUTE = "dynamic"
@@ -17,7 +20,8 @@ fun NavController.navigateToDynamicDetail(opusId: String) {
 }
 
 fun NavGraphBuilder.dynamicDetailScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit
 ) {
     composable(
         route = DYNAMIC_DETAIL_ROUTE,
@@ -28,6 +32,12 @@ fun NavGraphBuilder.dynamicDetailScreen(
             }
         )
     ) {
-        DynamicDetailScreen(onBack = onBack)
+        val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
+        val isExpanded = widthClass == WindowWidthSizeClass.EXPANDED
+        DynamicDetailScreen(
+            onBack = onBack,
+            onOpenSpace = onOpenSpace,
+            isExpanded = isExpanded
+        )
     }
 }

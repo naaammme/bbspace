@@ -233,7 +233,11 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             )
 
             dynamicDetailScreen(
-                onBack = { rootNavController.popBackStack() }
+                onBack = { rootNavController.popBackStack() },
+                onOpenSpace = { route ->
+                    rootNavController.popBackStack()
+                    rootNavController.navigateToSpace(route)
+                }
             )
         }
 

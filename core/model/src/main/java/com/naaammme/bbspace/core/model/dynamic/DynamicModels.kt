@@ -146,6 +146,8 @@ data class DynamicDetail(
     val author: DynamicDetailAuthor,
     val paragraphs: List<DynamicDetailParagraph>,
     val stats: DynamicStats?,
+    val replyBizId: Long = 0L,
+    val replyBizType: Long = 0L,
     val hasMore: Boolean = false
 )
 

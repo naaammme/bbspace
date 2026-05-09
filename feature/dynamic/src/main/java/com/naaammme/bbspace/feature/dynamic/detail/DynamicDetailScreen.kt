@@ -4,14 +4,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -26,17 +30,22 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
-import com.naaammme.bbspace.core.designsystem.component.BiliPullToRefreshBox
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
+import com.naaammme.bbspace.core.model.CommentSubject
+import com.naaammme.bbspace.core.model.DynamicDetail
 import com.naaammme.bbspace.core.model.DynamicDetailAuthor
 import com.naaammme.bbspace.core.model.DynamicDetailParagraph
 import com.naaammme.bbspace.core.model.DynamicImage
 import com.naaammme.bbspace.core.model.DynamicStats
+import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.feature.comment.CommentPanel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DynamicDetailScreen(
     onBack: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
+    isExpanded: Boolean = false,
     viewModel: DynamicDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -105,70 +114,72 @@ fun DynamicDetailScreen(
             }
 
             detail != null -> {
-                BiliPullToRefreshBox(
-                    isRefreshing = false,
-                    onRefresh = viewModel::retry,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                ) {
-                    DetailContent(
-                        detail = detail,
-                        modifier = Modifier.fillMaxSize()
+                val commentSubject = if (detail.replyBizId > 0L && detail.replyBizType > 0L) {
+                    CommentSubject(
+                        oid = detail.replyBizId,
+                        type = detail.replyBizType
                     )
+                } else {
+                    null
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DetailContent(
-    detail: com.naaammme.bbspace.core.model.DynamicDetail,
-    modifier: Modifier = Modifier
-) {
-    val scrollState = rememberScrollState()
-    Column(
-        modifier = modifier
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        DynamicDetailHeader(detail.author)
-
-        detail.paragraphs.forEach { paragraph ->
-            when (paragraph.type) {
-                DynamicDetailParagraph.TYPE_TEXT -> {
-                    paragraph.text?.let { text ->
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
+                if (isExpanded && commentSubject != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        ) {
+                            detailContentItems(detail)
+                        }
+                        CommentPanel(
+                            subject = commentSubject,
+                            onOpenSpace = onOpenSpace,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            contentPadding = PaddingValues(vertical = 12.dp)
                         )
                     }
-                }
-
-                DynamicDetailParagraph.TYPE_PICTURES -> {
-                    if (paragraph.images.isNotEmpty()) {
-                        DynamicDetailImageGrid(paragraph.images)
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    ) {
+                        detailContentItems(detail)
+                        if (commentSubject != null) {
+                            item(key = "detail_comments", contentType = "comments") {
+                                CommentPanel(
+                                    subject = commentSubject,
+                                    onOpenSpace = onOpenSpace,
+                                    modifier = Modifier.fillParentMaxSize(),
+                                    contentPadding = PaddingValues(
+                                        horizontal = 16.dp,
+                                        vertical = 12.dp
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
-
-        detail.stats?.let { stats ->
-            DynamicDetailStats(stats)
         }
     }
 }
 
 @Composable
-private fun DynamicDetailHeader(author: DynamicDetailAuthor) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        androidx.compose.foundation.layout.Row(
+private fun DynamicDetailHeader(
+    author: DynamicDetailAuthor,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -197,14 +208,38 @@ private fun DynamicDetailHeader(author: DynamicDetailAuthor) {
 }
 
 @Composable
-private fun DynamicDetailImageGrid(images: List<DynamicImage>) {
+private fun DynamicDetailParagraphItem(paragraph: DynamicDetailParagraph) {
+    when (paragraph.type) {
+        DynamicDetailParagraph.TYPE_TEXT -> {
+            paragraph.text?.let { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+        }
+        DynamicDetailParagraph.TYPE_PICTURES -> {
+            if (paragraph.images.isNotEmpty()) {
+                DynamicDetailImageGrid(
+                    images = paragraph.images,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DynamicDetailImageGrid(images: List<DynamicImage>, modifier: Modifier = Modifier) {
     val columns = when (images.size) {
         1 -> 1
         2, 4 -> 2
         else -> 3
     }
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         val rows = images.chunked(columns)
@@ -229,7 +264,7 @@ private fun DynamicDetailImageGrid(images: List<DynamicImage>) {
                     )
                 }
                 repeat(columns - rowImages.size) {
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -253,8 +288,32 @@ private fun DynamicDetailStats(stats: DynamicStats) {
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         )
+    }
+}
+
+private fun LazyListScope.detailContentItems(detail: DynamicDetail) {
+    item(key = "detail_author", contentType = "author") {
+        DynamicDetailHeader(
+            author = detail.author,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
+    }
+
+    itemsIndexed(
+        items = detail.paragraphs,
+        key = { index, _ -> "detail_para_$index" },
+        contentType = { _, para -> para.type }
+    ) { _, paragraph ->
+        DynamicDetailParagraphItem(paragraph)
+    }
+
+    detail.stats?.let { stats ->
+        item(key = "detail_stats", contentType = "stats") {
+            DynamicDetailStats(stats)
+        }
     }
 }
 

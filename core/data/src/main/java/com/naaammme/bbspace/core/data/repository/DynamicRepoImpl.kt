@@ -123,7 +123,7 @@ class DynamicRepoImpl @Inject constructor(
             val p = module.moduleParagraph.paragraph
             when (p.paraType.number) {
                 1 -> { // TEXT
-                    val text = p.text.nodesList.joinToString("") { it.word.words }.blankToNull()
+                    val text = p.text.nodesList.joinToString("") { it.rawText }.blankToNull()
                     DynamicDetailParagraph(
                         type = DynamicDetailParagraph.TYPE_TEXT,
                         text = text,
@@ -161,10 +161,13 @@ class DynamicRepoImpl @Inject constructor(
             } else null
         }
 
+        val reply = opus.extend.reply
         return DynamicDetail(
             author = author,
             paragraphs = paragraphs,
-            stats = stats
+            stats = stats,
+            replyBizId = reply.replyBizId.takeIf { it > 0L } ?: 0L,
+            replyBizType = reply.replyBizType.takeIf { it > 0L } ?: 0L
         )
     }
 
@@ -319,7 +322,7 @@ class DynamicRepoImpl @Inject constructor(
             when {
                 module.hasModuleDesc() -> mapDescText(module.moduleDesc)
                 module.hasModuleParagraph() -> module.moduleParagraph.paragraph.text.nodesList
-                    .joinToString("") { it.word.words }
+                    .joinToString("") { it.rawText }
                     .blankToNull()
                 module.hasModuleOpusSummary() -> mapOpusSummaryText(module.moduleOpusSummary)
                 else -> null
