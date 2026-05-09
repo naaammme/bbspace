@@ -29,6 +29,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,9 +75,9 @@ fun SearchScreen(
         keyboard?.hide()
     }
 
+    val currentVideos by rememberUpdatedState(videos)
     val shouldLoadMore by remember(
         listState,
-        videos,
         viewModel.canLoadMore,
         viewModel.isLoading,
         viewModel.isLoadingMore
@@ -86,8 +87,8 @@ fun SearchScreen(
             viewModel.canLoadMore &&
                     !viewModel.isLoading &&
                     !viewModel.isLoadingMore &&
-                    videos.isNotEmpty() &&
-                    last >= videos.lastIndex - 2
+                    currentVideos.isNotEmpty() &&
+                    last >= currentVideos.lastIndex - 2
         }
     }
 

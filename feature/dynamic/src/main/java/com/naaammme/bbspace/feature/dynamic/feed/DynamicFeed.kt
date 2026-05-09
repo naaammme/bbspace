@@ -22,6 +22,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -195,10 +196,9 @@ private fun DynamicHeader(
         )
         Column(modifier = Modifier.weight(1f)) {
             val route = item.spaceRoute
-            val nameModifier = if (route == null) {
-                Modifier
-            } else {
-                Modifier.clickable { onOpenSpace(route) }
+            val nameModifier = remember(route) {
+                if (route == null) Modifier
+                else Modifier.clickable { onOpenSpace(route) }
             }
             Text(
                 text = item.author?.name ?: "动态",
@@ -278,13 +278,12 @@ private fun DynamicBodyContent(item: DynamicItem) {
                 DynamicText(text)
             }
             body.origin?.let { origin ->
+                val forwardBgColor = MaterialTheme.colorScheme.surface
+                val forwardBgShape = MaterialTheme.shapes.medium
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = MaterialTheme.shapes.medium
-                        )
+                        .background(color = forwardBgColor, shape = forwardBgShape)
                         .padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -358,15 +357,14 @@ private fun DynamicMediaCard(
                 )
             }
             badge?.let {
+                val badgeBgColor = MaterialTheme.colorScheme.secondaryContainer
+                val badgeBgShape = MaterialTheme.shapes.extraSmall
                 Text(
                     text = it,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier
-                        .background(
-                            MaterialTheme.colorScheme.secondaryContainer,
-                            MaterialTheme.shapes.extraSmall
-                        )
+                        .background(badgeBgColor, badgeBgShape)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 )
             }

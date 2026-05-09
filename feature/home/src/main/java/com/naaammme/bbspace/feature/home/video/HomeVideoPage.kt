@@ -185,15 +185,14 @@ private fun FeedCard(
                 item.rcmdReason?.let { reason ->
                     if (reason.text.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(2.dp))
+                        val rcmdBgColor = MaterialTheme.colorScheme.secondaryContainer
+                        val rcmdBgShape = MaterialTheme.shapes.extraSmall
                         Text(
                             text = reason.text,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                    MaterialTheme.shapes.extraSmall
-                                )
+                                .background(rcmdBgColor, rcmdBgShape)
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis

@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -134,15 +135,14 @@ private fun LiveRecommendCard(
                     .aspectRatio(16f / 10f)
             ) {
                 item.onlineText?.let { text ->
+                    val onlineBgColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                    val onlineBgShape = MaterialTheme.shapes.extraSmall
                     Text(
                         text = text,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(4.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-                                shape = MaterialTheme.shapes.extraSmall
-                            )
+                            .background(color = onlineBgColor, shape = onlineBgShape)
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -151,16 +151,17 @@ private fun LiveRecommendCard(
             }
 
             Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-                val spaceRoute = item.ownerMid?.let { mid ->
-                    SpaceRoute(
-                        mid = mid,
-                        name = item.ownerName
-                    )
+                val spaceRoute = remember(item.ownerMid, item.ownerName) {
+                    item.ownerMid?.let { mid ->
+                        SpaceRoute(
+                            mid = mid,
+                            name = item.ownerName
+                        )
+                    }
                 }
-                val ownerNameClickModifier = if (spaceRoute == null) {
-                    Modifier
-                } else {
-                    Modifier.clickable { onOpenSpace(spaceRoute) }
+                val ownerNameClickModifier = remember(spaceRoute) {
+                    if (spaceRoute == null) Modifier
+                    else Modifier.clickable { onOpenSpace(spaceRoute) }
                 }
                 Text(
                     text = item.title,
@@ -183,6 +184,8 @@ private fun LiveRecommendCard(
 
                 item.areaName?.let { areaName ->
                     Spacer(modifier = Modifier.height(4.dp))
+                    val areaBgColor = MaterialTheme.colorScheme.secondaryContainer
+                    val areaBgShape = MaterialTheme.shapes.extraSmall
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Start
@@ -192,10 +195,7 @@ private fun LiveRecommendCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = MaterialTheme.shapes.extraSmall
-                                )
+                                .background(color = areaBgColor, shape = areaBgShape)
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
