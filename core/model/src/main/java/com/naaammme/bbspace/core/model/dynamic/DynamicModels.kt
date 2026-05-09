@@ -140,3 +140,31 @@ data class DynamicImage(
     val width: Int,
     val height: Int
 )
+
+@Immutable
+data class DynamicDetail(
+    val author: DynamicDetailAuthor,
+    val paragraphs: List<DynamicDetailParagraph>,
+    val stats: DynamicStats?,
+    val hasMore: Boolean = false
+)
+
+@Immutable
+data class DynamicDetailAuthor(
+    val mid: Long,
+    val name: String,
+    val face: String?,
+    val pubTime: String?
+)
+
+@Immutable
+data class DynamicDetailParagraph(
+    val type: String,
+    val text: String?,
+    val images: List<DynamicImage>
+) {
+    companion object {
+        const val TYPE_TEXT = "TEXT"
+        const val TYPE_PICTURES = "PICTURES"
+    }
+}

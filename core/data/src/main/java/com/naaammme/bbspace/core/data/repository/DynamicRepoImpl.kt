@@ -2,12 +2,15 @@ package com.naaammme.bbspace.core.data.repository
 
 import com.bapis.bilibili.app.archive.middleware.v1.PlayerArgs
 import com.bapis.bilibili.app.archive.middleware.v1.QnPolicy
+import com.bapis.bilibili.app.dynamic.v2.AdParam
+import com.bapis.bilibili.app.dynamic.v2.Config
 import com.bapis.bilibili.app.dynamic.v2.DynAllReply
 import com.bapis.bilibili.app.dynamic.v2.DynAllReq
 import com.bapis.bilibili.app.dynamic.v2.DynamicItem
 import com.bapis.bilibili.app.dynamic.v2.FeedSortOptionReq
 import com.bapis.bilibili.app.dynamic.v2.ModuleAuthor
 import com.bapis.bilibili.app.dynamic.v2.ModuleDesc
+import com.bapis.bilibili.app.dynamic.v2.ModuleOpusSummary
 import com.bapis.bilibili.app.dynamic.v2.ModuleStat
 import com.bapis.bilibili.app.dynamic.v2.MdlDynArchive
 import com.bapis.bilibili.app.dynamic.v2.MdlDynArticle
@@ -16,6 +19,8 @@ import com.bapis.bilibili.app.dynamic.v2.MdlDynForward
 import com.bapis.bilibili.app.dynamic.v2.MdlDynLive
 import com.bapis.bilibili.app.dynamic.v2.MdlDynLiveRcmd
 import com.bapis.bilibili.app.dynamic.v2.MdlDynUGCSeason
+import com.bapis.bilibili.app.dynamic.v2.OpusDetailReq
+import com.bapis.bilibili.app.dynamic.v2.OpusDetailResp
 import com.bapis.bilibili.app.dynamic.v2.Refresh
 import com.naaammme.bbspace.core.domain.dynamic.DynamicRepository
 import com.naaammme.bbspace.core.model.DynamicAuthor
@@ -23,6 +28,9 @@ import com.naaammme.bbspace.core.model.DynamicBody
 import com.naaammme.bbspace.core.model.DynamicCursor
 import com.naaammme.bbspace.core.model.DynamicForwardItem
 import com.naaammme.bbspace.core.model.DynamicImage
+import com.naaammme.bbspace.core.model.DynamicDetail
+import com.naaammme.bbspace.core.model.DynamicDetailAuthor
+import com.naaammme.bbspace.core.model.DynamicDetailParagraph
 import com.naaammme.bbspace.core.model.DynamicItem as DynamicFeedItem
 import com.naaammme.bbspace.core.model.DynamicPage
 import com.naaammme.bbspace.core.model.DynamicRefresh
@@ -59,6 +67,105 @@ class DynamicRepoImpl @Inject constructor(
         return withContext(Dispatchers.Default) {
             mapReply(reply, cursor)
         }
+    }
+
+    override suspend fun fetchOpusDetail(opusId: String): DynamicDetail {
+        val req = OpusDetailReq.newBuilder()
+            .setOid(opusId.toLong())
+            .setShareId("dt.opus-detail.0.0.pv")
+            .setShareMode(3)
+            .setLocalTime(localTime())
+            .setPlayerArgs(buildPlayerArgs())
+            .setConfig(Config.getDefaultInstance())
+            .setAdParam(AdParam.getDefaultInstance())
+            .setPattern("outer")
+            .build()
+        val reply = grpcClient.call(
+            endpoint = OPUS_DETAIL_ENDPOINT,
+            requestBytes = req.toByteArray(),
+            parser = OpusDetailResp.parser()
+        )
+        return withContext(Dispatchers.Default) {
+            mapDetail(reply.opusItem)
+        }
+    }
+
+    private fun mapDetail(opus: com.bapis.bilibili.app.dynamic.v2.OpusItem): DynamicDetail {
+        val modules = opus.modulesList
+        val author = modules.firstNotNullOfOrNull { module ->
+            when {
+                module.hasModuleAuthor() -> {
+                    val m = module.moduleAuthor
+                    val user = m.author
+                    DynamicDetailAuthor(
+                        mid = m.mid,
+                        name = user.name.ifBlank { return@firstNotNullOfOrNull null },
+                        face = user.face.toHttps(),
+                        pubTime = m.ptimeLabelText.blankToNull()
+                    )
+                }
+                module.hasModuleTop() -> {
+                    val m = module.moduleTop
+                    val user = m.author.author
+                    DynamicDetailAuthor(
+                        mid = m.author.mid,
+                        name = user.name.ifBlank { return@firstNotNullOfOrNull null },
+                        face = user.face.toHttps(),
+                        pubTime = m.author.ptimeLabelText.blankToNull()
+                    )
+                }
+                else -> null
+            }
+        } ?: DynamicDetailAuthor(mid = 0L, name = "", face = null, pubTime = null)
+
+        val paragraphs = modules.mapNotNull { module ->
+            if (!module.hasModuleParagraph()) return@mapNotNull null
+            val p = module.moduleParagraph.paragraph
+            when (p.paraType.number) {
+                1 -> { // TEXT
+                    val text = p.text.nodesList.joinToString("") { it.word.words }.blankToNull()
+                    DynamicDetailParagraph(
+                        type = DynamicDetailParagraph.TYPE_TEXT,
+                        text = text,
+                        images = emptyList()
+                    )
+                }
+                2 -> { // PICTURES
+                    val images = p.pic.pics.itemsList.mapNotNull { img ->
+                        img.src.toHttps()?.let { url ->
+                            DynamicImage(
+                                url = url,
+                                width = img.width.toInt(),
+                                height = img.height.toInt()
+                            )
+                        }
+                    }
+                    DynamicDetailParagraph(
+                        type = DynamicDetailParagraph.TYPE_PICTURES,
+                        text = null,
+                        images = images
+                    )
+                }
+                else -> null
+            }
+        }
+
+        val stats = modules.firstNotNullOfOrNull { module ->
+            if (module.hasModuleButtom()) {
+                val s = module.moduleButtom.moduleStat
+                DynamicStats(
+                    repost = s.repost,
+                    reply = s.reply,
+                    like = s.like
+                )
+            } else null
+        }
+
+        return DynamicDetail(
+            author = author,
+            paragraphs = paragraphs,
+            stats = stats
+        )
     }
 
     private fun buildRequest(
@@ -143,16 +250,7 @@ class DynamicRepoImpl @Inject constructor(
                 else -> null
             }
         }
-        val desc = item.modulesList.firstNotNullOfOrNull { module ->
-            when {
-                module.hasModuleDesc() -> mapDescText(module.moduleDesc)
-                module.hasModuleParagraph() -> module.moduleParagraph.paragraph.text.nodesList
-                    .joinToString("") { it.word.words }
-                    .blankToNull()
-                module.hasModuleOpusSummary() -> mapOpusSummarySummary(module.moduleOpusSummary)
-                else -> null
-            }
-        } ?: extend.descList.joinToString("") { it.text }.blankToNull()
+        val desc = mapPrimaryText(item) ?: mapExtendDesc(item)
         val stat = item.modulesList.firstNotNullOfOrNull { module ->
             when {
                 module.hasModuleStat() -> mapStats(module.moduleStat)
@@ -202,8 +300,31 @@ class DynamicRepoImpl @Inject constructor(
         return desc.descList.joinToString("") { it.text }.blankToNull()
     }
 
-    private fun mapOpusSummarySummary(summary: com.bapis.bilibili.app.dynamic.v2.ModuleOpusSummary): String? {
-        return summary.summary.text.nodesList.joinToString("") { it.rawText }.blankToNull()
+    private fun mapExtendDesc(item: DynamicItem): String? {
+        return item.extend.descList.joinToString("") { it.text }.blankToNull()
+    }
+
+    private fun mapOpusSummaryTitle(summary: ModuleOpusSummary): String? {
+        return summary.title.text.nodesList.joinToString("") { it.rawText }.blankToNull()
+    }
+
+    private fun mapOpusSummaryText(summary: ModuleOpusSummary): String? {
+        val title = mapOpusSummaryTitle(summary)
+        val text = summary.summary.text.nodesList.joinToString("") { it.rawText }.blankToNull()
+        return listOfNotNull(title, text).joinToString("\n").blankToNull()
+    }
+
+    private fun mapPrimaryText(item: DynamicItem): String? {
+        return item.modulesList.firstNotNullOfOrNull { module ->
+            when {
+                module.hasModuleDesc() -> mapDescText(module.moduleDesc)
+                module.hasModuleParagraph() -> module.moduleParagraph.paragraph.text.nodesList
+                    .joinToString("") { it.word.words }
+                    .blankToNull()
+                module.hasModuleOpusSummary() -> mapOpusSummaryText(module.moduleOpusSummary)
+                else -> null
+            }
+        }
     }
 
     private fun mapStats(stat: ModuleStat): DynamicStats {
@@ -220,15 +341,15 @@ class DynamicRepoImpl @Inject constructor(
             val opusSummary = item.modulesList.firstOrNull { it.hasModuleOpusSummary() }?.moduleOpusSummary
                 ?: item.extend.takeIf { it.hasOpusSummary() }?.opusSummary
             if (opusSummary != null) {
-                val title = opusSummary.title.text.nodesList.joinToString("") { it.rawText }.blankToNull()
-                val summary = mapOpusSummarySummary(opusSummary)
+                val title = mapOpusSummaryTitle(opusSummary)
+                val summary = mapOpusSummaryText(opusSummary)
                 return DynamicSummary(
-                    body = DynamicBody.Text(listOfNotNull(title, summary).joinToString("\n")),
+                    body = DynamicBody.Text(summary.orEmpty()),
                     title = title
                 )
             }
             return DynamicSummary(
-                body = DynamicBody.Unknown(item.extend.descList.joinToString("") { it.text }.blankToNull())
+                body = DynamicBody.Unknown(mapExtendDesc(item))
             )
         }
         return when {
@@ -241,7 +362,7 @@ class DynamicRepoImpl @Inject constructor(
             dynamicModule.hasDynUgcSeason() -> mapUgcSeason(dynamicModule.dynUgcSeason, item)
             dynamicModule.hasDynChargingArchive() -> mapArchive(dynamicModule.dynChargingArchive.archiveInfo, item)
             else -> DynamicSummary(
-                body = DynamicBody.Unknown(item.extend.descList.joinToString("") { it.text }.blankToNull())
+                body = DynamicBody.Unknown(mapExtendDesc(item))
             )
         }
     }
@@ -255,7 +376,7 @@ class DynamicRepoImpl @Inject constructor(
             ?: archive.badgeList.firstNotNullOfOrNull { it.text.blankToNull() }
         return DynamicSummary(
             body = DynamicBody.Archive(
-                text = item.extend.descList.joinToString("") { it.text }.blankToNull(),
+                text = mapExtendDesc(item),
                 title = archive.title.ifBlank { "视频动态" },
                 cover = cover,
                 subTitle = archive.coverLeftText1.blankToNull()
@@ -285,13 +406,15 @@ class DynamicRepoImpl @Inject constructor(
             }
         }
         val cover = images.firstOrNull()?.url
-        val text = item.extend.descList.joinToString("") { it.text }.blankToNull()
+        val opusSummary = item.modulesList.firstOrNull { it.hasModuleOpusSummary() }?.moduleOpusSummary
+            ?: item.extend.takeIf { it.hasOpusSummary() }?.opusSummary
+        val text = mapPrimaryText(item) ?: mapExtendDesc(item)
         return DynamicSummary(
             body = DynamicBody.Draw(
                 text = text,
                 images = images
             ),
-            title = text,
+            title = opusSummary?.let(::mapOpusSummaryTitle) ?: text,
             cover = cover
         )
     }
@@ -303,7 +426,7 @@ class DynamicRepoImpl @Inject constructor(
         val cover = article.coversList.firstOrNull().toHttps()
         return DynamicSummary(
             body = DynamicBody.Article(
-                text = item.extend.descList.joinToString("") { it.text }.blankToNull(),
+                text = mapExtendDesc(item),
                 title = article.title.ifBlank { "专栏动态" },
                 cover = cover,
                 subTitle = article.desc.blankToNull()
@@ -322,7 +445,7 @@ class DynamicRepoImpl @Inject constructor(
         val badge = season.badgeList.firstNotNullOfOrNull { it.text.blankToNull() }
         return DynamicSummary(
             body = DynamicBody.Archive(
-                text = item.extend.descList.joinToString("") { it.text }.blankToNull(),
+                text = mapExtendDesc(item),
                 title = season.title.ifBlank { "视频合集" },
                 cover = cover,
                 subTitle = season.coverLeftText1.blankToNull()
@@ -354,7 +477,7 @@ class DynamicRepoImpl @Inject constructor(
         }
         return DynamicSummary(
             body = DynamicBody.Live(
-                text = item.extend.descList.joinToString("") { it.text }.blankToNull(),
+                text = mapExtendDesc(item),
                 title = live.title.ifBlank { "直播动态" },
                 cover = live.cover.toHttps(),
                 subTitle = live.coverLabel.blankToNull() ?: live.coverLabel2.blankToNull(),
@@ -372,12 +495,12 @@ class DynamicRepoImpl @Inject constructor(
         item: DynamicItem
     ): DynamicSummary {
         val content = live.content.blankToNull() ?: return DynamicSummary(
-            body = DynamicBody.Unknown(item.extend.descList.joinToString("") { it.text }.blankToNull())
+            body = DynamicBody.Unknown(mapExtendDesc(item))
         )
         val info = runCatching {
             JSONObject(content).optJSONObject("live_play_info")
         }.getOrNull() ?: return DynamicSummary(
-            body = DynamicBody.Unknown(item.extend.descList.joinToString("") { it.text }.blankToNull())
+            body = DynamicBody.Unknown(mapExtendDesc(item))
         )
         val roomId = info.optLong("room_id").takeIf { it > 0L }
         val title = info.optString("title").blankToNull()
@@ -389,7 +512,7 @@ class DynamicRepoImpl @Inject constructor(
         val ownerName = item.extend.upName.blankToNull()
         return DynamicSummary(
             body = DynamicBody.Live(
-                text = item.extend.descList.joinToString("") { it.text }.blankToNull(),
+                text = mapExtendDesc(item),
                 title = title ?: "直播动态",
                 cover = cover,
                 subTitle = info.optString("area_name").blankToNull(),
@@ -428,9 +551,10 @@ class DynamicRepoImpl @Inject constructor(
         val originDesc = origin.modulesList.firstNotNullOfOrNull { module ->
             when {
                 module.hasModuleDesc() -> mapDescText(module.moduleDesc)
+                module.hasModuleOpusSummary() -> mapOpusSummaryText(module.moduleOpusSummary)
                 else -> null
             }
-        } ?: origin.extend.descList.joinToString("") { it.text }.blankToNull()
+        } ?: mapExtendDesc(origin)
         val originDynamic = origin.modulesList.firstOrNull { it.hasModuleDynamic() }?.moduleDynamic
         val originTitle = when {
             originDynamic?.hasDynArchive() == true -> originDynamic.dynArchive.title.blankToNull()
@@ -454,7 +578,7 @@ class DynamicRepoImpl @Inject constructor(
         }
         return DynamicSummary(
             body = DynamicBody.Forward(
-                text = item.extend.descList.joinToString("") { it.text }.blankToNull(),
+                text = mapPrimaryText(item) ?: mapExtendDesc(item),
                 origin = DynamicForwardItem(
                     authorName = originAuthor,
                     bodyText = originDesc,
@@ -585,6 +709,7 @@ class DynamicRepoImpl @Inject constructor(
 
     private companion object {
         const val ENDPOINT = "bilibili.app.dynamic.v2.Dynamic/DynAll"
+        const val OPUS_DETAIL_ENDPOINT = "bilibili.app.dynamic.v2.Opus/OpusDetail"
         const val DEFAULT_QN = 80L
         const val DEFAULT_FNVER = 0L
         const val DEFAULT_FNVAL = 272L

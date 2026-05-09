@@ -35,6 +35,8 @@ import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.dynamic.DynamicScreen
+import com.naaammme.bbspace.feature.dynamic.navigation.dynamicDetailScreen
+import com.naaammme.bbspace.feature.dynamic.navigation.navigateToDynamicDetail
 import com.naaammme.bbspace.feature.auth.navigation.ACCOUNT_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.LOGIN_ROUTE
 import com.naaammme.bbspace.feature.auth.navigation.SMS_LOGIN_ROUTE
@@ -159,7 +161,8 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                     onNavigateToDownload = { rootNavController.navigateToDownload() },
                     onNavigateToVideo = openVideo,
                     onNavigateToSpace = rootNavController::navigateToSpace,
-                    onNavigateToLive = openLive
+                    onNavigateToLive = openLive,
+                    onNavigateToDynamicDetail = rootNavController::navigateToDynamicDetail
                 )
             }
 
@@ -228,6 +231,10 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 }
             )
+
+            dynamicDetailScreen(
+                onBack = { rootNavController.popBackStack() }
+            )
         }
 
         PlaybackHost(
@@ -276,7 +283,8 @@ private fun MainTabsScaffold(
     onNavigateToDownload: () -> Unit,
     onNavigateToVideo: (VideoTarget) -> Unit,
     onNavigateToSpace: (SpaceRoute) -> Unit,
-    onNavigateToLive: (LiveRoute) -> Unit
+    onNavigateToLive: (LiveRoute) -> Unit,
+    onNavigateToDynamicDetail: (String) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -314,7 +322,8 @@ private fun MainTabsScaffold(
                             TopLevelRoute.DYNAMIC -> DynamicScreen(
                                 onOpenVideo = onNavigateToVideo,
                                 onOpenSpace = onNavigateToSpace,
-                                onOpenLive = onNavigateToLive
+                                onOpenLive = onNavigateToLive,
+                                onOpenDynamic = onNavigateToDynamicDetail
                             )
                             TopLevelRoute.MESSAGE -> PlaceholderScreen("消息")
                             TopLevelRoute.PROFILE -> UserScreen(

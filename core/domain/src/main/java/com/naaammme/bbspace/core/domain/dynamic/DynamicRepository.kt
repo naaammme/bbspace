@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.core.domain.dynamic
 
 import com.naaammme.bbspace.core.model.DynamicCursor
+import com.naaammme.bbspace.core.model.DynamicDetail
 import com.naaammme.bbspace.core.model.DynamicPage
 import com.naaammme.bbspace.core.model.DynamicRefresh
 
@@ -9,4 +10,6 @@ interface DynamicRepository {
         cursor: DynamicCursor,
         refresh: DynamicRefresh
     ): DynamicPage
+
+    suspend fun fetchOpusDetail(opusId: String): DynamicDetail
 }

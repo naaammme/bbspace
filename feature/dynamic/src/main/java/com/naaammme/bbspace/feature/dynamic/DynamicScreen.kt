@@ -35,6 +35,7 @@ fun DynamicScreen(
     onOpenVideo: (VideoTarget) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
     onOpenLive: (LiveRoute) -> Unit,
+    onOpenDynamic: (String) -> Unit,
     viewModel: DynamicViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -105,6 +106,7 @@ fun DynamicScreen(
                         onOpenVideo = onOpenVideo,
                         onOpenSpace = onOpenSpace,
                         onOpenLive = onOpenLive,
+                        onOpenDynamic = onOpenDynamic,
                         modifier = Modifier.fillMaxSize()
                     )
                 }

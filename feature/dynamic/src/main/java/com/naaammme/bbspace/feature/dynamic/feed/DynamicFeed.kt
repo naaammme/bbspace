@@ -52,6 +52,7 @@ fun DynamicFeed(
     onOpenVideo: (VideoTarget) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
     onOpenLive: (LiveRoute) -> Unit,
+    onOpenDynamic: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -87,7 +88,8 @@ fun DynamicFeed(
                 item = item,
                 onOpenVideo = onOpenVideo,
                 onOpenSpace = onOpenSpace,
-                onOpenLive = onOpenLive
+                onOpenLive = onOpenLive,
+                onOpenDynamic = onOpenDynamic
             )
         }
 
@@ -121,38 +123,27 @@ private fun DynamicCard(
     item: DynamicItem,
     onOpenVideo: (VideoTarget) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit
+    onOpenLive: (LiveRoute) -> Unit,
+    onOpenDynamic: (String) -> Unit
 ) {
+    val liveRoute = item.liveRoute
+    val videoTarget = item.videoTarget
     val onClick = {
-        val liveRoute = item.liveRoute
-        val videoTarget = item.videoTarget
         when {
             liveRoute != null -> onOpenLive(liveRoute)
             videoTarget != null -> onOpenVideo(videoTarget)
+            else -> onOpenDynamic(item.id)
         }
     }
-    val modifier = Modifier.fillMaxWidth()
-    val colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    )
-    val elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    if (item.canOpen) {
-        Card(
-            onClick = onClick,
-            modifier = modifier,
-            colors = colors,
-            elevation = elevation
-        ) {
-            DynamicCardContent(item = item, onOpenSpace = onOpenSpace)
-        }
-    } else {
-        Card(
-            modifier = modifier,
-            colors = colors,
-            elevation = elevation
-        ) {
-            DynamicCardContent(item = item, onOpenSpace = onOpenSpace)
-        }
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        DynamicCardContent(item = item, onOpenSpace = onOpenSpace)
     }
 }
 
