@@ -50,6 +50,8 @@ import com.naaammme.bbspace.feature.download.navigation.navigateToDownload
 import com.naaammme.bbspace.feature.history.navigation.historyScreen
 import com.naaammme.bbspace.feature.history.navigation.navigateToHistory
 import com.naaammme.bbspace.feature.home.HomeScreen
+import com.naaammme.bbspace.feature.listen.navigation.listenDetailScreen
+import com.naaammme.bbspace.feature.listen.navigation.navigateToListenDetail
 import com.naaammme.bbspace.feature.live.LiveViewModel
 import com.naaammme.bbspace.feature.search.navigation.navigateToSearch
 import com.naaammme.bbspace.feature.search.navigation.searchScreen
@@ -162,7 +164,10 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                     onNavigateToVideo = openVideo,
                     onNavigateToSpace = rootNavController::navigateToSpace,
                     onNavigateToLive = openLive,
-                    onNavigateToDynamicDetail = rootNavController::navigateToDynamicDetail
+                    onNavigateToDynamicDetail = rootNavController::navigateToDynamicDetail,
+                    onNavigateToListenDetail = { oid, itemType, subId, title, author, cover ->
+                        rootNavController.navigateToListenDetail(oid, itemType, subId, title, author, cover)
+                    }
                 )
             }
 
@@ -240,6 +245,10 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                     rootNavController.navigateToSpace(route)
                 }
             )
+
+            listenDetailScreen(
+                onBack = { rootNavController.popBackStack() }
+            )
         }
 
         PlaybackHost(
@@ -289,7 +298,8 @@ private fun MainTabsScaffold(
     onNavigateToVideo: (VideoTarget) -> Unit,
     onNavigateToSpace: (SpaceRoute) -> Unit,
     onNavigateToLive: (LiveRoute) -> Unit,
-    onNavigateToDynamicDetail: (String) -> Unit
+    onNavigateToDynamicDetail: (String) -> Unit,
+    onNavigateToListenDetail: (Long, Int, Long, String, String, String) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -322,7 +332,8 @@ private fun MainTabsScaffold(
                                 profileAvatar = userState.user?.avatar,
                                 onOpenVideo = onNavigateToVideo,
                                 onOpenSpace = onNavigateToSpace,
-                                onOpenLive = onNavigateToLive
+                                onOpenLive = onNavigateToLive,
+                                onOpenListenItem = onNavigateToListenDetail
                             )
                             TopLevelRoute.DYNAMIC -> DynamicScreen(
                                 onOpenVideo = onNavigateToVideo,

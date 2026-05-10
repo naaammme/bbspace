@@ -42,15 +42,18 @@ import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.model.listen.ListenItem
 import com.naaammme.bbspace.feature.home.interest.InterestDialog
+import com.naaammme.bbspace.feature.home.listen.ListenHomePage
 import com.naaammme.bbspace.feature.home.live.HomeLivePage
 import com.naaammme.bbspace.feature.home.video.HomeVideoPage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private val homeTabs = listOf("推荐", "直播")
+private val homeTabs = listOf("听视频", "推荐", "直播")
 private val homeProfileAvatarSize = 36.dp
 private val homeProfileIconSize = 20.dp
+private const val homeDefaultPage = 1
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -61,10 +64,11 @@ fun HomeScreen(
     onOpenVideo: (VideoTarget) -> Unit = {},
     onOpenSpace: (SpaceRoute) -> Unit = {},
     onOpenLive: (LiveRoute) -> Unit = {},
+    onOpenListenItem: (Long, Int, Long, String, String, String) -> Unit = { _, _, _, _, _, _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
-    val pagerState = rememberPagerState(pageCount = { homeTabs.size })
+    val pagerState = rememberPagerState(initialPage = homeDefaultPage, pageCount = { homeTabs.size })
     val scope = rememberCoroutineScope()
 
     state.interestChoose?.let { interestChoose ->
@@ -97,7 +101,20 @@ fun HomeScreen(
                 .padding(innerPadding)
         ) { page ->
             when (page) {
-                0 -> HomeVideoPage(
+                0 -> ListenHomePage(
+                    onItemClick = { item ->
+                        onOpenListenItem(
+                            item.oid,
+                            item.itemType,
+                            item.subId,
+                            item.title,
+                            item.author,
+                            item.cover
+                        )
+                    }
+                )
+
+                1 -> HomeVideoPage(
                     items = state.items,
                     isRefreshing = state.isRefreshing,
                     isLoadingMore = state.isLoadingMore,

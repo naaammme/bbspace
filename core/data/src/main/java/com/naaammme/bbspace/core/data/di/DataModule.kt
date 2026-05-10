@@ -19,8 +19,10 @@ import com.naaammme.bbspace.core.data.repository.SearchRepoImpl
 import com.naaammme.bbspace.core.data.repository.SpaceRepoImpl
 import com.naaammme.bbspace.core.data.repository.VodDanmakuRepoImpl
 import com.naaammme.bbspace.core.data.repository.VideoDetailRepoImpl
+import com.naaammme.bbspace.core.data.repository.ListenRepoImpl
 import com.naaammme.bbspace.core.data.repository.VideoPlayerRepoImpl
 import com.naaammme.bbspace.core.domain.auth.AuthRepository
+import com.naaammme.bbspace.core.domain.listen.ListenRepository
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
 import com.naaammme.bbspace.core.domain.dynamic.DynamicRepository
 import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
@@ -127,4 +129,8 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindPlaybackHistoryRepo(impl: PlaybackHistoryRepoImpl): PlaybackHistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindListenRepo(impl: ListenRepoImpl): ListenRepository
 }

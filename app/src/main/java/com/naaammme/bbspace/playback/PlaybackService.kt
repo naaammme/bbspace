@@ -273,6 +273,7 @@ class PlaybackService : Service() {
                 ?.mediaMetadata
                 ?.artist
                 ?.toString()
+                ?.removePrefix(LISTEN_SOURCE_MARK)
                 ?.takeIf(String::isNotBlank)
                 ?.let { return it }
             if (isPlaying) "后台播放中" else "后台待播"
@@ -296,5 +297,6 @@ class PlaybackService : Service() {
         const val NOTIFICATION_CHANNEL_ID = "video_playback"
         const val VIDEO_REQ_OPEN = 1001
         const val LIVE_REQ_OPEN = 1002
+        const val LISTEN_SOURCE_MARK = "__listen_audio__"
     }
 }
