@@ -37,6 +37,7 @@ import com.naaammme.bbspace.core.designsystem.icon.AppIcons
 import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
+import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
 
 @Composable
 fun InAppMiniPlayer(
@@ -53,6 +54,7 @@ fun InAppMiniPlayer(
         PlayerView(context).apply {
             useController = false
             setEnableComposeSurfaceSyncWorkaround(true)
+            setKeepContentOnPlayerReset(true)
         }
     }
     val title = when (target) {
@@ -78,7 +80,7 @@ fun InAppMiniPlayer(
 
     DisposableEffect(playerView) {
         onDispose {
-            playerView.player = null
+            PlayerViewTargetBinder.unbind(playerView)
         }
     }
 
@@ -93,9 +95,7 @@ fun InAppMiniPlayer(
             AndroidView(
                 factory = { playerView },
                 update = { view ->
-                    if (view.player !== player) {
-                        view.player = player
-                    }
+                    PlayerViewTargetBinder.bind(view, player)
                     view.keepScreenOn = sessionState.playWhenReady
                 },
                 modifier = Modifier.fillMaxSize()

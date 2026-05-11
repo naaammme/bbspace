@@ -57,6 +57,7 @@ import com.naaammme.bbspace.core.model.DanmakuItem
 import com.naaammme.bbspace.core.model.DanmakuSessionState
 import com.naaammme.bbspace.feature.live.LiveViewModel
 import com.naaammme.bbspace.feature.live.toUiMessage
+import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuRenderMode
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
@@ -92,6 +93,7 @@ internal fun LivePlayerPane(
         PlayerView(context).apply {
             useController = false
             setEnableComposeSurfaceSyncWorkaround(true)
+            setKeepContentOnPlayerReset(true)
         }
     }
     val danmakuOverlayState = rememberDanmakuOverlayState(
@@ -156,7 +158,7 @@ internal fun LivePlayerPane(
 
     DisposableEffect(playerView) {
         onDispose {
-            playerView.player = null
+            PlayerViewTargetBinder.unbind(playerView)
         }
     }
 
@@ -167,9 +169,7 @@ internal fun LivePlayerPane(
         AndroidView(
             factory = { playerView },
             update = { view ->
-                if (view.player !== player) {
-                    view.player = player
-                }
+                PlayerViewTargetBinder.bind(view, player)
                 view.keepScreenOn = playbackState.playWhenReady
             },
             modifier = Modifier.fillMaxSize()

@@ -49,6 +49,7 @@ import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
+import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.feature.video.detail.QualityOptionItem
@@ -127,6 +128,7 @@ internal fun VideoPlayerPane(
         PlayerView(context).apply {
             useController = false
             setEnableComposeSurfaceSyncWorkaround(true)
+            setKeepContentOnPlayerReset(true)
         }
     }
     val externalOverlay = danmakuOverlayState
@@ -144,7 +146,7 @@ internal fun VideoPlayerPane(
 
     DisposableEffect(playerView) {
         onDispose {
-            playerView.player = null
+            PlayerViewTargetBinder.unbind(playerView)
         }
     }
 
@@ -160,9 +162,7 @@ internal fun VideoPlayerPane(
                     content.setAspectRatio(videoAspect ?: 0f)
                     lastWarmAspect = videoAspect
                 }
-                if (view.player !== player) {
-                    view.player = player
-                }
+                PlayerViewTargetBinder.bind(view, player)
             },
             modifier = Modifier.fillMaxSize()
         )

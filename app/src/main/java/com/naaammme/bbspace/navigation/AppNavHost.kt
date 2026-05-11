@@ -118,8 +118,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
         rootNavController.navigateToSpace(route)
     }
     val openDownloadFromVideo: () -> Unit = {
-        collapseExpandedPlayback()
-        dismissPlaybackHost()
+        closeVideoHost()
         rootNavController.navigateToDownload()
     }
     val openVideo: (VideoTarget) -> Unit = { target ->
@@ -129,6 +128,16 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
     val openLive: (LiveRoute) -> Unit = { route ->
         playbackHostViewModel.openLive(route)
         playbackHostViewModel.expand()
+    }
+    val openListenDetail: (Long, Int, Long, String, String, String) -> Unit = {
+            oid,
+            itemType,
+            subId,
+            title,
+            author,
+            cover ->
+        playbackHostViewModel.close()
+        rootNavController.navigateToListenDetail(oid, itemType, subId, title, author, cover)
     }
     val context = LocalContext.current
     val transitions = remember(themeConfig.transitionStyle, themeConfig.animationSpeed) {
@@ -165,9 +174,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                     onNavigateToSpace = rootNavController::navigateToSpace,
                     onNavigateToLive = openLive,
                     onNavigateToDynamicDetail = rootNavController::navigateToDynamicDetail,
-                    onNavigateToListenDetail = { oid, itemType, subId, title, author, cover ->
-                        rootNavController.navigateToListenDetail(oid, itemType, subId, title, author, cover)
-                    }
+                    onNavigateToListenDetail = openListenDetail
                 )
             }
 
@@ -216,7 +223,8 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             downloadScreen(
                 navController = rootNavController,
                 onBack = { rootNavController.popBackStack() },
-                viewModel = downloadViewModel
+                viewModel = downloadViewModel,
+                closePlaybackHost = closeVideoHost
             )
 
             webViewScreen(

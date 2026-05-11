@@ -24,7 +24,8 @@ fun NavController.navigateToDownloadPlayer(taskId: Long) {
 fun NavGraphBuilder.downloadScreen(
     navController: NavController,
     onBack: () -> Unit,
-    viewModel: DownloadViewModel
+    viewModel: DownloadViewModel,
+    closePlaybackHost: () -> Unit = {}
 ) {
     composable(DOWNLOAD_ROUTE) {
         DownloadScreen(
@@ -39,7 +40,10 @@ fun NavGraphBuilder.downloadScreen(
         arguments = listOf(
             navArgument(TASK_ID_ARG) { type = NavType.LongType }
         )
-    ) {
+    ) { entry ->
+        androidx.compose.runtime.LaunchedEffect(entry) {
+            closePlaybackHost()
+        }
         DownloadPlayerScreen(onBack = onBack)
     }
 }
