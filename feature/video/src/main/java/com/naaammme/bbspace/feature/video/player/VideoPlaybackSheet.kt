@@ -18,6 +18,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.DanmakuSettingsSection
 import com.naaammme.bbspace.core.model.PlaybackError
+import com.naaammme.bbspace.core.model.PlayerBufferProfile
 import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerSettingsState
@@ -45,6 +48,8 @@ import com.naaammme.bbspace.feature.video.formatSpeed
 import com.naaammme.bbspace.feature.video.getAudioName
 import com.naaammme.bbspace.feature.video.getCodecName
 import com.naaammme.bbspace.feature.video.getQualityName
+import com.naaammme.bbspace.feature.video.speedOps
+import kotlin.math.roundToInt
 
 private enum class PlaybackSheetSection(
     val title: String
@@ -157,48 +162,20 @@ private fun PlaybackSettingsSection(
     }
 
     SheetChoiceCard(
-        title = "最小缓冲时长",
-        subtitle = "持续补缓冲的最低时长",
-        currentValue = settingsState.buffer.minBufferMs,
-        options = listOf(2_000, 5_000, 10_000, 15_000, 30_000, 60_000),
-        label = ::formatBufferMs,
-        onSelect = viewModel::updateMinBufferMs
+        title = "缓冲策略",
+        subtitle = "影响缓冲时长，时长短起播更快但弱网和倍速可能卡顿，时长长则相反",
+        currentValue = settingsState.buffer.profile.ordinal,
+        options = PlayerBufferProfile.entries.indices.toList(),
+        label = { bufferProfileText(PlayerBufferProfile.entries[it]) },
+        onSelect = { viewModel.updateBufferProfile(PlayerBufferProfile.entries[it]) }
     )
 
     SheetChoiceCard(
-        title = "最大缓冲时长",
-        subtitle = "播放器最多预读多久",
-        currentValue = settingsState.buffer.maxBufferMs,
-        options = listOf(15_000, 30_000, 60_000, 90_000, 120_000),
-        label = ::formatBufferMs,
-        onSelect = viewModel::updateMaxBufferMs
-    )
-
-    SheetChoiceCard(
-        title = "起播缓冲时长",
-        subtitle = "开始播放前至少缓冲多久",
-        currentValue = settingsState.buffer.playbackBufferMs,
-        options = listOf(50, 100, 150, 250, 400, 600, 800, 1_000),
-        label = ::formatBufferMs,
-        onSelect = viewModel::updatePlaybackBufferMs
-    )
-
-    SheetChoiceCard(
-        title = "重缓冲恢复时长",
-        subtitle = "卡顿后恢复播放前至少缓冲多久",
-        currentValue = settingsState.buffer.rebufferMs,
-        options = listOf(100, 250, 400, 500, 750, 1_000, 1_500),
-        label = ::formatBufferMs,
-        onSelect = viewModel::updateRebufferMs
-    )
-
-    SheetChoiceCard(
-        title = "回看缓冲时长",
-        subtitle = "保留已播内容用于回退拖动",
-        currentValue = settingsState.buffer.backBufferMs,
-        options = listOf(0, 5_000, 10_000, 15_000, 30_000),
-        label = ::formatBufferMs,
-        onSelect = viewModel::updateBackBufferMs
+        title = "长按倍速",
+        subtitle = "长按屏幕时临时切到这个倍速，松手恢复",
+        currentValue = settingsState.playback.gestureSpeed,
+        options = speedOps,
+        onSelect = viewModel::updateGestureSpeed
     )
 
     SheetSwitchCard(
@@ -405,6 +382,75 @@ private fun SheetChoiceCard(
 }
 
 @Composable
+private fun SheetChoiceCard(
+    title: String,
+    subtitle: String,
+    currentValue: Float,
+    options: List<Float>,
+    onSelect: (Float) -> Unit
+) {
+    val idx = options.indexOfFirst { it == currentValue }.coerceAtLeast(0)
+    var dragIdx by remember { mutableStateOf<Int?>(null) }
+    val displayIdx = dragIdx ?: idx
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = formatSpeed(options[displayIdx]),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Slider(
+                value = displayIdx.toFloat(),
+                onValueChange = { raw ->
+                    dragIdx = raw.roundToInt().coerceIn(0, options.lastIndex)
+                },
+                onValueChangeFinished = {
+                    val finalIdx = dragIdx ?: return@Slider
+                    onSelect(options[finalIdx])
+                    dragIdx = null
+                },
+                valueRange = 0f..options.lastIndex.toFloat(),
+                steps = (options.size - 2).coerceAtLeast(0),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatSpeed(options.first()),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = formatSpeed(options.last()),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SheetInfoGroup(
     title: String,
     rows: List<Pair<String, String>>
@@ -443,12 +489,11 @@ private fun SheetInfoGroup(
     }
 }
 
-private fun formatBufferMs(value: Int): String {
-    return when {
-        value == 0 -> "关闭"
-        value < 1_000 -> "${value}ms"
-        value % 1_000 == 0 -> "${value / 1_000}s"
-        else -> "${value / 1_000f}s"
+private fun bufferProfileText(value: PlayerBufferProfile): String {
+    return when (value) {
+        PlayerBufferProfile.FastStart -> "快速起播"
+        PlayerBufferProfile.Balanced -> "均衡模式"
+        PlayerBufferProfile.Stable -> "稳定优先"
     }
 }
 

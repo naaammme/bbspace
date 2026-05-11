@@ -31,7 +31,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -184,16 +186,29 @@ private fun ListenProgress(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val positionText = remember(positionMs) { formatTime(positionMs) }
-    val durationText = remember(durationMs) { formatTime(durationMs) }
-    val onFractionChange = remember(durationMs) {
-        { fraction: Float -> onSeek((fraction * durationMs).toLong()) }
+    var dragFraction by remember { mutableStateOf<Float?>(null) }
+    val activeFraction = if (durationMs > 0) {
+        dragFraction ?: (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
     }
+    val displayMs = if (dragFraction != null) {
+        (dragFraction!! * durationMs).toLong()
+    } else {
+        positionMs
+    }
+    val positionText = remember(displayMs) { formatTime(displayMs) }
+    val durationText = remember(durationMs) { formatTime(durationMs) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Slider(
-            value = if (durationMs > 0) positionMs.toFloat() / durationMs.toFloat() else 0f,
-            onValueChange = onFractionChange,
+            value = activeFraction,
+            onValueChange = { dragFraction = it },
+            onValueChangeFinished = {
+                val ms = (dragFraction!! * durationMs).toLong()
+                onSeek(ms)
+                dragFraction = null
+            },
             enabled = durationMs > 0L,
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,

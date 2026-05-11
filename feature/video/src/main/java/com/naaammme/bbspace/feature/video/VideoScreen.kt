@@ -65,7 +65,7 @@ import com.naaammme.bbspace.feature.video.player.VideoPlayerPane
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
 import java.util.Locale
 
-internal val speedOps = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+internal val speedOps = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi

@@ -595,12 +595,13 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
     // vod: config & history
     private suspend fun buildPlayerConfig(): PlayerConfig {
+        val buffer = playerSettingsStore.playerBufferProfile.first()
         return PlayerConfig(
-            minBufferMs = playerSettingsStore.playerMinBufferMs.first(),
-            maxBufferMs = playerSettingsStore.playerMaxBufferMs.first(),
-            playBufferMs = playerSettingsStore.playerPlaybackBufferMs.first(),
-            rebufferMs = playerSettingsStore.playerRebufferMs.first(),
-            backBufferMs = playerSettingsStore.playerBackBufferMs.first(),
+            minBufferMs = buffer.minBufferMs,
+            maxBufferMs = buffer.maxBufferMs,
+            playBufferMs = buffer.playBufferMs,
+            rebufferMs = buffer.rebufferMs,
+            backBufferMs = buffer.backBufferMs,
             decoderMode = if (playerSettingsStore.preferSoftwareDecode.first()) {
                 DecoderMode.Soft
             } else {

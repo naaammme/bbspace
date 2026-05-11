@@ -193,7 +193,9 @@ internal fun VideoPlayerPane(
                     onSeekTo = viewModel::seekTo,
                     onStartSpeedUp = {
                         speedBeforeGesture = state.speed
-                        viewModel.setSpeed(2f)
+                        val speed = settingsState.playback.gestureSpeed
+                        viewModel.setSpeed(speed)
+                        formatSpeed(speed)
                     },
                     onStopSpeedUp = { viewModel.setSpeed(speedBeforeGesture) },
                     onBrightnessDelta = { frac ->

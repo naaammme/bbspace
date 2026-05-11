@@ -57,7 +57,7 @@ import com.naaammme.bbspace.core.model.PlayerSettingsState
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-private val downloadSpeedOptions = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+private val downloadSpeedOptions = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi

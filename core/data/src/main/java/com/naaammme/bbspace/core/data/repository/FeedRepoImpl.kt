@@ -119,6 +119,7 @@ class FeedRepoImpl @Inject constructor(
         val normalToken = authStore.accessToken
         val hdToken = authStore.getHdAccessKeyForCurrent()
         val token = if (hdFeed) hdToken else normalToken
+        val isColdStart = idx == 0L
         return restParamBuilder.app(profile, ts, token) + buildMap { // TODO:feed首页获取视频流
             put("auto_refresh_state", "1")
 
@@ -148,9 +149,13 @@ class FeedRepoImpl @Inject constructor(
             if (lessonsMode) {
                 put("lessons_mode", "1")
             }
-            put("login_event", if (token.isNotEmpty()) "0" else "1") // 会显著影响feed结果
+            put("login_event", when {
+                !isColdStart -> "0"
+                token.isNotEmpty() -> "2"
+                else -> "1"
+            })
             put("network", "wifi")
-            put("open_event", if (idx == 0L) "cold" else "hot")
+            put("open_event", if (isColdStart) "cold" else "hot")
 
             put("player_extra_content", "{\"short_edge\":\"1080\",\"long_edge\":\"1920\"}")
 

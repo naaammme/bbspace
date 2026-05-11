@@ -27,11 +27,7 @@ class PlayerSettingsImpl @Inject constructor(
     )
 
     override suspend fun updateBuffer(settings: PlayerBufferSettings) {
-        store.updatePlayerMinBufferMs(settings.minBufferMs)
-        store.updatePlayerMaxBufferMs(settings.maxBufferMs)
-        store.updatePlayerPlaybackBufferMs(settings.playbackBufferMs)
-        store.updatePlayerRebufferMs(settings.rebufferMs)
-        store.updatePlayerBackBufferMs(settings.backBufferMs)
+        store.updatePlayerBufferProfile(settings.profile)
     }
 
     override suspend fun updatePlayback(settings: PlayerPlaybackPrefs) {
@@ -41,6 +37,7 @@ class PlayerSettingsImpl @Inject constructor(
         store.updatePreferSoftwareDecode(settings.preferSoftwareDecode)
         store.updateDecoderFallback(settings.decoderFallback)
         store.updateAutoRotateFullscreen(settings.autoRotateFullscreen)
+        store.updateGestureSpeed(settings.gestureSpeed)
     }
 
     override suspend fun updateDanmaku(config: DanmakuConfig) {

@@ -8,6 +8,7 @@ import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
+import com.naaammme.bbspace.core.model.PlayerBufferProfile
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayBiz
@@ -204,24 +205,8 @@ class VideoViewModel @Inject constructor(
         updatePlayback { copy(reportPlayback = enabled) }
     }
 
-    fun updateMinBufferMs(value: Int) {
-        updateBuffer { copy(minBufferMs = value) }
-    }
-
-    fun updateMaxBufferMs(value: Int) {
-        updateBuffer { copy(maxBufferMs = value) }
-    }
-
-    fun updatePlaybackBufferMs(value: Int) {
-        updateBuffer { copy(playbackBufferMs = value) }
-    }
-
-    fun updateRebufferMs(value: Int) {
-        updateBuffer { copy(rebufferMs = value) }
-    }
-
-    fun updateBackBufferMs(value: Int) {
-        updateBuffer { copy(backBufferMs = value) }
+    fun updateBufferProfile(profile: PlayerBufferProfile) {
+        updateBuffer { copy(profile = profile) }
     }
 
     fun updatePreferSoftwareDecode(enabled: Boolean) {
@@ -234,6 +219,10 @@ class VideoViewModel @Inject constructor(
 
     fun updateAutoRotateFullscreen(enabled: Boolean) {
         updatePlayback { copy(autoRotateFullscreen = enabled) }
+    }
+
+    fun updateGestureSpeed(speed: Float) {
+        updatePlayback { copy(gestureSpeed = speed) }
     }
 
     fun updateDanmaku(config: DanmakuConfig) {

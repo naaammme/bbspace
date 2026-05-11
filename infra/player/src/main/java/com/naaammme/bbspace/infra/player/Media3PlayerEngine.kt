@@ -173,8 +173,6 @@ class Media3PlayerEngine @Inject constructor(
     ) {
         val player = ensurePlayer()
         firstFrameSeq = 0L
-        player.stop()
-        player.clearMediaItems()
         player.setMediaSource(buildMediaSource(source))
         if (startPositionMs != null && startPositionMs > 0) {
             player.seekTo(startPositionMs.coerceAtLeast(0L))
@@ -198,6 +196,7 @@ class Media3PlayerEngine @Inject constructor(
     override fun setSpeed(speed: Float) {
         val player = ensurePlayer()
         player.playbackParameters = PlaybackParameters(speed.coerceIn(0.25f, 3f))
+        updateSnapshot()
     }
 
     override fun seekTo(positionMs: Long) {

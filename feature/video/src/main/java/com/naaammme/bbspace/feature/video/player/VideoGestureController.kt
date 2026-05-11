@@ -58,6 +58,8 @@ class VideoGestureState {
         internal set
     var showSpeedBadge by mutableStateOf(false)
         internal set
+    var speedBadgeText by mutableStateOf("2x")
+        internal set
     var doubleTapHint by mutableStateOf<DoubleTapHint?>(null)
         internal set
 
@@ -96,7 +98,7 @@ fun Modifier.videoGestures(
     onToggleControls: () -> Unit,
     onTogglePlay: () -> Unit,
     onSeekTo: (Long) -> Unit,
-    onStartSpeedUp: () -> Unit,
+    onStartSpeedUp: () -> String,
     onStopSpeedUp: () -> Unit,
     onBrightnessDelta: (Float) -> Unit,
     onVolumeDelta: (Float) -> Unit,
@@ -154,7 +156,7 @@ fun Modifier.videoGestures(
                     if (event == null) {
                         longPressFired = true
                         phase = Phase.LongPress
-                        curStartSpeedUp()
+                        state.speedBadgeText = curStartSpeedUp()
                         state.showSpeedBadge = true
                         continue
                     }
@@ -371,7 +373,7 @@ fun VideoGestureFeedback(
 
         if (state.showSpeedBadge) {
             Text(
-                text = "2x",
+                text = state.speedBadgeText,
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier
