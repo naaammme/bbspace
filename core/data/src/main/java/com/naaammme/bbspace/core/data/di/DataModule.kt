@@ -49,7 +49,9 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.naaammme.bbspace.core.data.repository.InterestRepoImpl
 import com.naaammme.bbspace.core.data.repository.WatchLaterRepoImpl
+import com.naaammme.bbspace.core.domain.feed.InterestRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -98,6 +100,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindSearchRepo(impl: SearchRepoImpl): SearchRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInterestRepo(impl: InterestRepoImpl): InterestRepository
 
     @Binds
     @Singleton

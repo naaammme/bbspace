@@ -59,6 +59,8 @@ import com.naaammme.bbspace.feature.search.navigation.navigateToSearch
 import com.naaammme.bbspace.feature.search.navigation.searchScreen
 import com.naaammme.bbspace.feature.space.navigation.navigateToSpace
 import com.naaammme.bbspace.feature.space.navigation.spaceScreen
+import com.naaammme.bbspace.feature.home.interest.InterestScreen
+import com.naaammme.bbspace.feature.settings.navigation.HOME_INTEREST_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
 import com.naaammme.bbspace.feature.webview.navigation.webViewScreen
@@ -228,6 +230,9 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                 onBack = { rootNavController.popBackStack() },
                 onOpenVideo = openVideo
             )
+            composable(HOME_INTEREST_ROUTE) {
+                InterestScreen(onBack = { rootNavController.popBackStack() })
+            }
             spaceScreen(
                 onBack = { rootNavController.popBackStack() },
                 onOpenVideo = openVideo

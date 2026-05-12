@@ -21,6 +21,7 @@ const val FEED_SETTINGS_ROUTE = "settings/feed"
 const val PLAYBACK_ROUTE = "settings/playback"
 const val ERROR_LOG_ROUTE = "settings/error_log"
 const val ABOUT_ROUTE = "settings/about"
+const val HOME_INTEREST_ROUTE = "home/interest"
 
 fun NavGraphBuilder.settingsScreen(
     navController: NavHostController
@@ -55,7 +56,10 @@ fun NavGraphBuilder.settingsScreen(
     }
 
     composable(FEED_SETTINGS_ROUTE) {
-        FeedSettingsScreen(onBack = { navController.popBackStack() })
+        FeedSettingsScreen(
+            onBack = { navController.popBackStack() },
+            onNavigateToInterest = { navController.navigate(HOME_INTEREST_ROUTE) }
+        )
     }
 
     composable(ERROR_LOG_ROUTE) {
