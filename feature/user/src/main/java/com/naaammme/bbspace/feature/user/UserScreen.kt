@@ -27,13 +27,20 @@ import com.naaammme.bbspace.feature.user.component.AccountExpiredDialog
 import com.naaammme.bbspace.feature.user.entry.UserEntrySection
 import com.naaammme.bbspace.feature.user.profile.UserProfileSection
 
+enum class UserDest {
+    History,
+    WatchLater
+}
+
+fun ((UserDest) -> Unit).navigate(dest: UserDest): () -> Unit = { invoke(dest) }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserScreen(
     onNavigateToAccount: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
-    onNavigateToHistory: () -> Unit,
+    onNavigate: (UserDest) -> Unit,
     onNavigateToDownload: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit = {},
     vm: UserViewModel = hiltViewModel()
@@ -78,7 +85,7 @@ fun UserScreen(
 
             UserEntrySection(
                 onNavigateToBbSpace = onNavigateToBbSpace,
-                onNavigateToHistory = onNavigateToHistory,
+                onNavigate = onNavigate,
                 onNavigateToDownload = onNavigateToDownload
             )
         }

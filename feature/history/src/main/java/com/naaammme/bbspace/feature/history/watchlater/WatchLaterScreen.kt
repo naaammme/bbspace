@@ -1,33 +1,32 @@
-package com.naaammme.bbspace.feature.history
+package com.naaammme.bbspace.feature.history.watchlater
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -43,11 +42,9 @@ import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
-import com.naaammme.bbspace.core.model.HistoryItem
-import com.naaammme.bbspace.core.model.HistoryTab
-import com.naaammme.bbspace.core.model.HistoryTarget
-import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.model.WatchLaterItem
+import com.naaammme.bbspace.core.model.WatchLaterTab
 import com.naaammme.bbspace.feature.history.component.HistoryEmptyState
 import com.naaammme.bbspace.feature.history.component.HistoryErrorState
 import com.naaammme.bbspace.feature.history.component.HistoryListLoading
@@ -57,12 +54,10 @@ import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(
+fun WatchLaterScreen(
     onBack: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenDynamicDetail: (String, Int) -> Unit,
-    viewModel: HistoryViewModel = hiltViewModel()
+    viewModel: WatchLaterViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -87,7 +82,7 @@ fun HistoryScreen(
             }
     }
 
-    LaunchedEffect(state.tab) {
+    LaunchedEffect(state.tab, state.asc) {
         val needScrollTop = listState.firstVisibleItemIndex > 0 ||
                 listState.firstVisibleItemScrollOffset > 0
         if (needScrollTop && listState.layoutInfo.totalItemsCount > 0) {
@@ -98,13 +93,26 @@ fun HistoryScreen(
     CollapsingTopBarScaffold(
         topBar = { scrollBehavior ->
             TopAppBar(
-                title = { Text("历史记录") },
+                title = {
+                    Text(
+                        text = if (!state.countText.isNullOrBlank()) {
+                            "稍后再看 ${state.countText}"
+                        } else {
+                            "稍后再看"
+                        }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回"
                         )
+                    }
+                },
+                actions = {
+                    TextButton(onClick = viewModel::toggleSort) {
+                        Text(if (state.asc) "最早添加" else "最新添加")
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -117,9 +125,9 @@ fun HistoryScreen(
                 .padding(padding)
         ) {
             FilledTabRow(
-                tabs = HistoryTab.entries.map { it.title },
+                tabs = WatchLaterTab.entries.map { it.title },
                 selectedIndex = state.tab.ordinal,
-                onSelect = { index -> viewModel.selectTab(HistoryTab.entries[index]) },
+                onSelect = { index -> viewModel.selectTab(WatchLaterTab.entries[index]) },
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
             )
 
@@ -131,7 +139,7 @@ fun HistoryScreen(
                 when {
                     state.isLoading && state.items.isEmpty() -> {
                         HistoryListLoading(
-                            skeletonPrefix = "history_skeleton",
+                            skeletonPrefix = "watch_later_skeleton",
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -139,7 +147,7 @@ fun HistoryScreen(
                     state.errorMessage != null && state.items.isEmpty() -> {
                         HistoryErrorState(
                             message = state.errorMessage.orEmpty(),
-                            fallbackMessage = "加载历史记录失败",
+                            fallbackMessage = "加载稍后再看失败",
                             onRetry = viewModel::refresh,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -147,7 +155,7 @@ fun HistoryScreen(
 
                     state.items.isEmpty() -> {
                         HistoryEmptyState(
-                            text = "暂无${state.tab.title}历史",
+                            text = "暂无${state.tab.title}内容",
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -162,17 +170,12 @@ fun HistoryScreen(
                             items(
                                 items = state.items,
                                 key = { it.key },
-                                contentType = { it.type }
+                                contentType = { it.cardType }
                             ) { item ->
-                                HistoryItemCard(
+                                WatchLaterItemCard(
                                     item = item,
                                     onClick = {
-                                        when (val target = item.target) {
-                                            is HistoryTarget.Video -> onOpenVideo(target.target)
-                                            is HistoryTarget.Live -> onOpenLive(target.route)
-                                            is HistoryTarget.Article -> onOpenDynamicDetail(target.opusId, 1)
-                                            null -> Unit
-                                        }
+                                        item.target?.let(onOpenVideo)
                                     }
                                 )
                             }
@@ -180,7 +183,7 @@ fun HistoryScreen(
                             if (state.isLoadingMore) {
                                 items(
                                     count = LOAD_MORE_SKELETON_COUNT,
-                                    key = { index -> "history_loading_$index" },
+                                    key = { index -> "watch_later_loading_$index" },
                                     contentType = { "loading" }
                                 ) {
                                     VideoListCardSkeleton()
@@ -189,12 +192,12 @@ fun HistoryScreen(
 
                             if (state.errorMessage != null && state.items.isNotEmpty()) {
                                 item(
-                                    key = "history_error",
+                                    key = "watch_later_error",
                                     contentType = "error"
                                 ) {
                                     HistoryErrorState(
                                         message = state.errorMessage.orEmpty(),
-                                        fallbackMessage = "加载历史记录失败",
+                                        fallbackMessage = "加载稍后再看失败",
                                         onRetry = if (state.errorOnLoadMore) {
                                             viewModel::loadMore
                                         } else {
@@ -213,54 +216,76 @@ fun HistoryScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HistoryItemCard(
-    item: HistoryItem,
+private fun WatchLaterItemCard(
+    item: WatchLaterItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val content: @Composable () -> Unit = {
-        HistoryItemContent(item = item)
-    }
+    val cardModifier = modifier.fillMaxWidth()
+    val colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    )
+    val elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
 
     if (item.isOpenable) {
-        Card(
-            onClick = onClick,
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            content()
+        Card(onClick = onClick, modifier = cardModifier, colors = colors, elevation = elevation) {
+            WatchLaterItemContent(item = item)
         }
     } else {
-        Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            content()
+        Card(modifier = cardModifier, colors = colors, elevation = elevation) {
+            WatchLaterItemContent(item = item)
         }
     }
 }
 
 @Composable
-private fun HistoryItemContent(
-    item: HistoryItem,
+private fun WatchLaterItemContent(
+    item: WatchLaterItem,
     modifier: Modifier = Modifier
 ) {
+    val infoLine = remember(item) { buildInfoLine(item) }
+    val metaLine = remember(item) { buildMetaLine(item) }
+    val progress = remember(item) { progressText(item) }
+    val duration = remember(item) { durationText(item.durationSec) }
+
+    if (!item.isOpenable) {
+        Text(
+            text = item.title,
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 16.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        return
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(10.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        HistoryCover(
-            item = item,
-            modifier = Modifier.weight(0.38f)
-        )
+        CoverImage(
+            url = item.cover,
+            contentDescription = "",
+            modifier = Modifier
+                .weight(0.38f)
+                .aspectRatio(16f / 10f)
+        ) {
+            duration?.let { text ->
+                Text(
+                    text = text,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .background(Color.Black.copy(alpha = 0.56f), MaterialTheme.shapes.extraSmall)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White
+                )
+            }
+        }
 
         Column(
             modifier = Modifier.weight(1f),
@@ -273,25 +298,27 @@ private fun HistoryItemContent(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Text(
-                text = buildInfoLine(item),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (infoLine.isNotBlank()) {
+                Text(
+                    text = infoLine,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             Text(
-                text = buildMetaLine(item),
+                text = metaLine,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            progressText(item)?.let { progress ->
+            progress?.let { text ->
                 Text(
-                    text = progress,
+                    text = text,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier
@@ -304,67 +331,44 @@ private fun HistoryItemContent(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
         }
     }
 }
 
-@Composable
-private fun HistoryCover(
-    item: HistoryItem,
-    modifier: Modifier = Modifier
-) {
-    CoverImage(
-        url = item.cover,
-        contentDescription = item.title,
-        modifier = modifier.aspectRatio(16f / 10f),
-        fallbackContent = {
-            Text(
-                text = item.typeLabel,
-                modifier = Modifier.align(Alignment.Center),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    ) {
-        Text(
-            text = item.typeLabel,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(6.dp)
-                .background(Color.Black.copy(alpha = 0.56f), MaterialTheme.shapes.extraSmall)
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White
-        )
-    }
-}
-
-private fun buildInfoLine(item: HistoryItem): String {
+private fun buildInfoLine(item: WatchLaterItem): String {
     return listOfNotNull(
         item.ownerName,
         item.badge,
-        item.subtitle
-    ).joinToString(" · ").ifBlank { item.typeLabel }
-}
-
-private fun buildMetaLine(item: HistoryItem): String {
-    return listOfNotNull(
-        item.deviceLabel,
-        DateFormat.format("MM-dd HH:mm", item.viewedAtSec * 1000).toString()
+        item.intro?.takeIf { it.isNotBlank() }
     ).joinToString(" · ")
 }
 
-private fun progressText(item: HistoryItem): String? {
+private fun buildMetaLine(item: WatchLaterItem): String {
+    return listOfNotNull(
+        item.viewText?.takeIf { it.isNotBlank() }?.let { "播放 $it" },
+        item.danmakuText?.takeIf { it.isNotBlank() }?.let { "弹幕 $it" },
+        item.addedAtSec.takeIf { it > 0L }?.let {
+            DateFormat.format("MM-dd HH:mm", it * 1000).toString()
+        }
+    ).joinToString(" · ")
+}
+
+private fun progressText(item: WatchLaterItem): String? {
     val progress = item.progressSec ?: return null
-    if (progress < 0L) return "已看完"
-    val duration = item.durationSec
-    if (duration == null || duration <= 0L) return null
+    val duration = item.durationSec ?: return if (progress > 0L) "已观看 $progress 秒" else null
     return if (progress >= duration) {
         "已看完"
+    } else if (progress <= 0L) {
+        "未开始"
     } else {
         "进度 ${formatVideoDuration(progress)} / ${formatVideoDuration(duration)}"
     }
+}
+
+private fun durationText(sec: Long?): String? {
+    val value = sec ?: return null
+    if (value <= 0L) return null
+    return formatVideoDuration(value)
 }
 
 private const val LOAD_MORE_SKELETON_COUNT = 2

@@ -49,6 +49,8 @@ import com.naaammme.bbspace.feature.download.navigation.downloadScreen
 import com.naaammme.bbspace.feature.download.navigation.navigateToDownload
 import com.naaammme.bbspace.feature.history.navigation.historyScreen
 import com.naaammme.bbspace.feature.history.navigation.navigateToHistory
+import com.naaammme.bbspace.feature.history.navigation.navigateToWatchLater
+import com.naaammme.bbspace.feature.history.navigation.watchLaterScreen
 import com.naaammme.bbspace.feature.home.HomeScreen
 import com.naaammme.bbspace.feature.listen.navigation.listenDetailScreen
 import com.naaammme.bbspace.feature.listen.navigation.navigateToListenDetail
@@ -62,6 +64,7 @@ import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
 import com.naaammme.bbspace.feature.webview.navigation.webViewScreen
 import com.naaammme.bbspace.feature.download.DownloadViewModel
 import com.naaammme.bbspace.feature.user.UserScreen
+import com.naaammme.bbspace.feature.user.UserDest
 import com.naaammme.bbspace.feature.user.UserViewModel
 import com.naaammme.bbspace.feature.video.VideoViewModel
 import com.naaammme.bbspace.playback.PlaybackHost
@@ -168,7 +171,12 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                     onNavigateToSettings = { rootNavController.navigate(SETTINGS_ROUTE) },
                     onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
                     onNavigateToBbSpace = { rootNavController.navigateToBbSpace() },
-                    onNavigateToHistory = { rootNavController.navigateToHistory() },
+                    onNavigateFromUser = { dest ->
+                        when (dest) {
+                            UserDest.History -> rootNavController.navigateToHistory()
+                            UserDest.WatchLater -> rootNavController.navigateToWatchLater()
+                        }
+                    },
                     onNavigateToDownload = { rootNavController.navigateToDownload() },
                     onNavigateToVideo = openVideo,
                     onNavigateToSpace = rootNavController::navigateToSpace,
@@ -215,6 +223,10 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
                 onOpenVideo = openVideo,
                 onOpenLive = openLive,
                 onOpenDynamicDetail = rootNavController::navigateToDynamicDetail
+            )
+            watchLaterScreen(
+                onBack = { rootNavController.popBackStack() },
+                onOpenVideo = openVideo
             )
             spaceScreen(
                 onBack = { rootNavController.popBackStack() },
@@ -301,7 +313,7 @@ private fun MainTabsScaffold(
     onNavigateToSettings: () -> Unit,
     onNavigateToAccount: () -> Unit,
     onNavigateToBbSpace: () -> Unit,
-    onNavigateToHistory: () -> Unit,
+    onNavigateFromUser: (UserDest) -> Unit,
     onNavigateToDownload: () -> Unit,
     onNavigateToVideo: (VideoTarget) -> Unit,
     onNavigateToSpace: (SpaceRoute) -> Unit,
@@ -354,7 +366,7 @@ private fun MainTabsScaffold(
                                 onNavigateToAccount = onNavigateToAccount,
                                 onNavigateToSettings = onNavigateToSettings,
                                 onNavigateToBbSpace = onNavigateToBbSpace,
-                                onNavigateToHistory = onNavigateToHistory,
+                                onNavigate = onNavigateFromUser,
                                 onNavigateToDownload = onNavigateToDownload,
                                 onOpenSpace = onNavigateToSpace
                             )

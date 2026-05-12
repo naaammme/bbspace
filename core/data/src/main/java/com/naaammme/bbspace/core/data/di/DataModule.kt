@@ -32,6 +32,7 @@ import com.naaammme.bbspace.core.domain.feed.FeedRepository
 import com.naaammme.bbspace.core.domain.feed.FeedDislikeRepository
 import com.naaammme.bbspace.core.domain.history.HistoryRepository
 import com.naaammme.bbspace.core.domain.history.PlaybackHistoryRepository
+import com.naaammme.bbspace.core.domain.history.WatchLaterRepository
 import com.naaammme.bbspace.core.domain.live.LiveRecommendRepository
 import com.naaammme.bbspace.core.domain.live.LiveRoomMessageRepository
 import com.naaammme.bbspace.core.domain.live.LiveRepository
@@ -48,6 +49,7 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.naaammme.bbspace.core.data.repository.WatchLaterRepoImpl
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -100,6 +102,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindHistoryRepo(impl: HistoryRepoImpl): HistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchLaterRepo(impl: WatchLaterRepoImpl): WatchLaterRepository
 
     @Binds
     @Singleton

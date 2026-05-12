@@ -98,6 +98,7 @@ object VideoTargetTool {
     const val FROM_DYNAMIC = "6"
     const val FROM_SPMID_FEED = "tm.recommend.0.0"
     const val FROM_SPMID_HISTORY = "main.my-history.0.0"
+    const val FROM_SPMID_WATCH_LATER = "main.later-watch.0.0"
     const val FROM_SPMID_SPACE = "main.space-contribution.0.0"
     const val FROM_SPMID_SEARCH = "search.search-result.0.0"
     const val FROM_SPMID_DYNAMIC = "dt.dt.video.0"
@@ -134,6 +135,18 @@ object VideoTargetTool {
         return VideoSrc(
             from = FROM_HISTORY,
             fromSpmid = FROM_SPMID_HISTORY,
+            trackId = trackId.blankToNull(),
+            reportFlowData = reportFlowData.blankToNull()
+        )
+    }
+
+    fun watchLater(
+        trackId: String? = null,
+        reportFlowData: String? = null
+    ): VideoSrc {
+        return VideoSrc(
+            from = FROM_HISTORY,
+            fromSpmid = FROM_SPMID_WATCH_LATER,
             trackId = trackId.blankToNull(),
             reportFlowData = reportFlowData.blankToNull()
         )

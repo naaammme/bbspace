@@ -56,3 +56,60 @@ sealed interface HistoryTarget {
     @Immutable
     data class Article(val opusId: String) : HistoryTarget
 }
+
+enum class WatchLaterTab(
+    val sortField: Int,
+    val title: String
+) {
+    UNFINISHED(10, "未看完"),
+    ALL(1, "全部")
+}
+
+@Immutable
+data class WatchLaterCursor(
+    val startKeyByTab: Map<WatchLaterTab, String> = emptyMap(),
+    val splitKey: String = ""
+) {
+    fun startKey(tab: WatchLaterTab): String {
+        return startKeyByTab[tab].orEmpty()
+    }
+
+    fun next(
+        tab: WatchLaterTab,
+        nextKey: String,
+        nextSplitKey: String
+    ): WatchLaterCursor {
+        return copy(
+            startKeyByTab = startKeyByTab + (tab to nextKey),
+            splitKey = nextSplitKey
+        )
+    }
+}
+
+@Immutable
+data class WatchLaterPage(
+    val items: List<WatchLaterItem>,
+    val cursor: WatchLaterCursor,
+    val hasMore: Boolean,
+    val countText: String?
+)
+
+@Immutable
+data class WatchLaterItem(
+    val key: String,
+    val cardType: Int,
+    val title: String,
+    val intro: String?,
+    val cover: String?,
+    val ownerName: String?,
+    val viewText: String?,
+    val danmakuText: String?,
+    val durationSec: Long?,
+    val progressSec: Long?,
+    val addedAtSec: Long,
+    val badge: String?,
+    val target: VideoTarget?
+) {
+    val isOpenable: Boolean
+        get() = target != null
+}

@@ -25,15 +25,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.naaammme.bbspace.feature.user.UserDest
+import com.naaammme.bbspace.feature.user.navigate
 
 @Composable
 fun UserEntrySection(
     onNavigateToBbSpace: () -> Unit,
-    onNavigateToHistory: () -> Unit,
+    onNavigate: (UserDest) -> Unit,
     onNavigateToDownload: () -> Unit
 ) {
     FeatureEntryRow(
-        onNavigateToHistory = onNavigateToHistory,
+        onNavigate = onNavigate,
         onNavigateToDownload = onNavigateToDownload
     )
 
@@ -44,7 +46,7 @@ fun UserEntrySection(
 
 @Composable
 private fun FeatureEntryRow(
-    onNavigateToHistory: () -> Unit,
+    onNavigate: (UserDest) -> Unit,
     onNavigateToDownload: () -> Unit
 ) {
     Card(
@@ -58,9 +60,9 @@ private fun FeatureEntryRow(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             FeatureEntry(Icons.Default.Refresh, "离线缓存", onClick = onNavigateToDownload)
-            FeatureEntry(Icons.Default.DateRange, "历史记录", onClick = onNavigateToHistory)
+            FeatureEntry(Icons.Default.DateRange, "历史记录", onClick = onNavigate.navigate(UserDest.History))
             FeatureEntry(Icons.Default.FavoriteBorder, "收藏")
-            FeatureEntry(Icons.Default.Star, "稍后再看")
+            FeatureEntry(Icons.Default.Star, "稍后再看", onClick = onNavigate.navigate(UserDest.WatchLater))
         }
     }
 }
