@@ -25,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -42,14 +44,13 @@ import com.naaammme.bbspace.core.designsystem.icon.AppIcons
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 @Stable
 class VideoGestureState {
     var dragType by mutableStateOf(DragType.None)
         internal set
-    var dragFraction by mutableStateOf(0f)
+    var dragFraction by mutableFloatStateOf(0f)
         internal set
     var dragSeekPosMs by mutableStateOf<Long?>(null)
         internal set
@@ -63,8 +64,8 @@ class VideoGestureState {
     var doubleTapHint by mutableStateOf<DoubleTapHint?>(null)
         internal set
 
-    internal var doubleTapToken by mutableStateOf(0L)
-    internal var dragStartPosMs by mutableStateOf(0L)
+    internal var doubleTapToken by mutableLongStateOf(0L)
+    internal var dragStartPosMs by mutableLongStateOf(0L)
 
     internal fun resetDrag() {
         dragType = DragType.None
@@ -91,6 +92,8 @@ enum class DoubleTapHint(val text: String) {
 private const val SEEK_MAX_MS = 60_000L
 private const val DOUBLE_TAP_SEEK_MS = 10_000L
 private const val DRAG_SENSITIVITY = 0.6f
+private const val SIDE_GESTURE_ZONE = 0.2f
+private const val RIGHT_GESTURE_ZONE_START = 1f - SIDE_GESTURE_ZONE
 
 @Composable
 fun Modifier.videoGestures(
@@ -100,8 +103,8 @@ fun Modifier.videoGestures(
     onSeekTo: (Long) -> Unit,
     onStartSpeedUp: () -> String,
     onStopSpeedUp: () -> Unit,
-    onBrightnessDelta: (Float) -> Unit,
-    onVolumeDelta: (Float) -> Unit,
+    onBrightnessDelta: (Float) -> Float,
+    onVolumeDelta: (Float) -> Float,
     onDragStart: (DragType) -> Unit = {},
     onDragEnd: () -> Unit = {},
     isPlaying: () -> Boolean,
@@ -123,28 +126,26 @@ fun Modifier.videoGestures(
 
     return this.pointerInput(Unit) {
         val slop = viewConfiguration.touchSlop
-        val longPressTimeout = viewConfiguration.longPressTimeoutMillis.toLong()
-        val doubleTapTimeout = viewConfiguration.doubleTapTimeoutMillis.toLong()
+        val longPressTimeout = viewConfiguration.longPressTimeoutMillis
+        val doubleTapTimeout = viewConfiguration.doubleTapTimeoutMillis
 
         awaitPointerEventScope {
             while (true) {
                 val down = awaitFirstDown(requireUnconsumed = false)
                 val downTime = down.uptimeMillis
                 val downPos = down.position
-                val w = size.width.toFloat()
-                val h = size.height.toFloat()
+                val w = size.width
+                val h = size.height
                 if (w <= 0f || h <= 0f) continue
 
                 val zoneX = downPos.x / w
 
                 var phase = Phase.Press
-                var isHorizontal: Boolean? = null
                 var totalDelta = Offset.Zero
                 var lastPos = downPos
-                var longPressFired = false
 
                 while (true) {
-                    val event = if (phase == Phase.Press && !longPressFired) {
+                    val event = if (phase == Phase.Press) {
                         val remaining = (longPressTimeout - (SystemClock.uptimeMillis() - downTime))
                             .coerceAtLeast(0L)
                         withTimeoutOrNull(remaining) {
@@ -154,7 +155,6 @@ fun Modifier.videoGestures(
                         awaitPointerEvent(PointerEventPass.Main)
                     }
                     if (event == null) {
-                        longPressFired = true
                         phase = Phase.LongPress
                         state.speedBadgeText = curStartSpeedUp()
                         state.showSpeedBadge = true
@@ -165,38 +165,33 @@ fun Modifier.videoGestures(
                     if (!change.pressed) {
                         when (phase) {
                             Phase.Press -> {
-                                if (longPressFired) {
-                                    curStopSpeedUp()
-                                    state.showSpeedBadge = false
-                                } else {
-                                    val second = withTimeoutOrNull(doubleTapTimeout) {
-                                        awaitFirstDown(requireUnconsumed = false)
-                                    }
-                                    if (second != null) {
-                                        val sndX = second.position.x / w
-                                        when {
-                                            sndX < 0.2f -> {
-                                                val target = (curPositionMs() - DOUBLE_TAP_SEEK_MS).coerceAtLeast(0L)
-                                                curSeekTo(target)
-                                                state.showDoubleTap(DoubleTapHint.Rewind)
-                                            }
-                                            sndX > 0.7f -> {
-                                                val target = (curPositionMs() + DOUBLE_TAP_SEEK_MS).coerceAtMost(curDurationMs())
-                                                curSeekTo(target)
-                                                state.showDoubleTap(DoubleTapHint.Forward)
-                                            }
-                                            else -> {
-                                                curTogglePlay()
-                                                state.showDoubleTap(
-                                                    if (curIsPlaying()) DoubleTapHint.Play
-                                                    else DoubleTapHint.Pause
-                                                )
-                                            }
+                                val second = withTimeoutOrNull(doubleTapTimeout) {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                }
+                                if (second != null) {
+                                    val sndX = second.position.x / w
+                                    when {
+                                        sndX < SIDE_GESTURE_ZONE -> {
+                                            val target = (curPositionMs() - DOUBLE_TAP_SEEK_MS).coerceAtLeast(0L)
+                                            curSeekTo(target)
+                                            state.showDoubleTap(DoubleTapHint.Rewind)
                                         }
-                                        waitForAllUp()
-                                    } else {
-                                        curToggleControls()
+                                        sndX > RIGHT_GESTURE_ZONE_START -> {
+                                            val target = (curPositionMs() + DOUBLE_TAP_SEEK_MS).coerceAtMost(curDurationMs())
+                                            curSeekTo(target)
+                                            state.showDoubleTap(DoubleTapHint.Forward)
+                                        }
+                                        else -> {
+                                            curTogglePlay()
+                                            state.showDoubleTap(
+                                                if (curIsPlaying()) DoubleTapHint.Play
+                                                else DoubleTapHint.Pause
+                                            )
+                                        }
                                     }
+                                    waitForAllUp()
+                                } else {
+                                    curToggleControls()
                                 }
                             }
                             Phase.Drag -> {
@@ -221,17 +216,22 @@ fun Modifier.videoGestures(
                     when (phase) {
                         Phase.Press -> {
                             if (totalDelta.getDistance() >= slop) {
-                                isHorizontal = abs(totalDelta.x) > abs(totalDelta.y)
+                                val isHorizontal = abs(totalDelta.x) > abs(totalDelta.y)
                                 phase = Phase.Drag
                                 val dragType = when {
-                                    isHorizontal == true -> DragType.Seek
-                                    zoneX < 0.2f -> DragType.Brightness
-                                    zoneX > 0.7f -> DragType.Volume
+                                    isHorizontal -> DragType.Seek
+                                    zoneX < SIDE_GESTURE_ZONE -> DragType.Brightness
+                                    zoneX > RIGHT_GESTURE_ZONE_START -> DragType.Volume
                                     else -> DragType.None
                                 }
                                 state.dragStartPosMs = curPositionMs()
                                 state.dragType = dragType
                                 curDragStart(dragType)
+                                when (dragType) {
+                                    DragType.Brightness -> state.dragFraction = curBrightnessDelta(0f)
+                                    DragType.Volume -> state.dragFraction = curVolumeDelta(0f)
+                                    else -> Unit
+                                }
                             }
                         }
                         Phase.Drag -> {
@@ -246,14 +246,12 @@ fun Modifier.videoGestures(
                                     state.seekLabel = formatSeekDelta(deltaMs)
                                 }
                                 DragType.Brightness -> {
-                                    val frac = (-totalDelta.y / (h * DRAG_SENSITIVITY)).coerceIn(-1f, 1f)
-                                    state.dragFraction = frac
-                                    curBrightnessDelta(frac)
+                                    val deltaFrac = (-totalDelta.y / (h * DRAG_SENSITIVITY)).coerceIn(-1f, 1f)
+                                    state.dragFraction = curBrightnessDelta(deltaFrac)
                                 }
                                 DragType.Volume -> {
-                                    val frac = (-totalDelta.y / (h * DRAG_SENSITIVITY)).coerceIn(-1f, 1f)
-                                    state.dragFraction = frac
-                                    curVolumeDelta(frac)
+                                    val deltaFrac = (-totalDelta.y / (h * DRAG_SENSITIVITY)).coerceIn(-1f, 1f)
+                                    state.dragFraction = curVolumeDelta(deltaFrac)
                                 }
                                 DragType.None -> {}
                             }
@@ -278,7 +276,7 @@ fun VideoGestureFeedback(
         if (state.dragType == DragType.Brightness || state.dragType == DragType.Volume) {
             val isBrightness = state.dragType == DragType.Brightness
             val label = if (isBrightness) "亮度" else "音量"
-            val barH = (state.dragFraction * 0.5f + 0.5f).coerceIn(0f, 1f)
+            val barH = state.dragFraction.coerceIn(0f, 1f)
 
             Box(
                 modifier = Modifier
@@ -417,8 +415,8 @@ internal fun adjustWindowBrightness(activity: Activity?, fraction: Float) {
     }
 }
 
-internal fun adjustStreamVolume(context: Context, fraction: Float, startVolume: Int, maxVolume: Int) {
-    val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-    val newVol = (startVolume + fraction * maxVolume).roundToInt().coerceIn(0, maxVolume)
-    am.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+internal fun adjustStreamVolume(audioManager: AudioManager?, volume: Int) {
+    val am = audioManager ?: return
+    val maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    am.setStreamVolume(AudioManager.STREAM_MUSIC, volume.coerceIn(0, maxVolume), 0)
 }

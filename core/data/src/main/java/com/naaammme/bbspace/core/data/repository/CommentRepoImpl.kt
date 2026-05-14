@@ -11,6 +11,8 @@ import com.bapis.bilibili.main.community.reply.v1.TranslateReplyReq
 import com.bapis.bilibili.main.community.reply.v1.TranslateReplyResp
 import com.bapis.bilibili.main.community.reply.v1.WordSearchParam
 import com.bapis.bilibili.pagination.FeedPagination
+import com.google.protobuf.MessageLite
+import com.google.protobuf.Parser
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
@@ -25,6 +27,9 @@ import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentUser
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
+import com.naaammme.bbspace.infra.grpc.GrpcFrameCodec
+import com.naaammme.bbspace.infra.grpc.GrpcHeaderBuilder
+import com.naaammme.bbspace.infra.network.BiliApiException
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
@@ -32,11 +37,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
 @Singleton
 class CommentRepoImpl @Inject constructor(
     private val grpcClient: BiliGrpcClient,
+    private val okHttpClient: OkHttpClient,
+    private val grpcHeaderBuilder: GrpcHeaderBuilder,
     private val restClient: BiliRestClient,
     private val restParamBuilder: BiliRestParamBuilder,
     private val authProvider: AuthProvider
@@ -115,13 +125,11 @@ class CommentRepoImpl @Inject constructor(
         filterTag: String,
         offset: String
     ): CommentPage {
-        val reply = withContext(Dispatchers.IO) {
-            grpcClient.call(
-                endpoint = ENDPOINT,
-                requestBytes = buildReq(subject, sort, filterTag, offset).toByteArray(),
-                parser = MainListReply.parser()
-            )
-        }
+        val reply = callCommentGrpc(
+            endpoint = ENDPOINT,
+            requestBytes = buildReq(subject, sort, filterTag, offset).toByteArray(),
+            parser = MainListReply.parser()
+        )
         return withContext(Dispatchers.Default) {
             mapPage(
                 subject = subject,
@@ -138,18 +146,16 @@ class CommentRepoImpl @Inject constructor(
         sort: CommentSort,
         offset: String
     ): CommentReplyDetailPage {
-        val reply = withContext(Dispatchers.IO) {
-            grpcClient.call(
-                endpoint = DETAIL_ENDPOINT,
-                requestBytes = buildDetailReq(
-                    subject = subject,
-                    rootRpid = rootRpid,
-                    sort = sort,
-                    offset = offset
-                ).toByteArray(),
-                parser = DetailListReply.parser()
-            )
-        }
+        val reply = callCommentGrpc(
+            endpoint = DETAIL_ENDPOINT,
+            requestBytes = buildDetailReq(
+                subject = subject,
+                rootRpid = rootRpid,
+                sort = sort,
+                offset = offset
+            ).toByteArray(),
+            parser = DetailListReply.parser()
+        )
         return withContext(Dispatchers.Default) {
             val nextOffset = reply.paginationReply.nextOffset.ifBlank { null }
             val root = mapReply(reply.root) ?: error("评论详情缺少根评论")
@@ -169,20 +175,55 @@ class CommentRepoImpl @Inject constructor(
         subject: CommentSubject,
         rpid: Long
     ): String? {
-        val reply = withContext(Dispatchers.IO) {
-            grpcClient.call(
-                endpoint = TRANSLATE_ENDPOINT,
-                requestBytes = TranslateReplyReq.newBuilder()
-                    .setType(subject.type)
-                    .setOid(subject.oid)
-                    .addRpids(rpid)
-                    .build()
-                    .toByteArray(),
-                parser = TranslateReplyResp.parser()
-            )
-        }
+        val reply = callCommentGrpc(
+            endpoint = TRANSLATE_ENDPOINT,
+            requestBytes = TranslateReplyReq.newBuilder()
+                .setType(subject.type)
+                .setOid(subject.oid)
+                .addRpids(rpid)
+                .build()
+                .toByteArray(),
+            parser = TranslateReplyResp.parser()
+        )
         return withContext(Dispatchers.Default) {
             reply.translatedRepliesMap[rpid]?.translatedContent?.message?.trim()
+        }
+    }
+
+    private suspend fun <Resp : MessageLite> callCommentGrpc(
+        endpoint: String,
+        requestBytes: ByteArray,
+        parser: Parser<Resp>
+    ): Resp {
+        if (authProvider.accessToken.isNotBlank()) {
+            return grpcClient.call(
+                endpoint = endpoint,
+                requestBytes = requestBytes,
+                parser = parser
+            )
+        }
+        val encodeResult = GrpcFrameCodec.encode(requestBytes)
+        val headers = grpcHeaderBuilder.build(compressed = encodeResult.compressed).toMutableMap().apply {
+            // B站未登录时带上这两个头会拿不全评论，这里对评论接口单独去掉
+            remove("x-bili-device-bin")
+            remove("x-bili-metadata-bin")
+        }
+        val requestBuilder = Request.Builder()
+            .url("${BiliConstants.BASE_URL_APP}/$endpoint")
+            .post(encodeResult.frame.toRequestBody(null))
+        headers.forEach { (key, value) ->
+            requestBuilder.addHeader(key, value)
+        }
+        return withContext(Dispatchers.IO) {
+            okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+                if (response.code != 200) {
+                    throw BiliApiException(response.code, "HTTP ${response.code}: ${response.message}")
+                }
+                val responseBytes = response.body?.bytes()
+                    ?: throw BiliApiException(-1, "Empty gRPC response")
+                val payload = GrpcFrameCodec.decode(responseBytes, response.header("grpc-encoding"))
+                parser.parseFrom(payload)
+            }
         }
     }
 

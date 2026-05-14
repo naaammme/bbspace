@@ -82,7 +82,8 @@ internal fun LiveDetailPane(
             item("title") {
                 Text(
                     text = route?.title ?: "直播间 ${route?.roomId ?: 0L}",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 

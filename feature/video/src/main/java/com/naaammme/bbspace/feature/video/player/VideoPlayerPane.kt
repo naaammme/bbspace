@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,6 +61,8 @@ import com.naaammme.bbspace.feature.video.getAudioName
 import com.naaammme.bbspace.feature.video.getQualityName
 import com.naaammme.bbspace.feature.video.speedOps
 import kotlinx.coroutines.delay
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi
@@ -78,15 +81,18 @@ internal fun VideoPlayerPane(
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val gestureState = remember { VideoGestureState() }
-    var dragStartBrightness by remember { mutableStateOf(0.5f) }
-    var dragStartVolume by remember { mutableStateOf(0) }
+    var dragStartBrightness by remember { mutableFloatStateOf(0.5f) }
+    var dragStartVolumeFrac by remember { mutableFloatStateOf(0f) }
     var showQ by remember { mutableStateOf(false) }
     var showA by remember { mutableStateOf(false) }
     var showSp by remember { mutableStateOf(false) }
     var showPlaybackSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(true) }
     var dragMs by remember { mutableStateOf<Long?>(null) }
-    var speedBeforeGesture by remember { mutableStateOf(1f) }
+    var speedBeforeGesture by remember { mutableFloatStateOf(1f) }
+    val audioManager = remember(context) { context.getSystemService(AudioManager::class.java) }
+    var lastGestureBrightness by remember { mutableFloatStateOf(Float.NaN) }
+    var lastGestureVolumeFrac by remember { mutableFloatStateOf(Float.NaN) }
 
     LaunchedEffect(showCtrl, state.isPlaying, dragMs, gestureState.dragType, gestureState.showSpeedBadge, showA, showQ, showSp, showPlaybackSheet) {
         if (
@@ -198,24 +204,46 @@ internal fun VideoPlayerPane(
                         formatSpeed(speed)
                     },
                     onStopSpeedUp = { viewModel.setSpeed(speedBeforeGesture) },
-                    onBrightnessDelta = { frac ->
-                        adjustWindowBrightness(act, dragStartBrightness + frac)
+                    onBrightnessDelta = { deltaFrac ->
+                        val next = (dragStartBrightness + deltaFrac).coerceIn(0.01f, 1f)
+                        if (abs(next - lastGestureBrightness) >= 0.02f || lastGestureBrightness.isNaN()) {
+                            adjustWindowBrightness(act, next)
+                            lastGestureBrightness = next
+                        }
+                        next
                     },
-                    onVolumeDelta = { frac ->
-                        val am = context.getSystemService(AudioManager::class.java)
-                        val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                        adjustStreamVolume(context, frac, dragStartVolume, maxVol)
+                    onVolumeDelta = { deltaFrac ->
+                        val maxVol = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 0
+                        if (maxVol <= 0) {
+                            0f
+                        } else {
+                            val next = (dragStartVolumeFrac + deltaFrac).coerceIn(0f, 1f)
+                            if (abs(next - lastGestureVolumeFrac) >= (1f / maxVol.toFloat()) || lastGestureVolumeFrac.isNaN()) {
+                                val newVol = (next * maxVol).roundToInt()
+                                adjustStreamVolume(audioManager, newVol)
+                                lastGestureVolumeFrac = next
+                            }
+                            next
+                        }
                     },
                     onDragStart = { dragType ->
                         when (dragType) {
                             DragType.Brightness -> {
-                                act?.window?.attributes?.screenBrightness?.let {
-                                    dragStartBrightness = it
-                                }
+                                dragStartBrightness = act?.window?.attributes?.screenBrightness
+                                    ?.takeIf { it in 0f..1f }
+                                    ?.coerceIn(0.01f, 1f)
+                                    ?: 0.5f
+                                lastGestureBrightness = Float.NaN
                             }
                             DragType.Volume -> {
-                                val am = context.getSystemService(AudioManager::class.java)
-                                dragStartVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                val maxVol = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 0
+                                val curVol = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+                                dragStartVolumeFrac = if (maxVol > 0) {
+                                    curVol.toFloat() / maxVol.toFloat()
+                                } else {
+                                    0f
+                                }
+                                lastGestureVolumeFrac = Float.NaN
                             }
                             else -> {}
                         }
