@@ -85,10 +85,12 @@ data class CommentReply(
     val likeCount: Long = 0L,
     val replyCount: Long = 0L,
     val timeText: String = "",
+    val locationText: String = "",
     val topLabel: String? = null,
     val replyEntryText: String? = null,
     val parentName: String? = null,
     val user: CommentUser,
+    val emotes: List<CommentEmote> = emptyList(),
     val pictures: List<CommentPicture> = emptyList()
 )
 
@@ -113,4 +115,11 @@ data class CommentPicture(
     val url: String,
     val width: Float = 0f,
     val height: Float = 0f
+)
+
+@Immutable
+data class CommentEmote(
+    val text: String,
+    val url: String,
+    val size: Long = 1L
 )

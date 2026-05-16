@@ -243,6 +243,13 @@ private fun ReplyBody(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    reply.locationText.takeIf(String::isNotBlank)?.let { location ->
+                        Text(
+                            text = location,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Text(
                         text = "点赞 ${reply.likeCount.formatCount()}",
                         style = MaterialTheme.typography.bodySmall,
@@ -280,8 +287,9 @@ private fun ReplyMessage(reply: CommentReply) {
             )
         }
         message?.let {
-            Text(
+            CommentRichText(
                 text = it,
+                emotes = reply.emotes,
                 style = MaterialTheme.typography.bodyMedium
             )
         }

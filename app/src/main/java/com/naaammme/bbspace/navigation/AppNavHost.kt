@@ -142,7 +142,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
         rootNavController.navigateToListenDetail(oid, itemType, subId, title, author, cover)
     }
     val openArticle: (String, Int) -> Unit = { opusId, opusType ->
-        playbackHostViewModel.close()
+        playbackHostViewModel.minimize()
         rootNavController.navigateToDynamicDetail(opusId, opusType)
     }
     val transitions = remember(themeConfig.transitionStyle, themeConfig.animationSpeed) {

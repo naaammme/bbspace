@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.core.data.repository
 
 import android.text.format.DateFormat
+import com.bapis.bilibili.main.community.reply.v1.Emote as ReplyEmote
 import com.bapis.bilibili.main.community.reply.v1.DetailListReply
 import com.bapis.bilibili.main.community.reply.v1.DetailListReq
 import com.bapis.bilibili.main.community.reply.v1.MainListReply
@@ -17,6 +18,7 @@ import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.domain.comment.CommentRepository
 import com.naaammme.bbspace.core.model.COMMENT_FILTER_ALL
+import com.naaammme.bbspace.core.model.CommentEmote
 import com.naaammme.bbspace.core.model.CommentFilterTag
 import com.naaammme.bbspace.core.model.CommentMedal
 import com.naaammme.bbspace.core.model.CommentPage
@@ -41,6 +43,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.util.Calendar
 
 @Singleton
 class CommentRepoImpl @Inject constructor(
@@ -373,12 +376,16 @@ class CommentRepoImpl @Inject constructor(
                 level = user.fansMedalLevel.toInt()
             )
         }
+        val emotes = info.content.emotesMap.entries.mapNotNull { (token, emote) ->
+            emote.toModel(token)
+        }
         return CommentReply(
             rpid = info.id,
             message = info.content.message.trim(),
             likeCount = info.like,
             replyCount = info.count,
-            timeText = info.replyControl.timeDesc.ifBlank { formatTime(info.ctime) },
+            timeText = formatReplyTime(info.ctime),
+            locationText = formatReplyLocation(info.replyControl.location),
             topLabel = topLabel ?: info.topLabel(),
             replyEntryText = info.replyControl.subReplyTitleText.ifBlank { null },
             parentName = info.parentReplyMember.name.ifBlank { null },
@@ -390,6 +397,7 @@ class CommentRepoImpl @Inject constructor(
                 vipLabel = user.vipLabelText.ifBlank { null },
                 medal = medal
             ),
+            emotes = emotes,
             pictures = pictures
         )
     }
@@ -399,6 +407,7 @@ class CommentRepoImpl @Inject constructor(
         val content = reply.optJSONObject("content")
         val replyControl = reply.optJSONObject("reply_control")
         val vip = member?.optJSONObject("vip")
+        val emotes = mapReplyEmotes(content?.optJSONObject("emotes"))
         val mid = reply.optLong("mid").takeIf { it > 0L }
             ?: member?.optString("mid")?.toLongOrNull()
             ?: 0L
@@ -414,9 +423,8 @@ class CommentRepoImpl @Inject constructor(
             message = content?.optString("message").orEmpty().trim(),
             likeCount = reply.optLong("like"),
             replyCount = reply.optLong("count"),
-            timeText = replyControl?.optString("time_desc").orEmpty().ifBlank {
-                formatTime(reply.optLong("ctime"))
-            },
+            timeText = formatReplyTime(reply.optLong("ctime")),
+            locationText = formatReplyLocation(replyControl?.optString("location").orEmpty()),
             user = CommentUser(
                 mid = mid,
                 name = name,
@@ -427,7 +435,8 @@ class CommentRepoImpl @Inject constructor(
                 vipLabel = vip?.optJSONObject("label")
                     ?.optString("text")
                     ?.takeIf(String::isNotBlank)
-            )
+            ),
+            emotes = emotes
         )
     }
 
@@ -512,9 +521,84 @@ class CommentRepoImpl @Inject constructor(
         }
     }
 
-    private fun formatTime(ctime: Long): String {
+    private fun formatReplyTime(ctime: Long): String {
         if (ctime <= 0L) return ""
-        return DateFormat.format("yyyy-MM-dd HH:mm", ctime * 1000).toString()
+        val timeMs = ctime * 1000L
+        val diffMs = (System.currentTimeMillis() - timeMs).coerceAtLeast(0L)
+        if (diffMs < MINUTE_MS) return "刚刚"
+        if (diffMs < HOUR_MS) return "${diffMs / MINUTE_MS}分钟前"
+        if (diffMs < DAY_MS) return "${diffMs / HOUR_MS}小时前"
+        val nowCal = Calendar.getInstance()
+        val targetCal = Calendar.getInstance().apply {
+            timeInMillis = timeMs
+        }
+        val dayDiff = dayDiff(targetCal, nowCal)
+        return when {
+            dayDiff == 1 -> "昨天 ${DateFormat.format("HH:mm", timeMs)}"
+            dayDiff in 2..3 -> "${dayDiff}天前"
+            nowCal.get(Calendar.YEAR) == targetCal.get(Calendar.YEAR) -> {
+                DateFormat.format("MM-dd", timeMs).toString()
+            }
+            else -> DateFormat.format("yyyy-MM-dd", timeMs).toString()
+        }
+    }
+
+    private fun formatReplyLocation(raw: String): String {
+        return raw.trim()
+            .replace("IP属地：", "")
+            .replace("IP属地:", "")
+            .trim()
+    }
+
+    private fun mapReplyEmotes(emotes: JSONObject?): List<CommentEmote> {
+        if (emotes == null) return emptyList()
+        val items = mutableListOf<CommentEmote>()
+        val keys = emotes.keys()
+        while (keys.hasNext()) {
+            val token = keys.next()
+            val emote = emotes.optJSONObject(token) ?: continue
+            mapReplyEmote(token, emote)?.let(items::add)
+        }
+        return items
+    }
+
+    private fun mapReplyEmote(
+        token: String,
+        emote: JSONObject
+    ): CommentEmote? {
+        val url = emote.optString("url")
+            .toHttps()
+            .ifBlank { return null }
+        return CommentEmote(
+            text = emote.optString("text").ifBlank { token },
+            url = url,
+            size = emote.optLong("size").coerceAtLeast(1L)
+        )
+    }
+
+    private fun ReplyEmote.toModel(token: String): CommentEmote? {
+        val url = url.toHttps().ifBlank { return null }
+        return CommentEmote(
+            text = text.ifBlank { token },
+            url = url,
+            size = size.coerceAtLeast(1L)
+        )
+    }
+
+    private fun dayDiff(
+        from: Calendar,
+        to: Calendar
+    ): Int {
+        val fromDay = (from.clone() as Calendar).apply { clearTime() }.timeInMillis
+        val toDay = (to.clone() as Calendar).apply { clearTime() }.timeInMillis
+        return ((toDay - fromDay) / DAY_MS).toInt()
+    }
+
+    private fun Calendar.clearTime() {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
     }
 
     private fun String.toHttps(): String {
@@ -522,6 +606,9 @@ class CommentRepoImpl @Inject constructor(
     }
 
     private companion object {
+        const val MINUTE_MS = 60_000L
+        const val HOUR_MS = 3_600_000L
+        const val DAY_MS = 86_400_000L
         const val ENDPOINT = "bilibili.main.community.reply.v1.Reply/MainList"
         const val DETAIL_ENDPOINT = "bilibili.main.community.reply.v1.Reply/DetailList"
         const val TRANSLATE_ENDPOINT = "bilibili.main.community.reply.v1.Reply/TranslateReply"
