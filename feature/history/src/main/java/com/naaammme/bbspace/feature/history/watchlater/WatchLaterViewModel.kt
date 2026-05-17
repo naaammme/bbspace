@@ -168,11 +168,11 @@ class WatchLaterViewModel @Inject constructor(
     ) {
         try {
             val reqCursor = WatchLaterCursor(
-                startKeyByTab = mapOf(tab to if (reset) "" else currentStartKey),
+                startKey = if (reset) "" else currentStartKey,
                 splitKey = splitKey
             )
             val page = repo.fetchPage(tab, asc, reqCursor)
-            currentStartKey = page.cursor.startKey(tab)
+            currentStartKey = page.cursor.startKey
             splitKey = page.cursor.splitKey
             val items = if (reset) page.items else _uiState.value.items + page.items
             cache[WatchLaterCacheKey(tab, asc)] = WatchLaterCache(

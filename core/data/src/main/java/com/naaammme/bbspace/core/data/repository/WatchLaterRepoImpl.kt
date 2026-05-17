@@ -39,7 +39,7 @@ class WatchLaterRepoImpl @Inject constructor(
                 "asc" to asc.toString(),
                 "sort_field" to tab.sortField.toString(),
                 "split_key" to cursor.splitKey,
-                "start_key" to cursor.startKey(tab)
+                "start_key" to cursor.startKey
             ),
             profile = BiliRestProfile.APP
         )
@@ -54,7 +54,7 @@ class WatchLaterRepoImpl @Inject constructor(
                         mapItem(list.optJSONObject(i))?.let(::add)
                     }
                 },
-                cursor = cursor.next(tab, nextKey, nextSplitKey),
+                cursor = WatchLaterCursor(startKey = nextKey, splitKey = nextSplitKey),
                 hasMore = data.optBoolean("has_more"),
                 countText = data.optString("show_count").blankToNull()
             )

@@ -178,7 +178,7 @@ class AppSettings @Inject constructor(
     val forceHost: Flow<Int> = context.appSettingsDataStore.data.map { it[forceHostKey] ?: 0 }
     val needTrial: Flow<Boolean> = context.appSettingsDataStore.data.map { it[needTrialKey] ?: false }
     val preferredCodec: Flow<Int> = context.appSettingsDataStore.data.map { it[preferredCodecKey] ?: 2 }
-    val enableWebPlayback: Flow<Boolean> = context.appSettingsDataStore.data.map { it[enableWebPlaybackKey] ?: true }
+    val enableWebPlayback: Flow<Boolean> = context.appSettingsDataStore.data.map { it[enableWebPlaybackKey] ?: false }
 
     suspend fun updateEnableHdrAnd8k(enabled: Boolean) {
         context.appSettingsDataStore.edit { it[enableHdrAnd8kKey] = enabled }

@@ -67,24 +67,9 @@ enum class WatchLaterTab(
 
 @Immutable
 data class WatchLaterCursor(
-    val startKeyByTab: Map<WatchLaterTab, String> = emptyMap(),
+    val startKey: String = "",
     val splitKey: String = ""
-) {
-    fun startKey(tab: WatchLaterTab): String {
-        return startKeyByTab[tab].orEmpty()
-    }
-
-    fun next(
-        tab: WatchLaterTab,
-        nextKey: String,
-        nextSplitKey: String
-    ): WatchLaterCursor {
-        return copy(
-            startKeyByTab = startKeyByTab + (tab to nextKey),
-            splitKey = nextSplitKey
-        )
-    }
-}
+)
 
 @Immutable
 data class WatchLaterPage(
