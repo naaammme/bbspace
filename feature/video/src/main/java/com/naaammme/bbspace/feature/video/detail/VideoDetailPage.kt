@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -164,8 +165,9 @@ internal fun VideoDetailPage(
         PageSheet(
             pages = detail.pages,
             curCid = pageState.curCid,
-            onDismiss = {},
+            onDismiss = { sheetTp = null },
             onSwitchPage = { cid ->
+                sheetTp = null
                 onSwitchPage(cid)
             }
         )
@@ -745,7 +747,9 @@ private fun PageEntryCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val (title, subTitle, countText) = pageEntryText(pages, curCid)
+    val (title, subTitle, countText) = remember(pages, curCid) {
+        pageEntryText(pages, curCid)
+    }
 
     Card(
         onClick = onClick,
@@ -867,8 +871,9 @@ private fun PageSheet(
     onDismiss: () -> Unit,
     onSwitchPage: (Long) -> Unit
 ) {
+    val pageSheetUi = remember(pages) { buildPageSheetUi(pages) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val initIdx = remember(pages, curCid) { pageSheetIndex(pages, curCid) }
+    val initIdx = remember(pages, curCid) { pageSheetIndex(pageSheetUi, curCid) }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initIdx)
 
     ModalBottomSheet(
@@ -894,15 +899,13 @@ private fun PageSheet(
             }
 
             items(
-                items = pages,
-                key = { "page_${it.cid}" },
+                items = pageSheetUi.items,
+                key = { page -> "page_${page.cid}" },
                 contentType = { "page" }
             ) { page ->
                 PageSheetRow(
-                    title = pageTitle(pages, page),
-                    subTitle = page.durationSec.takeIf { it > 0L }?.let {
-                        formatDuration(it * 1000)
-                    },
+                    title = page.title,
+                    subTitle = page.subTitle,
                     selected = page.cid == curCid,
                     onClick = {
                         if (page.cid != curCid) {
@@ -1212,9 +1215,10 @@ private fun pageEntryText(
     pages: List<VideoPagePart>,
     curCid: Long?
 ): Triple<String, String, String> {
-    val curPage = pages.firstOrNull { it.cid == curCid }
+    val curIdx = curCid?.let { pages.indexOfFirst { it.cid == curCid } } ?: -1
+    val curPage = pages.getOrNull(curIdx)
     return Triple(
-        curPage?.let { pageTitle(pages, it) } ?: "查看分P列表",
+        if (curPage != null) buildPageTitle(curIdx, curPage.part) else "查看分P列表",
         curPage?.durationSec?.takeIf { it > 0L }?.let { formatDuration(it * 1000) }.orEmpty(),
         "${pages.size} 个分 P"
     )
@@ -1234,24 +1238,32 @@ private fun seasonSheetIndex(season: VideoSeason, curCid: Long?): Int {
 }
 
 private fun pageSheetIndex(
-    pages: List<VideoPagePart>,
+    pageSheetUi: PageSheetUi,
     curCid: Long?
 ): Int {
-    if (curCid == null) return 0
-    val pageIdx = pages.indexOfFirst { it.cid == curCid }
+    val pageIdx = curCid?.let { targetCid -> pageSheetUi.indexByCid[targetCid] } ?: -1
     return if (pageIdx >= 0) pageIdx + 1 else 0
 }
 
-private fun pageTitle(
-    pages: List<VideoPagePart>,
-    page: VideoPagePart
-): String {
-    val idx = pages.indexOfFirst { it.cid == page.cid }
-    return if (idx >= 0) {
-        "P${idx + 1} ${page.part}"
-    } else {
-        page.part
+private fun buildPageSheetUi(pages: List<VideoPagePart>): PageSheetUi {
+    val items = ArrayList<PageSheetItem>(pages.size)
+    val indexByCid = HashMap<Long, Int>(pages.size)
+    pages.forEachIndexed { index, page ->
+        items += PageSheetItem(
+            cid = page.cid,
+            title = buildPageTitle(index, page.part),
+            subTitle = page.durationSec.takeIf { it > 0L }?.let { formatDuration(it * 1000) }
+        )
+        indexByCid[page.cid] = index
     }
+    return PageSheetUi(
+        items = items,
+        indexByCid = indexByCid
+    )
+}
+
+private fun buildPageTitle(index: Int, part: String): String {
+    return "P${index + 1} $part"
 }
 
 private fun formatPubTime(ts: Long): String {
@@ -1272,3 +1284,16 @@ private fun VideoDetail.toSpaceRouteOrNull(): SpaceRoute? {
 private const val DETAIL_RELATE_SKELETON_COUNT = 2
 private const val SHEET_SEASON = "season"
 private const val SHEET_PAGE = "page"
+
+@Immutable
+private data class PageSheetUi(
+    val items: List<PageSheetItem>,
+    val indexByCid: Map<Long, Int>
+)
+
+@Immutable
+private data class PageSheetItem(
+    val cid: Long,
+    val title: String,
+    val subTitle: String?
+)

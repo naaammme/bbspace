@@ -81,7 +81,6 @@ internal fun DownloadPlayerPane(
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var dragPositionMs by remember { mutableStateOf<Long?>(null) }
-    var livePositionMs by remember(player) { mutableStateOf(0L) }
 
     LaunchedEffect(showControls, state.isPlaying, dragPositionMs, showSpeedDialog, showSettingsSheet) {
         if (showControls && state.isPlaying && dragPositionMs == null && !showSpeedDialog && !showSettingsSheet) {
@@ -90,21 +89,8 @@ internal fun DownloadPlayerPane(
         }
     }
 
-    LaunchedEffect(player, showControls, dragPositionMs, state.isPlaying, state.seekEventId) {
-        val currentPlayer = player
-        if (!showControls || dragPositionMs != null || currentPlayer == null) {
-            livePositionMs = state.positionMs
-            return@LaunchedEffect
-        }
-        do {
-            livePositionMs = currentPlayer.currentPosition.coerceAtLeast(0L)
-            if (!state.isPlaying) break
-            delay(200)
-        } while (showControls && dragPositionMs == null)
-    }
-
     val durationMs = player?.duration?.takeIf { it > 0L } ?: state.durationMs.coerceAtLeast(0L)
-    val barPositionMs = dragPositionMs ?: livePositionMs
+    val barPositionMs = dragPositionMs ?: state.positionMs.coerceAtLeast(0L)
     val sliderValue = if (durationMs > 0L) {
         (barPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
     } else {
