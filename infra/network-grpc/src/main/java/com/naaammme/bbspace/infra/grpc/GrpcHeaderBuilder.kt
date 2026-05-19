@@ -68,7 +68,7 @@ class GrpcHeaderBuilder @Inject constructor(
                 put("x-bili-mid", mid.toString())
             }
             put("x-bili-network-bin", Base64.encodeToString(metadataBuilder.buildNetwork(), Base64.NO_WRAP or Base64.NO_PADDING))
-            val ticket = ticketGenerator.getCachedTicket()
+            val ticket = ticketGenerator.getTicketForHeader(mid, accessKey)
             if (ticket.isNotEmpty()) {
                 put("x-bili-ticket", ticket)
             }

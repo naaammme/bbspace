@@ -55,7 +55,7 @@ class PrivacyViewModel @Inject constructor(
                 "sessionId" to cacheManager.sessionId,
                 "loginSessionId" to cacheManager.loginSessionId
             ),
-            ticketInfo = mapOf("ticket" to cacheManager.getCachedTicket()),
+            ticketInfo = cacheManager.getTicketInfo(),
             guestInfo = mapOf("guestId" to cacheManager.guestId),
             regionCode = cacheManager.getRegionCode(),
             hdInfo = mapOf(

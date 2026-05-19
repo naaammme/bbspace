@@ -90,30 +90,20 @@ class AuthRepoImpl @Inject constructor(
 
     override suspend fun pollQrCode(authCode: String): Result<Pair<Int, HdAccessGrant?>> = runCatching {
         val ts = System.currentTimeMillis() / 1000
+        val loginSessionId = cacheManager.loginSessionId
 
-        val deviceInfoJson = org.json.JSONObject().apply {
-            put("DeviceType", "Android")
-            put("Buvid", deviceIdentity.buvid)
-            put("fts", (System.currentTimeMillis() / 1000 - 30 * 24 * 3600).toString())
-            put("BuildHost", "android-build")
-            put("BuildDisplay", deviceIdentity.buildId)
-            put("BuildFingerprint", deviceIdentity.buildFingerprint)
-            put("BuildBrand", deviceIdentity.brand)
-            if (deviceIdentity.mac.isNotEmpty()) put("MAC", deviceIdentity.mac)
-            if (deviceIdentity.androidId.isNotEmpty()) put("AndroidID", deviceIdentity.androidId)
-        }.toString()
-
-        val (dt, _) = guestIdGenerator.generateDtAndDeviceInfo(deviceInfoJson)
-            ?: throw Exception("生成 dt 和 device_info 失败")
+        val (dt, deviceMeta) = guestIdGenerator.generateLoginDtAndDeviceMeta(loginSessionId)
+            ?: throw Exception("生成 dt 和 device_meta 失败")
 
         val json = restClient.postSignedRaw(
             url = "${BiliConstants.BASE_URL_PASSPORT}$QR_POLL_ENDPOINT",
             params = restParamBuilder.passport(BiliRestProfile.HD, ts) + mapOf(
                 "auth_code" to authCode,
                 "device_tourist_id" to cacheManager.guestId,
+                "device_meta" to deviceMeta,
                 "dt" to dt,
                 "extend" to "",
-                "login_session_id" to cacheManager.loginSessionId,
+                "login_session_id" to loginSessionId,
                 "spm_id" to "from_spmid"
             ),
             profile = BiliRestProfile.HD
@@ -161,8 +151,6 @@ class AuthRepoImpl @Inject constructor(
         authStore.clearCredential()
         authStore.clearUserInfo()
         cacheManager.clearSession()
-        cacheManager.clearTicketCache()
-        cacheManager.clearGuestCache()
         legalRegionCache.clear()
     }
 
@@ -256,6 +244,7 @@ class AuthRepoImpl @Inject constructor(
     ): Result<SmsCodeResult> = runCatching {
         val ts = System.currentTimeMillis() / 1000
         val loginSessionId = generateLoginSessionId()
+        cacheManager.saveSession(cacheManager.guestId, cacheManager.sessionId, loginSessionId)
 
         val params = restParamBuilder.passport(BiliRestProfile.SMS, ts) + buildMap {
             put("cid", cid.toString())
@@ -331,31 +320,21 @@ class AuthRepoImpl @Inject constructor(
         tel: String, cid: Int, code: String, captchaKey: String
     ): Result<LoginCredential> = runCatching {
         val ts = System.currentTimeMillis() / 1000
+        val loginSessionId = cacheManager.loginSessionId
 
-        val deviceInfoJson = org.json.JSONObject().apply {
-            put("DeviceType", "Android")
-            put("Buvid", deviceIdentity.buvid)
-            put("fts", (System.currentTimeMillis() / 1000 - 30 * 24 * 3600).toString())
-            put("BuildHost", "android-build")
-            put("BuildDisplay", deviceIdentity.buildId)
-            put("BuildFingerprint", deviceIdentity.buildFingerprint)
-            put("BuildBrand", deviceIdentity.brand)
-            if (deviceIdentity.mac.isNotEmpty()) put("MAC", deviceIdentity.mac)
-            if (deviceIdentity.androidId.isNotEmpty()) put("AndroidID", deviceIdentity.androidId)
-        }.toString()
-
-        val (dt, _) = guestIdGenerator.generateDtAndDeviceInfo(deviceInfoJson)
-            ?: throw Exception("生成 dt 失败")
+        val (dt, deviceMeta) = guestIdGenerator.generateLoginDtAndDeviceMeta(loginSessionId)
+            ?: throw Exception("生成 dt 和 device_meta 失败")
 
         val params = restParamBuilder.passport(BiliRestProfile.SMS, ts) + mapOf(
             "captcha_key" to captchaKey,
             "cid" to cid.toString(),
             "code" to code,
             "device_tourist_id" to cacheManager.guestId,
+            "device_meta" to deviceMeta,
             "dt" to dt,
             "from_pv" to "main.my-information.my-login.0.click",
             "from_url" to "bilibili://user_center/mine",
-            "login_session_id" to cacheManager.loginSessionId,
+            "login_session_id" to loginSessionId,
             "tel" to tel
         )
 
@@ -432,4 +411,5 @@ class AuthRepoImpl @Inject constructor(
         val md = MessageDigest.getInstance("MD5")
         return md.digest(input.toByteArray()).joinToString("") { "%02x".format(it) }
     }
+
 }

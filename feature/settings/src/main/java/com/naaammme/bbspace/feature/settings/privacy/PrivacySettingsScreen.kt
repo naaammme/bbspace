@@ -122,7 +122,7 @@ fun PrivacySettingsScreen(
 
             // Ticket 缓存
             item {
-                SectionTitle("Ticket 缓存 ")
+                SectionTitle("Ticket 缓存")
             }
             item {
                 val ticketEntries = state.ticketInfo.map { (k, v) ->

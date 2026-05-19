@@ -51,9 +51,8 @@ object AppSigner {
         val mutableParams = params.toMutableMap()
         mutableParams["appkey"] = appKey
 
-        // 过滤空值并按 key 排序
+        // 保留空值并按 key 排序，与官方签名行为一致
         val sortedParams = mutableParams
-            .filterValues { it.isNotEmpty() }
             .toSortedMap()
 
         // URL encode 拼接

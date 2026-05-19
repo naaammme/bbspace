@@ -40,7 +40,7 @@ class CacheManager @Inject constructor(
     }
 
     fun clearSession() {
-        guestIdGenerator.clearCache()
+        guestIdGenerator.clearSession()
         Logger.d(TAG) { "会话信息已清除" }
     }
 
@@ -63,14 +63,11 @@ class CacheManager @Inject constructor(
 
     // 缓存清理
 
-    fun clearTicketCache() {
-        ticketGenerator.clearCache()
-        Logger.d(TAG) { "Ticket 缓存已清除" }
-    }
+    fun getTicketInfo(): Map<String, String> = ticketGenerator.getTicketInfo()
 
-    fun clearGuestCache() {
-        guestIdGenerator.clearCache()
-        Logger.d(TAG) { "Guest 缓存已清除" }
+    fun clearTicketCache() {
+        ticketGenerator.clearCachedTicket()
+        Logger.d(TAG) { "Ticket 缓存已清除" }
     }
 
     fun clearRegionCache() {
@@ -98,15 +95,12 @@ class CacheManager @Inject constructor(
     fun clearAllCache() {
         clearSession()
         clearTicketCache()
-        clearGuestCache()
         clearRegionCache()
         clearDnsCache()
         clearColdStartCache()
         clearImageCache()
         Logger.d(TAG) { "所有缓存已清除" }
     }
-
-    fun getCachedTicket(): String = ticketGenerator.getCachedTicket()
 
     fun getRegionCode(): String = regionCodeCache.get()
 }

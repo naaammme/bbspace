@@ -90,7 +90,7 @@ class AppInitializer @Inject constructor(
                 appSettings.themeConfig.first()
                 appSettings.updateNeedTrial(false)
 
-                val ticket = ticketGenerator.getValidTicket() ?: ticketGenerator.getCachedTicket()
+                val ticket = ticketGenerator.getOrRefresh()
                 Logger.d(TAG) { "Ticket 初始化完成: ${if (ticket.isEmpty()) "空" else "已缓存"}" }
 
                 val remoteBuvid = buvidFetcher.fetchAndUpdate()

@@ -5,11 +5,12 @@ import android.util.Base64
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.core.common.log.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.security.KeyFactory
-import java.security.SecureRandom
 import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -18,7 +19,7 @@ import kotlin.random.Random
 
 /**
  * B站 GuestId 生成器
- * 实现完整的 AES + RSA 加密流程
+ * 这里顺带复用 passport 侧 dt 加密逻辑，但职责仍然以 guestid 流程为主
  */
 class GuestIdGenerator(
     private val context: Context,
@@ -26,240 +27,45 @@ class GuestIdGenerator(
 ) {
     companion object {
         private const val TAG = "GuestIdGenerator"
-
-        // 端点路径（就近定义，base URL 统一在 BiliConstants）
         private const val GET_KEY_ENDPOINT = "/x/passport-login/web/key"
         private const val GUEST_ID_ENDPOINT = "/x/passport-user/guest/reg"
         private const val MAX_ERROR_BODY_LOG_BYTES = 4_096L
-
-        // AES 加密使用的字符集
         private const val AES_LETTER = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     }
 
     private var rsaPublicKey: String? = null
-    private var keyHash: String? = null
+    @Volatile
+    private var loginDeviceMetaCache: CachedLoginDeviceMeta? = null
+    private val deviceInfoCollector = DeviceInfoCollector(context, deviceIdentity)
 
-    /**
-     * 生成随机密钥
-     */
-    private fun generateRandomKey(length: Int = 16): String {
-        return (1..length)
-            .map { AES_LETTER[Random.nextInt(AES_LETTER.length)] }
-            .joinToString("")
-    }
+    private data class CachedLoginDeviceMeta(
+        val sessionId: String,
+        val payload: Pair<String, String>
+    )
 
-    /**
-     * 生成 session_id
-     * 对应 DefaultApps 静态初始化块:
-     * byte[] bArr = new byte[4];
-     * new Random().nextBytes(bArr);
-     * f102791m = ByteString.of(bArr, 0, 4).hex();
-     *
-     * @return 8 位十六进制字符串（小写）
-     */
-    private fun generateSessionId(): String {
-        // 生成 4 个随机字节
-        val randomBytes = ByteArray(4)
-        SecureRandom().nextBytes(randomBytes)
+    suspend fun generateLoginDtAndDeviceMeta(loginSessionId: String): Pair<String, String>? {
+        loginDeviceMetaCache?.takeIf { it.sessionId == loginSessionId }?.let { return it.payload }
 
-        // 转换为十六进制字符串（小写）
-        return randomBytes.joinToString("") { "%02x".format(it) }
-    }
-
-    /**
-     * 字节数组转十六进制大写字符串
-     */
-    private fun bytesToHex(bytes: ByteArray): String {
-        return bytes.joinToString("") { "%02X".format(it) }
-    }
-
-    /**
-     * AES 加密
-     * 使用 AES/CBC/PKCS5Padding 模式
-     * IV 和 Key 相同
-     *
-     * @return Pair<密钥, 加密后的十六进制字符串>
-     */
-    private fun aesEncrypt(plainBytes: ByteArray): Pair<String, String> {
-        // 生成 16 位随机密钥
-        val key = generateRandomKey(16)
-        val keyBytes = key.toByteArray(Charsets.UTF_8)
-
-        // AES/CBC/PKCS5Padding 加密
-        // IV 和 Key 相同
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-        val secretKey = SecretKeySpec(keyBytes, "AES")
-        val ivSpec = IvParameterSpec(keyBytes)
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec)
-
-        val encrypted = cipher.doFinal(plainBytes)
-        val hexStr = bytesToHex(encrypted) // 转换为十六进制大写字符串
-
-        return Pair(key, hexStr)
-    }
-
-    /**
-     * RSA 加密
-     * 使用 RSA/ECB/PKCS1Padding 模式
-     *
-     * @param plainText 要加密的明文
-     * @param publicKeyStr Base64 编码的公钥（不含 PEM 头尾）
-     * @return Base64 编码的加密结果
-     */
-    private fun rsaEncrypt(plainText: String, publicKeyStr: String): String? {
-        try {
-            // 解码公钥
-            val publicKeyBytes = Base64.decode(publicKeyStr, Base64.NO_WRAP)
-
-            // 导入公钥
-            val keySpec = X509EncodedKeySpec(publicKeyBytes)
-            val keyFactory = KeyFactory.getInstance("RSA")
-            val publicKey = keyFactory.generatePublic(keySpec)
-
-            // RSA/ECB/PKCS1Padding 加密
-            val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
-            cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-            val encrypted = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
-
-            // Base64 编码flag=0 即 DEFAULT，会自动加换行符
-            return Base64.encodeToString(encrypted, Base64.DEFAULT)
-        } catch (e: Exception) {
-            Logger.e(TAG, e) { "RSA 加密失败" }
-            return null
+        return withContext(Dispatchers.IO) {
+            loginDeviceMetaCache?.takeIf { it.sessionId == loginSessionId }?.payload
+                ?: generateDtAndEncryptedPayload(deviceInfoCollector.buildLoginDeviceMetaJson())
+                    ?.also { loginDeviceMetaCache = CachedLoginDeviceMeta(loginSessionId, it) }
         }
     }
 
-    /**
-     * 获取 RSA 公钥
-     */
-    private suspend fun getRsaKey(): Boolean {
-        return try {
-            val url = "${BiliConstants.BASE_URL_PASSPORT}$GET_KEY_ENDPOINT"
-            val client = okhttp3.OkHttpClient()
-            val request = okhttp3.Request.Builder()
-                .url(url)
-                .get()
-                .build()
-
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val response = client.newCall(request).execute()
-                if (response.code == 200) {
-                    val json = JSONObject(response.body?.string() ?: "")
-                    if (json.getInt("code") == 0) {
-                        val data = json.getJSONObject("data")
-                        // 获取公钥，去除 PEM 头尾
-                        val key = data.getString("key")
-                        rsaPublicKey = key
-                            .replace("-----BEGIN PUBLIC KEY-----\n", "")
-                            .replace("\n-----END PUBLIC KEY-----\n", "")
-                            .replace("\n", "")
-                        keyHash = data.getString("hash")
-                        Logger.d(TAG) { "成功获取 RSA 公钥" }
-                        true
-                    } else {
-                        val msg = json.optString("message")
-                        Logger.e(TAG) { "获取 RSA 密钥失败: $msg" }
-                        false
-                    }
-                } else {
-                    Logger.e(TAG) { "HTTP 错误: ${response.code}" }
-                    false
-                }
-            }
-        } catch (e: Exception) {
-            Logger.e(TAG, e) { "获取 RSA 密钥异常" }
-            false
-        }
-    }
-
-    /**
-     * 生成设备信息参数
-     */
-    private fun generateDeviceInfo(appFirstRunTime: String): JSONObject {
-        return JSONObject().apply {
-            put("DeviceType", "Android")
-            put("Buvid", deviceIdentity.buvid)
-            put("fts", appFirstRunTime)
-            put("BuildHost", "android-build")
-            put("BuildDisplay", deviceIdentity.buildId)
-            put("BuildFingerprint", deviceIdentity.buildFingerprint)
-            put("BuildBrand", deviceIdentity.brand)
-
-            if (deviceIdentity.mac.isNotEmpty()) {
-                put("MAC", deviceIdentity.mac)
-            }
-            if (deviceIdentity.androidId.isNotEmpty()) {
-                put("AndroidID", deviceIdentity.androidId)
-            }
-        }
-    }
-
-    /**
-     * 生成 dt 和 device_info 参数对
-     * 用于 qrcode/poll 和 guest/reg 接口
-     *
-     * @param deviceInfoJson 设备信息 JSON 字符串
-     * @return Pair<dt, device_info>
-     */
-    suspend fun generateDtAndDeviceInfo(deviceInfoJson: String): Pair<String, String>? {
-        return try {
-            if (rsaPublicKey == null) {
-                if (!getRsaKey()) {
-                    Logger.e(TAG) { "无法获取 RSA 公钥" }
-                    return null
-                }
-            }
-
-            val (aesKey, encryptedDeviceInfo) = aesEncrypt(deviceInfoJson.toByteArray(Charsets.UTF_8))
-            val dtValue = rsaEncrypt(aesKey, rsaPublicKey!!)
-
-            if (dtValue == null) {
-                Logger.e(TAG) { "RSA 加密失败" }
-                return null
-            }
-
-            Pair(dtValue, encryptedDeviceInfo)
-        } catch (e: Exception) {
-            Logger.e(TAG, e) { "生成 dt 和 device_info 失败" }
-            null
-        }
-    }
-
-    /**
-     * 获取 guestid - 完整加密实现
-     *
-     * @return guestid (13位数字字符串) 或 null
-     */
     suspend fun getGuestId(ticket: String = ""): String? {
         return try {
             Logger.d(TAG) { "开始获取 guestid" }
 
-            if (rsaPublicKey == null) {
-                if (!getRsaKey()) {
-                    Logger.e(TAG) { "无法获取 RSA 公钥" }
-                    return null
-                }
-            }
-
-            val appFirstRunTime = System.currentTimeMillis().toString()
-            val deviceInfo = generateDeviceInfo(appFirstRunTime)
-
-            val deviceInfoJson = deviceInfo.toString()
-            Logger.d(TAG) { "设备信息: $deviceInfoJson" }
-
             val ts = (System.currentTimeMillis() / 1000).toString()
-
-            val (aesKey, encryptedDeviceInfo) = aesEncrypt(deviceInfoJson.toByteArray(Charsets.UTF_8))
-            Logger.d(TAG) { "AES Key: $aesKey" }
-            Logger.d(TAG) { "Encrypted device_info (Hex): ${encryptedDeviceInfo.take(50)}..." }
-
-            val dtValue = rsaEncrypt(aesKey, rsaPublicKey!!)
-            if (dtValue == null) {
-                Logger.e(TAG) { "RSA 加密失败" }
+            val deviceInfoJson = deviceInfoCollector.buildGuestDeviceInfoJson()
+            Logger.d(TAG) { "设备信息: $deviceInfoJson" }
+            val payload = generateDtAndEncryptedPayload(deviceInfoJson) ?: run {
+                Logger.e(TAG) { "生成 guest device_info 失败" }
                 return null
             }
+            val (dtValue, encryptedDeviceInfo) = payload
             Logger.d(TAG) { "dt (RSA Base64): ${dtValue.take(50)}..." }
-
             Logger.d(TAG) { "device_info (Hex): ${encryptedDeviceInfo.take(50)}..." }
 
             val params = mapOf(
@@ -307,7 +113,7 @@ class GuestIdGenerator(
                 .addHeader("accept-encoding", "gzip")
                 .build()
 
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 val response = client.newCall(request).execute()
                 Logger.d(TAG) { "服务器响应状态: ${response.code}" }
 
@@ -339,7 +145,7 @@ class GuestIdGenerator(
             null
         }
     }
-
+    
     /**
      * 获取或生成 guestid（永久缓存）
      * guestId 应该永久保存，除非重新安装应用
@@ -368,11 +174,13 @@ class GuestIdGenerator(
         return fallback
     }
 
-    fun clearCache() {
-        context.getSharedPreferences("guest_info", Context.MODE_PRIVATE)
-            .edit().clear().apply()
+    fun clearSession() {
+        context.getSharedPreferences("guest_info", Context.MODE_PRIVATE).edit()
+            .remove("session_id")
+            .remove("login_session_id")
+            .apply()
+        loginDeviceMetaCache = null
     }
-
 
     fun getCachedGuestId(): String {
         return context.getSharedPreferences("guest_info", Context.MODE_PRIVATE)
@@ -406,5 +214,95 @@ class GuestIdGenerator(
 
     fun generateNewLoginSessionId(): String {
         return java.util.UUID.randomUUID().toString().replace("-", "")
+    }
+
+    private suspend fun generateDtAndEncryptedPayload(payloadJson: String): Pair<String, String>? {
+        return try {
+            if (rsaPublicKey == null && !getRsaKey()) {
+                Logger.e(TAG) { "无法获取 RSA 公钥" }
+                return null
+            }
+
+            val (aesKey, encryptedPayload) = aesEncrypt(payloadJson.toByteArray(Charsets.UTF_8))
+            val dtValue = rsaEncrypt(aesKey, rsaPublicKey!!) ?: run {
+                Logger.e(TAG) { "RSA 加密失败" }
+                return null
+            }
+
+            dtValue to encryptedPayload
+        } catch (e: Exception) {
+            Logger.e(TAG, e) { "生成 dt 和设备载荷失败" }
+            null
+        }
+    }
+
+    private suspend fun getRsaKey(): Boolean {
+        return try {
+            val url = "${BiliConstants.BASE_URL_PASSPORT}$GET_KEY_ENDPOINT"
+            val client = okhttp3.OkHttpClient()
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            withContext(Dispatchers.IO) {
+                val response = client.newCall(request).execute()
+                if (response.code == 200) {
+                    val json = JSONObject(response.body?.string() ?: "")
+                    if (json.getInt("code") == 0) {
+                        val data = json.getJSONObject("data")
+                        val key = data.getString("key")
+                        rsaPublicKey = key
+                            .replace("-----BEGIN PUBLIC KEY-----\n", "")
+                            .replace("\n-----END PUBLIC KEY-----\n", "")
+                            .replace("\n", "")
+                        Logger.d(TAG) { "成功获取 RSA 公钥" }
+                        true
+                    } else {
+                        val msg = json.optString("message")
+                        Logger.e(TAG) { "获取 RSA 密钥失败: $msg" }
+                        false
+                    }
+                } else {
+                    Logger.e(TAG) { "HTTP 错误: ${response.code}" }
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, e) { "获取 RSA 密钥异常" }
+            false
+        }
+    }
+
+    private fun aesEncrypt(plainBytes: ByteArray): Pair<String, String> {
+        val key = generateRandomKey(16)
+        val keyBytes = key.toByteArray(Charsets.UTF_8)
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        val secretKey = SecretKeySpec(keyBytes, "AES")
+        val ivSpec = IvParameterSpec(keyBytes)
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec)
+        val encrypted = cipher.doFinal(plainBytes)
+        return key to encrypted.joinToString("") { "%02X".format(it) }
+    }
+
+    private fun rsaEncrypt(plainText: String, publicKeyStr: String): String? {
+        return try {
+            val publicKeyBytes = Base64.decode(publicKeyStr, Base64.NO_WRAP)
+            val keySpec = X509EncodedKeySpec(publicKeyBytes)
+            val keyFactory = KeyFactory.getInstance("RSA")
+            val publicKey = keyFactory.generatePublic(keySpec)
+            val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
+            cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+            Base64.encodeToString(cipher.doFinal(plainText.toByteArray(Charsets.UTF_8)), Base64.DEFAULT)
+        } catch (e: Exception) {
+            Logger.e(TAG, e) { "RSA 加密失败" }
+            null
+        }
+    }
+
+    private fun generateRandomKey(length: Int = 16): String {
+        return (1..length)
+            .map { AES_LETTER[Random.nextInt(AES_LETTER.length)] }
+            .joinToString("")
     }
 }
