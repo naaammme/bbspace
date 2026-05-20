@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
@@ -26,11 +27,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-@UnstableApi
+@OptIn(UnstableApi::class)
 class PlaybackService : Service() {
     @Inject
     lateinit var playbackSession: StreamPlaybackSession
@@ -55,7 +55,7 @@ class PlaybackService : Service() {
                 playbackSession.currentTarget,
                 playbackSession.pageMeta,
                 playbackSession.liveState
-            ) { _, _, _, _ -> Unit }.collect {
+            ) { _, _, _, _ -> }.collect {
                 mediaSession?.setSessionActivity(createContentIntent())
                 updateActionMode()
                 notificationManager?.invalidate()
@@ -63,6 +63,7 @@ class PlaybackService : Service() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
@@ -175,7 +176,7 @@ class PlaybackService : Service() {
             return text.takeIf { it.isNotBlank() }
         }
 
-        override fun getCurrentSubText(player: Player): CharSequence? {
+        override fun getCurrentSubText(player: Player): CharSequence {
             return currentSubText()
         }
 
@@ -244,12 +245,10 @@ class PlaybackService : Service() {
     }
 
     private fun currentTitle(): String {
-        when (val target = playbackSession.currentTarget.value) {
-            is StreamPlaybackTarget.Live -> {
-                return target.route.title?.takeIf(String::isNotBlank)
-                    ?: "直播间 ${target.route.roomId}"
-            }
-            is StreamPlaybackTarget.Video, null -> Unit
+        val liveTarget = playbackSession.currentTarget.value as? StreamPlaybackTarget.Live
+        if (liveTarget != null) {
+            return liveTarget.route.title?.takeIf(String::isNotBlank)
+                ?: "直播间 ${liveTarget.route.roomId}"
         }
         playerEngine.player.value
             ?.currentMediaItem

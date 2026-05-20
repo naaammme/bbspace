@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.playback
 
+import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -11,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.SpaceRoute
@@ -23,6 +25,7 @@ import com.naaammme.bbspace.feature.video.VideoScreen
 import com.naaammme.bbspace.feature.video.VideoViewModel
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 
+@OptIn(UnstableApi::class)
 @Composable
 fun PlaybackHost(
     mode: PlaybackHostMode,
@@ -42,7 +45,7 @@ fun PlaybackHost(
     onStartDownload: (VideoDownloadRequest) -> Unit,
     videoViewModel: VideoViewModel,
     liveViewModel: LiveViewModel,
-    miniPlayerModifier: Modifier = Modifier
+    modifier: Modifier = Modifier
 ) {
     val procOwner = remember { ProcessLifecycleOwner.get() }
     DisposableEffect(procOwner, target, backgroundPlaybackEnabled) {
@@ -108,7 +111,7 @@ fun PlaybackHost(
             target != null
         ) {
             DraggableMiniPlayerHost(
-                modifier = miniPlayerModifier
+                modifier = modifier
             ) {
                 InAppMiniPlayer(
                     player = player,

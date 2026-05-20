@@ -289,7 +289,7 @@ fun AppNavHost(themeConfig: ThemeConfig = ThemeConfig()) {
             onStartDownload = downloadViewModel::enqueueDownload,
             videoViewModel = videoViewModel,
             liveViewModel = liveViewModel,
-            miniPlayerModifier = Modifier.align(Alignment.BottomEnd)
+            modifier = Modifier.align(Alignment.BottomEnd)
         )
     }
 }
