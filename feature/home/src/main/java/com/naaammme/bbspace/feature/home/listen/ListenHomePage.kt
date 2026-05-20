@@ -42,7 +42,7 @@ fun ListenHomePage(
         modifier = Modifier.fillMaxSize(),
         errorMessage = state.errorMessage,
         loadMoreEnabled = state.hasMore,
-        key = { index, item -> "${item.oid}_${item.itemType}_$index" },
+        key = { _, item -> item.actionKey() },
         loadingContent = {
             VideoGridCardSkeleton()
         }
@@ -52,6 +52,10 @@ fun ListenHomePage(
             onClick = { onItemClick(item) }
         )
     }
+}
+
+private fun ListenItem.actionKey(): String {
+    return "${oid}_${itemType}_${subId}"
 }
 
 @Composable

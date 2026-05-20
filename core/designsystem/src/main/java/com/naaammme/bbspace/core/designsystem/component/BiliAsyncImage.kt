@@ -9,6 +9,7 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.naaammme.bbspace.core.common.media.BILI_IMAGE_DEFAULT_Q
+import com.naaammme.bbspace.core.common.media.coverThumbnailUrl
 import com.naaammme.bbspace.core.common.media.originImageUrl
 import com.naaammme.bbspace.core.common.media.thumbnailUrl
 
@@ -31,10 +32,10 @@ fun rememberBiliImageRequest(
     if (url.isNullOrBlank()) return null
     val context = LocalContext.current
     return remember(context, url, variant) {
-        val resolvedUrl = if (variant.original) {
-            originImageUrl(url)
-        } else {
-            thumbnailUrl(url, variant.q)
+        val resolvedUrl = when {
+            variant.original -> originImageUrl(url)
+            variant == BiliImageVariant.CardCover -> coverThumbnailUrl(url)
+            else -> thumbnailUrl(url, variant.q)
         }
         ImageRequest.Builder(context)
             .data(resolvedUrl)

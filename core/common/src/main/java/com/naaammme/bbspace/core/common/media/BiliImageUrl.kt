@@ -6,6 +6,16 @@ private val thumbReg = Regex(
 )
 
 const val BILI_IMAGE_DEFAULT_Q = 15
+private const val COVER_IMAGE_SUFFIX = "@575w_360h_1e_1c_85q.avif"
+
+fun coverThumbnailUrl(src: String?): String? {
+    if (src.isNullOrBlank()) return src
+    val url = src.toHttps()
+    val queryIdx = url.indexOf('?')
+    val body = if (queryIdx >= 0) url.substring(0, queryIdx) else url
+    val query = if (queryIdx >= 0) url.substring(queryIdx) else ""
+    return body.substringBefore('@') + COVER_IMAGE_SUFFIX + query
+}
 
 fun thumbnailUrl(src: String?, q: Int = BILI_IMAGE_DEFAULT_Q): String? {
     if (src.isNullOrBlank()) return src

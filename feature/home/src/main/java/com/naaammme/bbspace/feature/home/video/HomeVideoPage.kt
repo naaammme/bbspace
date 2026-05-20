@@ -80,7 +80,8 @@ fun HomeVideoPage(
         onLoadMore = onLoadMore,
         modifier = Modifier.fillMaxSize(),
         errorMessage = errorMessage,
-        key = { index, item -> "${item.idx}_$index" },
+        scrollToTopOnRefresh = true,
+        key = { _, item -> item.actionKey() },
         contentType = { _, item -> item.cardType },
         loadingContent = {
             VideoGridCardSkeleton()

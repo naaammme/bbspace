@@ -21,8 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -55,6 +55,7 @@ fun <T> AdaptiveMediaGrid(
     modifier: Modifier = Modifier,
     errorMessage: String? = null,
     loadMoreEnabled: Boolean = true,
+    scrollToTopOnRefresh: Boolean = false,
     columns: Int = rememberAdaptiveGridColumnCount(),
     loadingPlaceholderCount: Int = 10,
     horizontalSpacing: Dp = 6.dp,
@@ -89,6 +90,14 @@ fun <T> AdaptiveMediaGrid(
     LaunchedEffect(shouldLoadMore, loadMoreEnabled, isRefreshing, isLoadingMore) {
         if (loadMoreEnabled && shouldLoadMore && !isRefreshing && !isLoadingMore) {
             onLoadMore()
+        }
+    }
+
+    if (scrollToTopOnRefresh) {
+        LaunchedEffect(isRefreshing) {
+            if (!isRefreshing && items.isNotEmpty()) {
+                gridState.scrollToItem(0)
+            }
         }
     }
 

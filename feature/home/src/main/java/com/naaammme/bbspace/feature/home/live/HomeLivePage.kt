@@ -57,7 +57,7 @@ fun HomeLivePage(
         modifier = Modifier.fillMaxSize(),
         errorMessage = state.errorMessage,
         loadMoreEnabled = isActive,
-        key = { index, item -> "${item.roomId}_${item.sessionId ?: index}" },
+        key = { _, item -> item.actionKey() },
         loadingContent = {
             VideoGridCardSkeleton()
         },
@@ -85,6 +85,10 @@ fun HomeLivePage(
             onOpenSpace = onOpenSpace
         )
     }
+}
+
+private fun LiveRecommendItem.actionKey(): String {
+    return "${roomId}_${sessionId.orEmpty()}"
 }
 
 @Composable
