@@ -27,6 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
+import com.naaammme.bbspace.core.model.FavoriteContentTarget
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
@@ -45,6 +46,8 @@ import com.naaammme.bbspace.feature.bbspace.navigation.bbSpaceScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.navigateToBbSpace
 import com.naaammme.bbspace.feature.download.navigation.downloadScreen
 import com.naaammme.bbspace.feature.download.navigation.navigateToDownload
+import com.naaammme.bbspace.feature.favorite.navigation.favoriteScreen
+import com.naaammme.bbspace.feature.favorite.navigation.navigateToFavorite
 import com.naaammme.bbspace.feature.history.navigation.historyScreen
 import com.naaammme.bbspace.feature.history.navigation.navigateToHistory
 import com.naaammme.bbspace.feature.history.navigation.navigateToWatchLater
@@ -196,6 +199,7 @@ fun AppNavHost(
                     onNavigateFromUser = { dest ->
                         when (dest) {
                             UserDest.History -> rootNavController.navigateToHistory()
+                            UserDest.Favorite -> rootNavController.navigateToFavorite()
                             UserDest.WatchLater -> rootNavController.navigateToWatchLater()
                         }
                     },
@@ -250,6 +254,17 @@ fun AppNavHost(
             watchLaterScreen(
                 onBack = { rootNavController.popBackStack() },
                 onOpenVideo = openVideo
+            )
+            favoriteScreen(
+                onBack = { rootNavController.popBackStack() },
+                onOpenContent = { target ->
+                    when (target) {
+                        is FavoriteContentTarget.Video -> openVideo(target.target)
+                        is FavoriteContentTarget.DynamicDetail -> {
+                            rootNavController.navigateToDynamicDetail(target.opusId)
+                        }
+                    }
+                }
             )
             composable(HOME_INTEREST_ROUTE) {
                 InterestScreen(onBack = { rootNavController.popBackStack() })

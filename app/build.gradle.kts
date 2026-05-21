@@ -100,6 +100,7 @@ dependencies {
     implementation(project(":feature:settings"))
     implementation(project(":feature:bbspace"))
     implementation(project(":feature:history"))
+    implementation(project(":feature:favorite"))
     implementation(project(":feature:comment"))
     implementation(project(":feature:video"))
     implementation(project(":feature:live"))

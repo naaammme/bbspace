@@ -29,10 +29,9 @@ import com.naaammme.bbspace.feature.user.profile.UserProfileSection
 
 enum class UserDest {
     History,
+    Favorite,
     WatchLater
 }
-
-fun ((UserDest) -> Unit).navigate(dest: UserDest): () -> Unit = { invoke(dest) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

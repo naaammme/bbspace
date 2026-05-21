@@ -26,7 +26,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.feature.user.UserDest
-import com.naaammme.bbspace.feature.user.navigate
 
 @Composable
 fun UserEntrySection(
@@ -60,9 +59,9 @@ private fun FeatureEntryRow(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             FeatureEntry(Icons.Default.Refresh, "离线缓存", onClick = onNavigateToDownload)
-            FeatureEntry(Icons.Default.DateRange, "历史记录", onClick = onNavigate.navigate(UserDest.History))
-            FeatureEntry(Icons.Default.FavoriteBorder, "收藏")
-            FeatureEntry(Icons.Default.Star, "稍后再看", onClick = onNavigate.navigate(UserDest.WatchLater))
+            FeatureEntry(Icons.Default.DateRange, "历史记录", onClick = { onNavigate(UserDest.History) })
+            FeatureEntry(Icons.Default.FavoriteBorder, "收藏", onClick = { onNavigate(UserDest.Favorite) })
+            FeatureEntry(Icons.Default.Star, "稍后再看", onClick = { onNavigate(UserDest.WatchLater) })
         }
     }
 }
@@ -98,16 +97,13 @@ private fun BbSpaceEntryCard(onClick: () -> Unit) {
 private fun FeatureEntry(
     icon: ImageVector,
     label: String,
-    onClick: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
-    val clickModifier = if (onClick == null) {
-        Modifier
-    } else {
-        Modifier.clickable(onClick = onClick)
-    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = clickModifier.padding(horizontal = 8.dp)
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp)
     ) {
         Icon(
             imageVector = icon,

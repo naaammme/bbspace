@@ -11,6 +11,7 @@ import com.naaammme.bbspace.core.data.repository.ArticleRecommendRepoImpl
 import com.naaammme.bbspace.core.data.repository.CommentRepoImpl
 import com.naaammme.bbspace.core.data.repository.DynamicRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedDislikeRepoImpl
+import com.naaammme.bbspace.core.data.repository.FavoriteRepoImpl
 import com.naaammme.bbspace.core.data.repository.FeedRepoImpl
 import com.naaammme.bbspace.core.data.repository.HistoryRepoImpl
 import com.naaammme.bbspace.core.data.repository.LiveRecommendRepoImpl
@@ -31,6 +32,7 @@ import com.naaammme.bbspace.core.domain.comment.CommentRepository
 import com.naaammme.bbspace.core.domain.dynamic.DynamicRepository
 import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
 import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
+import com.naaammme.bbspace.core.domain.favorite.FavoriteRepository
 import com.naaammme.bbspace.core.domain.feed.FeedRepository
 import com.naaammme.bbspace.core.domain.feed.FeedDislikeRepository
 import com.naaammme.bbspace.core.domain.history.HistoryRepository
@@ -80,6 +82,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindFeedDislikeRepo(impl: FeedDislikeRepoImpl): FeedDislikeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFavoriteRepo(impl: FavoriteRepoImpl): FavoriteRepository
 
     @Binds
     @Singleton
