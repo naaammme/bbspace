@@ -71,5 +71,7 @@ data class ImMessage(
     val imageHeight: Int = 0,
     val timestampSec: Long,
     val isSelf: Boolean,
-    val isRecalled: Boolean
+    val isRecalled: Boolean,
+    val shareCoverUrl: String? = null,
+    val shareViewCount: Long = 0L
 )

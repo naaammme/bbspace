@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.BiliImageVariant
+import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.model.ImMessage
 import com.naaammme.bbspace.core.model.ImMsgType
 import java.time.Instant
@@ -169,7 +171,7 @@ private fun ImMessageBubble(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isSelf) Alignment.End else Alignment.Start
     ) {
-        if (message.isSelf) {
+        if (!message.shareCoverUrl.isNullOrBlank() || message.isSelf) {
             MessageContent(item = item)
         } else {
             Row(
@@ -198,49 +200,96 @@ private fun MessageContent(item: ConversationMessageItem) {
     Column(
         horizontalAlignment = if (message.isSelf) Alignment.End else Alignment.Start
     ) {
-        if (!message.imageUrl.isNullOrBlank()) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier
-                    .widthIn(max = 220.dp)
-            ) {
-                Box(modifier = Modifier.aspectRatio(item.imageRatio)) {
-                    BiliAsyncImage(
-                        url = message.imageUrl,
-                        contentDescription = "图片消息",
-                        modifier = Modifier.fillMaxSize(),
-                        variant = BiliImageVariant.PreviewThumb,
-                        contentScale = ContentScale.Fit
-                    )
-                    MessageTimeChip(
-                        text = item.timeText,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 6.dp, bottom = 4.dp)
-                    )
+        when {
+            !message.shareCoverUrl.isNullOrBlank() -> {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.widthIn(max = 220.dp)
+                ) {
+                    val bodyColor = MaterialTheme.colorScheme.onSurface
+                    val timeColor = bodyColor.copy(alpha = 0.58f)
+                    Column {
+                        CoverImage(
+                            url = message.shareCoverUrl,
+                            contentDescription = message.content.ifBlank { "视频卡片" },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                        ) {
+                            MessageTimeChip(
+                                text = item.timeText,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(end = 6.dp, bottom = 4.dp)
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = message.content.ifBlank { "视频卡片" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = bodyColor,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${message.shareViewCount.formatCount()} 播放",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = timeColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
-        } else {
-            Surface(
-                color = if (message.isSelf) {
+
+            !message.imageUrl.isNullOrBlank() -> {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .widthIn(max = 220.dp)
+                ) {
+                    Box(modifier = Modifier.aspectRatio(item.imageRatio)) {
+                        BiliAsyncImage(
+                            url = message.imageUrl,
+                            contentDescription = "图片消息",
+                            modifier = Modifier.fillMaxSize(),
+                            variant = BiliImageVariant.PreviewThumb,
+                            contentScale = ContentScale.Fit
+                        )
+                        MessageTimeChip(
+                            text = item.timeText,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 6.dp, bottom = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                val surfaceColor = if (message.isSelf) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
                     MaterialTheme.colorScheme.surfaceContainerLow
-                },
-                shape = MaterialTheme.shapes.medium
-            ) {
+                }
                 val bodyColor = if (message.isSelf) {
                     MaterialTheme.colorScheme.onPrimaryContainer
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 }
                 val timeColor = bodyColor.copy(alpha = 0.58f)
-                val timeFontSize = MaterialTheme.typography.labelSmall.fontSize
-                val text = remember(item.displayText, item.timeText, timeColor, timeFontSize) {
-                    if (item.timeText.isEmpty()) {
-                        buildAnnotatedString { append(item.displayText) }
-                    } else {
+                Surface(
+                    color = surfaceColor,
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    val timeFontSize = MaterialTheme.typography.labelSmall.fontSize
+                    val text = remember(item.displayText, item.timeText, timeColor, timeFontSize) {
                         buildAnnotatedString {
                             append(item.displayText)
                             append(" ")
@@ -254,13 +303,13 @@ private fun MessageContent(item: ConversationMessageItem) {
                             }
                         }
                     }
+                    Text(
+                        text = text,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = bodyColor
+                    )
                 }
-                Text(
-                    text = text,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = bodyColor
-                )
             }
         }
     }
@@ -305,19 +354,22 @@ private fun List<ImMessage>.toConversationMessageItems(): List<ConversationMessa
             displayText = message.displayText(),
             timeText = formatMessageTime(message.timestampSec),
             imageRatio = message.imageRatio(),
-            contentType = if (message.imageUrl.isNullOrBlank()) CONTENT_TYPE_TEXT else CONTENT_TYPE_IMAGE
+            contentType = when {
+                !message.shareCoverUrl.isNullOrBlank() -> CONTENT_TYPE_SHARE
+                !message.imageUrl.isNullOrBlank() -> CONTENT_TYPE_IMAGE
+                else -> CONTENT_TYPE_TEXT
+            }
         )
     }
 }
 
 private fun ImMessage.displayText(): String {
     if (isRecalled) return "消息已撤回"
-    return content.ifBlank {
-        when (msgType) {
-            ImMsgType.IMAGE -> "[图片]"
-            in ImMsgType.SHARE_TYPES -> "[分享]"
-            else -> "[暂不支持的消息类型 $msgType]"
-        }
+    content.takeIf(String::isNotBlank)?.let { return it }
+    return when (msgType) {
+        ImMsgType.IMAGE -> "[图片]"
+        in ImMsgType.SHARE_TYPES -> "[分享]"
+        else -> "[暂不支持的消息类型 $msgType]"
     }
 }
 
@@ -335,6 +387,22 @@ private fun formatMessageTime(timestampSec: Long): String {
 
 private val MESSAGE_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
+private fun Long.formatCount(): String {
+    return when {
+        this >= 100_000_000L -> formatDecimal(this / 100_000_000f, "亿")
+        this >= 10_000L -> formatDecimal(this / 10_000f, "万")
+        else -> toString()
+    }
+}
+
+private fun formatDecimal(value: Float, suffix: String): String {
+    val text = String.format(java.util.Locale.ROOT, "%.1f", value)
+        .trimEnd('0')
+        .trimEnd('.')
+    return "$text$suffix"
+}
+
+private const val CONTENT_TYPE_SHARE = "share"
 private const val CONTENT_TYPE_TEXT = "text"
 private const val CONTENT_TYPE_IMAGE = "image"
 

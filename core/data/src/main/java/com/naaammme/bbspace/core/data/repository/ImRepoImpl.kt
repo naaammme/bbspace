@@ -275,7 +275,9 @@ class ImRepoImpl @Inject constructor(
             imageHeight = content.imageHeight,
             timestampSec = msg.timestamp,
             isSelf = senderUid == authProvider.mid,
-            isRecalled = msg.sysCancel || msg.msgStatus == RECALL_MSG_STATUS
+            isRecalled = msg.sysCancel || msg.msgStatus == RECALL_MSG_STATUS,
+            shareCoverUrl = content.shareCoverUrl,
+            shareViewCount = content.shareViewCount
         )
     }
 
@@ -285,6 +287,7 @@ class ImRepoImpl @Inject constructor(
         return when (msgType) {
             ImMsgType.TEXT -> ImMessageContent(content.readJsonString("content"))
             ImMsgType.IMAGE -> content.readImageContent()
+            in ImMsgType.SHARE_TYPES -> content.readVideoCardContent()
             else -> ImMessageContent("")
         }
     }
@@ -325,6 +328,29 @@ class ImRepoImpl @Inject constructor(
         )
     }
 
+    private fun String.readVideoCardContent(): ImMessageContent {
+        var title = ""
+        var coverUrl: String? = null
+        var viewCount = 0L
+        JsonReader(StringReader(this)).use { reader ->
+            reader.beginObject()
+            while (reader.hasNext()) {
+                when (reader.nextName()) {
+                    "title" -> title = reader.nextString()
+                    "cover" -> coverUrl = reader.nextString().takeIf(String::isNotBlank)?.replace("http://", "https://")
+                    "view" -> viewCount = reader.nextLong()
+                    else -> reader.skipValue()
+                }
+            }
+            reader.endObject()
+        }
+        return ImMessageContent(
+            text = title,
+            shareCoverUrl = coverUrl,
+            shareViewCount = viewCount
+        )
+    }
+
     private fun buildTextContent(text: String): String {
         return JSONObject()
             .put("content", text)
@@ -346,7 +372,9 @@ class ImRepoImpl @Inject constructor(
         val text: String,
         val imageUrl: String? = null,
         val imageWidth: Int = 0,
-        val imageHeight: Int = 0
+        val imageHeight: Int = 0,
+        val shareCoverUrl: String? = null,
+        val shareViewCount: Long = 0L
     )
 
     private fun RspSessionMsg.toMessages(): List<ImMessage> {
