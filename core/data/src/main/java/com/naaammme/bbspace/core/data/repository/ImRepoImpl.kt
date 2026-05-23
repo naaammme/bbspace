@@ -1,5 +1,8 @@
 package com.naaammme.bbspace.core.data.repository
 
+import android.content.Context
+import android.util.JsonReader
+import androidx.core.content.edit
 import com.bapis.bilibili.app.im.v1.MsgSummary
 import com.bapis.bilibili.app.im.v1.Offset
 import com.bapis.bilibili.app.im.v1.PaginationParams
@@ -15,21 +18,36 @@ import com.bapis.bilibili.app.im.v1.Unread
 import com.bapis.bilibili.app.im.v1.UnreadStyle
 import com.bapis.bilibili.dagw.component.avatar.common.ResourceSource
 import com.bapis.bilibili.dagw.component.avatar.v1.AvatarItem
+import com.bapis.bilibili.im.interfaces.v1.ReqSessionMsg
+import com.bapis.bilibili.im.interfaces.v1.ReqUpdateAck
+import com.bapis.bilibili.im.interfaces.v1.RspSessionMsg
+import com.bapis.bilibili.im.type.Msg
+import com.google.protobuf.MessageLite
+import com.google.protobuf.Parser
+import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.domain.ImRepository
+import com.naaammme.bbspace.core.model.ImConversationPage
+import com.naaammme.bbspace.core.model.ImMessage
 import com.naaammme.bbspace.core.model.ImPage
 import com.naaammme.bbspace.core.model.ImPaginationOffset
 import com.naaammme.bbspace.core.model.ImPaginationParams
+import com.naaammme.bbspace.core.model.ImMsgType
 import com.naaammme.bbspace.core.model.ImSessionItem
 import com.naaammme.bbspace.core.model.ImSessionTab
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.StringReader
+import java.util.UUID
 
 @Singleton
 class ImRepoImpl @Inject constructor(
-    private val grpcClient: BiliGrpcClient
+    @param:ApplicationContext private val context: Context,
+    private val grpcClient: BiliGrpcClient,
+    private val authProvider: AuthProvider
 ) : ImRepository {
 
     override suspend fun fetchSessions(
@@ -38,81 +56,150 @@ class ImRepoImpl @Inject constructor(
     ): ImPage {
         return when (tab) {
             ImSessionTab.DEFAULT,
-            ImSessionTab.FOLLOW -> fetchMain(tab, paginationParams)
-            ImSessionTab.STRANGER -> fetchSecondary(tab, paginationParams)
+            ImSessionTab.FOLLOW -> fetchSessionPage(
+                tab = tab,
+                endpoint = MAIN_ENDPOINT,
+                requestBytes = SessionMainReq.newBuilder()
+                    .setFilterType(tab.toFilterType())
+                    .apply {
+                        paginationParams?.toProto()?.let(::setPaginationParams)
+                    }
+                    .build()
+                    .toByteArray(),
+                parser = SessionMainReply.parser(),
+                pagination = { it.paginationParams },
+                sessions = { it.sessionsList }
+            )
+            ImSessionTab.STRANGER -> fetchSessionPage(
+                tab = tab,
+                endpoint = SECONDARY_ENDPOINT,
+                requestBytes = SessionSecondaryReq.newBuilder()
+                    .setPageType(tab.toPageType())
+                    .apply {
+                        paginationParams?.toProto()?.let(::setPaginationParams)
+                    }
+                    .build()
+                    .toByteArray(),
+                parser = SessionSecondaryReply.parser(),
+                pagination = { it.paginationParams },
+                sessions = { it.sessionsList }
+            )
         }
     }
 
-    private suspend fun fetchMain(
+    override suspend fun fetchConversation(
+        talkerId: Long,
+        sessionType: Int
+    ): ImConversationPage {
+        val reply = fetchSessionMsgs(
+            talkerId = talkerId,
+            sessionType = sessionType,
+            beginSeqNo = null,
+            endSeqNo = null,
+            size = DEFAULT_PAGE_SIZE,
+            order = ORDER_DESC
+        )
+        return withContext(Dispatchers.Default) {
+            reply.toConversationPage()
+        }
+    }
+
+    override suspend fun fetchOlderMessages(
+        talkerId: Long,
+        sessionType: Int,
+        beforeSeqNo: Long,
+        size: Int
+    ): ImConversationPage {
+        val reply = fetchSessionMsgs(
+            talkerId = talkerId,
+            sessionType = sessionType,
+            beginSeqNo = 0L,
+            endSeqNo = beforeSeqNo,
+            size = size,
+            order = ORDER_DESC
+        )
+        return withContext(Dispatchers.Default) {
+            reply.toConversationPage()
+        }
+    }
+
+    override suspend fun updateAck(
+        talkerId: Long,
+        sessionType: Int,
+        ackSeqNo: Long
+    ) {
+        if (ackSeqNo <= 0L) return
+        grpcClient.call(
+            endpoint = UPDATE_ACK_ENDPOINT,
+            requestBytes = ReqUpdateAck.newBuilder()
+                .setTalkerId(talkerId)
+                .setSessionType(sessionType)
+                .setAckSeqno(ackSeqNo)
+                .build()
+                .toByteArray(),
+            parser = com.bapis.bilibili.im.interfaces.v1.DummyRsp.parser()
+        )
+    }
+
+    private suspend fun fetchSessionMsgs(
+        talkerId: Long,
+        sessionType: Int,
+        beginSeqNo: Long?,
+        endSeqNo: Long?,
+        size: Int,
+        order: Int
+    ): RspSessionMsg {
+        val req = ReqSessionMsg.newBuilder()
+            .setTalkerId(talkerId)
+            .setSessionType(sessionType)
+            .setSize(size)
+            .setOrder(order)
+            .setDevId(imDevId(authProvider.mid))
+            .apply {
+                beginSeqNo?.let(::setBeginSeqno)
+                endSeqNo?.let(::setEndSeqno)
+            }
+            .build()
+        return grpcClient.call(
+            endpoint = FETCH_SESSION_MSGS_ENDPOINT,
+            requestBytes = req.toByteArray(),
+            parser = RspSessionMsg.parser()
+        )
+    }
+
+    private suspend fun <Resp : MessageLite> fetchSessionPage(
         tab: ImSessionTab,
-        paginationParams: ImPaginationParams?
+        endpoint: String,
+        requestBytes: ByteArray,
+        parser: Parser<Resp>,
+        pagination: (Resp) -> PaginationParams,
+        sessions: (Resp) -> List<Session>
     ): ImPage {
         val reply = grpcClient.call(
-            endpoint = MAIN_ENDPOINT,
-            requestBytes = buildMainReq(tab, paginationParams).toByteArray(),
-            parser = SessionMainReply.parser()
+            endpoint = endpoint,
+            requestBytes = requestBytes,
+            parser = parser
         )
         return withContext(Dispatchers.Default) {
             ImPage(
                 tabs = IM_TABS,
                 currentTab = tab,
-                paginationParams = reply.paginationParams.toModel(),
-                sessions = reply.sessionsList.map(::mapSession)
+                paginationParams = pagination(reply).toModel(),
+                sessions = sessions(reply).map(::mapSession)
             )
         }
-    }
-
-    private suspend fun fetchSecondary(
-        tab: ImSessionTab,
-        paginationParams: ImPaginationParams?
-    ): ImPage {
-        val reply = grpcClient.call(
-            endpoint = SECONDARY_ENDPOINT,
-            requestBytes = buildSecondaryReq(tab, paginationParams).toByteArray(),
-            parser = SessionSecondaryReply.parser()
-        )
-        return withContext(Dispatchers.Default) {
-            ImPage(
-                tabs = IM_TABS,
-                currentTab = tab,
-                paginationParams = reply.paginationParams.toModel(),
-                sessions = reply.sessionsList.map(::mapSession)
-            )
-        }
-    }
-
-    private fun buildMainReq(
-        tab: ImSessionTab,
-        paginationParams: ImPaginationParams?
-    ): SessionMainReq {
-        return SessionMainReq.newBuilder()
-            .setFilterType(tab.toFilterType())
-            .apply {
-                paginationParams?.toProto()?.let(::setPaginationParams)
-            }
-            .build()
-    }
-
-    private fun buildSecondaryReq(
-        tab: ImSessionTab,
-        paginationParams: ImPaginationParams?
-    ): SessionSecondaryReq {
-        return SessionSecondaryReq.newBuilder()
-            .setPageType(tab.toPageType())
-            .apply {
-                paginationParams?.toProto()?.let(::setPaginationParams)
-            }
-            .build()
     }
 
     private fun mapSession(session: Session): ImSessionItem {
         val talkerId = when (session.id.idCase) {
             com.bapis.bilibili.app.im.v1.SessionId.IdCase.PRIVATE_ID -> session.id.privateId.talkerUid
+            com.bapis.bilibili.app.im.v1.SessionId.IdCase.GROUP_ID -> session.id.groupId.groupId
             else -> null
         }
         return ImSessionItem(
             key = buildKey(session, talkerId),
             talkerId = talkerId,
+            sessionType = session.toLegacyConversationType(),
             sessionTypeLabel = sessionTypeLabel(session),
             name = session.sessionInfo.sessionName.ifBlank { "未命名会话" },
             avatar = session.sessionInfo.avatar.avatarUrl(),
@@ -122,6 +209,101 @@ class ImRepoImpl @Inject constructor(
             timeMicros = session.timestamp,
             isPinned = session.isPinned,
             isMuted = session.isMuted
+        )
+    }
+
+    private fun mapMessage(msg: Msg): ImMessage {
+        val senderUid = msg.senderUid
+        val receiverId = if (msg.receiverType == CONVERSATION_TYPE_SINGLE && senderUid != authProvider.mid) {
+            senderUid
+        } else {
+            msg.receiverId
+        }
+        val content = msg.parseContent()
+        return ImMessage(
+            key = msg.msgKey,
+            seqNo = msg.msgSeqno,
+            senderUid = senderUid,
+            receiverId = receiverId,
+            msgType = if (msg.msgStatus == RECALL_MSG_STATUS) RECALL_MSG_TYPE else msg.msgType,
+            content = content.text,
+            imageUrl = content.imageUrl,
+            imageWidth = content.imageWidth,
+            imageHeight = content.imageHeight,
+            timestampSec = msg.timestamp,
+            isSelf = senderUid == authProvider.mid,
+            isRecalled = msg.sysCancel || msg.msgStatus == RECALL_MSG_STATUS
+        )
+    }
+
+    private fun Msg.parseContent(): ImMessageContent {
+        if (msgStatus == RECALL_MSG_STATUS || sysCancel) return ImMessageContent("")
+        if (content.isBlank()) return ImMessageContent("")
+        return when (msgType) {
+            ImMsgType.TEXT -> ImMessageContent(content.readJsonString("content"))
+            ImMsgType.IMAGE -> content.readImageContent()
+            else -> ImMessageContent("")
+        }
+    }
+
+    private fun String.readJsonString(field: String): String {
+        JsonReader(StringReader(this)).use { reader ->
+            reader.beginObject()
+            while (reader.hasNext()) {
+                if (reader.nextName() == field) return reader.nextString()
+                reader.skipValue()
+            }
+            reader.endObject()
+        }
+        return ""
+    }
+
+    private fun String.readImageContent(): ImMessageContent {
+        var imageUrl: String? = null
+        var imageWidth = 0
+        var imageHeight = 0
+        JsonReader(StringReader(this)).use { reader ->
+            reader.beginObject()
+            while (reader.hasNext()) {
+                when (reader.nextName()) {
+                    "url" -> imageUrl = reader.nextString()
+                    "width" -> imageWidth = reader.nextInt()
+                    "height" -> imageHeight = reader.nextInt()
+                    else -> reader.skipValue()
+                }
+            }
+            reader.endObject()
+        }
+        return ImMessageContent(
+            text = "",
+            imageUrl = imageUrl?.takeIf(String::isNotBlank),
+            imageWidth = imageWidth,
+            imageHeight = imageHeight
+        )
+    }
+
+    private fun imDevId(mid: Long): String {
+        val prefs = context.getSharedPreferences("IMFieldsCache$mid", Context.MODE_PRIVATE)
+        return prefs.getString("key_device_id_v2", null) ?: UUID.randomUUID().toString().also {
+            prefs.edit { putString("key_device_id_v2", it) }
+        }
+    }
+
+    private data class ImMessageContent(
+        val text: String,
+        val imageUrl: String? = null,
+        val imageWidth: Int = 0,
+        val imageHeight: Int = 0
+    )
+
+    private fun RspSessionMsg.toMessages(): List<ImMessage> {
+        return messagesList.map(::mapMessage)
+    }
+
+    private fun RspSessionMsg.toConversationPage(): ImConversationPage {
+        return ImConversationPage(
+            messages = toMessages(),
+            hasMoreHistory = hasMore == 1
         )
     }
 
@@ -139,6 +321,30 @@ class ImRepoImpl @Inject constructor(
             }
             com.bapis.bilibili.app.im.v1.SessionId.IdCase.ID_NOT_SET,
             null -> "unknown:${session.sequenceNumber}:${session.timestamp}"
+        }
+    }
+
+    private fun Session.toLegacyConversationType(): Int? {
+        return when (id.idCase) {
+            com.bapis.bilibili.app.im.v1.SessionId.IdCase.PRIVATE_ID -> CONVERSATION_TYPE_SINGLE
+            com.bapis.bilibili.app.im.v1.SessionId.IdCase.GROUP_ID -> CONVERSATION_TYPE_GROUP
+            com.bapis.bilibili.app.im.v1.SessionId.IdCase.CUSTOMER_ID -> CONVERSATION_TYPE_CUSTOMER
+            com.bapis.bilibili.app.im.v1.SessionId.IdCase.SYSTEM_ID -> when (id.systemId.type) {
+                SessionType.SESSION_TYPE_UNFOLLOWED -> CONVERSATION_TYPE_UNFOLLOW
+                SessionType.SESSION_TYPE_STRANGER -> CONVERSATION_TYPE_STRANGER
+                SessionType.SESSION_TYPE_GROUP_FOLD -> CONVERSATION_TYPE_GROUP_FOLD
+                SessionType.SESSION_TYPE_AI_FOLD -> CONVERSATION_TYPE_AI
+                else -> null
+            }
+            com.bapis.bilibili.app.im.v1.SessionId.IdCase.FOLD_ID -> when (id.foldId.type) {
+                SessionType.SESSION_TYPE_UNFOLLOWED -> CONVERSATION_TYPE_UNFOLLOW
+                SessionType.SESSION_TYPE_STRANGER -> CONVERSATION_TYPE_STRANGER
+                SessionType.SESSION_TYPE_GROUP_FOLD -> CONVERSATION_TYPE_GROUP_FOLD
+                SessionType.SESSION_TYPE_AI_FOLD -> CONVERSATION_TYPE_AI
+                else -> null
+            }
+            com.bapis.bilibili.app.im.v1.SessionId.IdCase.ID_NOT_SET,
+            null -> null
         }
     }
 
@@ -241,7 +447,21 @@ class ImRepoImpl @Inject constructor(
     private companion object {
         const val MAIN_ENDPOINT = "bilibili.app.im.v1.im/SessionMain"
         const val SECONDARY_ENDPOINT = "bilibili.app.im.v1.im/SessionSecondary"
+        const val FETCH_SESSION_MSGS_ENDPOINT = "bilibili.im.interface.v1.ImInterface/SyncFetchSessionMsgs"
+        const val UPDATE_ACK_ENDPOINT = "bilibili.im.interface.v1.ImInterface/UpdateAck"
         const val MAX_UNREAD_COUNT = 99
+        const val DEFAULT_PAGE_SIZE = 20
+        const val ORDER_DESC = 0
+        const val CONVERSATION_TYPE_SINGLE = 1
+        const val CONVERSATION_TYPE_GROUP = 2
+        const val CONVERSATION_TYPE_UNFOLLOW = 102
+        const val CONVERSATION_TYPE_GROUP_FOLD = 103
+        const val CONVERSATION_TYPE_CUSTOMER = 106
+        const val CONVERSATION_TYPE_AI = 107
+        const val CONVERSATION_TYPE_STRANGER = 108
+        const val RECALL_MSG_STATUS = 1
+        const val RECALL_MSG_TYPE = 5
+
         val IM_TABS = listOf(
             ImSessionTab.DEFAULT,
             ImSessionTab.FOLLOW,

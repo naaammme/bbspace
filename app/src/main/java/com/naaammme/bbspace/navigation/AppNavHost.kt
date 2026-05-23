@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
 import com.naaammme.bbspace.core.model.FavoriteContentTarget
+import com.naaammme.bbspace.core.model.ImSessionItem
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
@@ -54,6 +55,8 @@ import com.naaammme.bbspace.feature.history.navigation.navigateToWatchLater
 import com.naaammme.bbspace.feature.history.navigation.watchLaterScreen
 import com.naaammme.bbspace.feature.home.HomeScreen
 import com.naaammme.bbspace.feature.im.ImScreen
+import com.naaammme.bbspace.feature.im.navigation.imConversationScreen
+import com.naaammme.bbspace.feature.im.navigation.navigateToImConversation
 import com.naaammme.bbspace.feature.listen.navigation.listenDetailScreen
 import com.naaammme.bbspace.feature.listen.navigation.navigateToListenDetail
 import com.naaammme.bbspace.feature.live.LiveViewModel
@@ -210,7 +213,10 @@ fun AppNavHost(
                     onNavigateToLive = openLive,
                     onNavigateToArticle = openArticle,
                     onNavigateToDynamicDetail = rootNavController::navigateToDynamicDetail,
-                    onNavigateToListenDetail = openListenDetail
+                    onNavigateToListenDetail = openListenDetail,
+                    onNavigateToImConversation = { item ->
+                        rootNavController.navigateToImConversation(item)
+                    }
                 )
             }
 
@@ -292,6 +298,10 @@ fun AppNavHost(
             listenDetailScreen(
                 onBack = { rootNavController.popBackStack() }
             )
+
+            imConversationScreen(
+                onBack = { rootNavController.popBackStack() }
+            )
         }
 
         PlaybackHost(
@@ -343,7 +353,8 @@ private fun MainTabsScaffold(
     onNavigateToLive: (LiveRoute) -> Unit,
     onNavigateToArticle: (String, Int) -> Unit,
     onNavigateToDynamicDetail: (String) -> Unit,
-    onNavigateToListenDetail: (Long, Int, Long, String, String, String) -> Unit
+    onNavigateToListenDetail: (Long, Int, Long, String, String, String) -> Unit,
+    onNavigateToImConversation: (ImSessionItem) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -386,7 +397,9 @@ private fun MainTabsScaffold(
                                 onOpenLive = onNavigateToLive,
                                 onOpenDynamic = onNavigateToDynamicDetail
                             )
-                            TopLevelRoute.MESSAGE -> ImScreen()
+                            TopLevelRoute.MESSAGE -> ImScreen(
+                                onOpenConversation = onNavigateToImConversation
+                            )
                             TopLevelRoute.PROFILE -> UserScreen(
                                 onNavigateToAccount = onNavigateToAccount,
                                 onNavigateToSettings = onNavigateToSettings,

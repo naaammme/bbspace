@@ -34,6 +34,7 @@ data class ImPage(
 data class ImSessionItem(
     val key: String,
     val talkerId: Long?,
+    val sessionType: Int?,
     val sessionTypeLabel: String?,
     val name: String,
     val avatar: String?,
@@ -43,4 +44,32 @@ data class ImSessionItem(
     val timeMicros: Long,
     val isPinned: Boolean,
     val isMuted: Boolean
+)
+
+@Immutable
+data class ImConversationPage(
+    val messages: List<ImMessage>,
+    val hasMoreHistory: Boolean
+)
+
+@Immutable
+object ImMsgType {
+    const val TEXT = 1
+    const val IMAGE = 2
+    val SHARE_TYPES = setOf(4, 7, 11, 12, 13, 14, 15)
+}
+
+data class ImMessage(
+    val key: Long,
+    val seqNo: Long,
+    val senderUid: Long,
+    val receiverId: Long,
+    val msgType: Int,
+    val content: String,
+    val imageUrl: String? = null,
+    val imageWidth: Int = 0,
+    val imageHeight: Int = 0,
+    val timestampSec: Long,
+    val isSelf: Boolean,
+    val isRecalled: Boolean
 )

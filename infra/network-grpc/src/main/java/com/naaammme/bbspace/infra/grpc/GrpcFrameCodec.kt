@@ -70,7 +70,14 @@ object GrpcFrameCodec {
 
         val compressionFlag = responseBytes[0].toInt()
         val payload = responseBytes.copyOfRange(5, responseBytes.size)
+        return decodePayload(compressionFlag, payload, grpcEncoding)
+    }
 
+    fun decodePayload(
+        compressionFlag: Int,
+        payload: ByteArray,
+        grpcEncoding: String? = null
+    ): ByteArray {
         return if (compressionFlag == 0) {
             payload
         } else if (grpcEncoding == "gzip" || compressionFlag == 1) {
