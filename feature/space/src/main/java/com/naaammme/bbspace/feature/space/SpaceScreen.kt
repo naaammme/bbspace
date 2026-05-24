@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.filter
 fun SpaceScreen(
     onBack: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
+    onOpenIm: ((Long, String, String?) -> Unit)? = null,
     viewModel: SpaceViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -79,6 +81,25 @@ fun SpaceScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回"
                         )
+                    }
+                },
+                actions = {
+                    val header = state.header
+                    if (header != null && onOpenIm != null) {
+                        IconButton(
+                            onClick = {
+                                onOpenIm.invoke(
+                                    header.profile.mid,
+                                    header.profile.name,
+                                    header.profile.face
+                                )
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.MailOutline,
+                                contentDescription = "聊天"
+                            )
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior

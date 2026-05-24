@@ -29,7 +29,8 @@ fun NavController.navigateToImConversation(
 }
 
 fun NavGraphBuilder.imConversationScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenSpace: ((Long) -> Unit)? = null
 ) {
     composable(
         route = IM_CONVERSATION_ROUTE,
@@ -46,6 +47,9 @@ fun NavGraphBuilder.imConversationScreen(
             }
         )
     ) {
-        ImConversationScreen(onBack = onBack)
+        ImConversationScreen(
+            onBack = onBack,
+            onOpenSpace = onOpenSpace
+        )
     }
 }

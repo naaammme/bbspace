@@ -35,15 +35,15 @@ data class ImSessionItem(
     val key: String,
     val talkerId: Long?,
     val sessionType: Int?,
-    val sessionTypeLabel: String?,
+    val sessionTypeLabel: String? = null,
     val name: String,
-    val avatar: String?,
-    val summary: String,
-    val unreadText: String?,
-    val unreadCount: Long,
-    val timeMicros: Long,
-    val isPinned: Boolean,
-    val isMuted: Boolean
+    val avatar: String? = null,
+    val summary: String = "",
+    val unreadText: String? = null,
+    val unreadCount: Long = 0,
+    val timeMicros: Long = 0,
+    val isPinned: Boolean = false,
+    val isMuted: Boolean = false
 )
 
 @Immutable
@@ -56,6 +56,8 @@ data class ImConversationPage(
 object ImMsgType {
     const val TEXT = 1
     const val IMAGE = 2
+    const val NOTICE = 10
+    const val SYSTEM_NOTICE = 18
     val SHARE_TYPES = setOf(4, 7, 11, 12, 13, 14, 15)
 }
 
@@ -73,5 +75,10 @@ data class ImMessage(
     val isSelf: Boolean,
     val isRecalled: Boolean,
     val shareCoverUrl: String? = null,
-    val shareViewCount: Long = 0L
+    val shareViewCount: Long = 0L,
+    val noticeTitle: String? = null,
+    val noticeText: String? = null,
+    val noticeActionText: String? = null,
+    val noticeCoverUrl: String? = null,
+    val noticeDetailText: String? = null
 )

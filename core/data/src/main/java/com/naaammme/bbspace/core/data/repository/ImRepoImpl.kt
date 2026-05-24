@@ -42,6 +42,7 @@ import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.StringReader
 import java.util.Random
@@ -268,7 +269,7 @@ class ImRepoImpl @Inject constructor(
             seqNo = msg.msgSeqno,
             senderUid = senderUid,
             receiverId = receiverId,
-            msgType = if (msg.msgStatus == RECALL_MSG_STATUS) RECALL_MSG_TYPE else msg.msgType,
+            msgType = msg.msgType,
             content = content.text,
             imageUrl = content.imageUrl,
             imageWidth = content.imageWidth,
@@ -277,17 +278,23 @@ class ImRepoImpl @Inject constructor(
             isSelf = senderUid == authProvider.mid,
             isRecalled = msg.sysCancel || msg.msgStatus == RECALL_MSG_STATUS,
             shareCoverUrl = content.shareCoverUrl,
-            shareViewCount = content.shareViewCount
+            shareViewCount = content.shareViewCount,
+            noticeTitle = content.noticeTitle,
+            noticeText = content.noticeText,
+            noticeActionText = content.noticeActionText,
+            noticeCoverUrl = content.noticeCoverUrl,
+            noticeDetailText = content.noticeDetailText
         )
     }
 
     private fun Msg.parseContent(): ImMessageContent {
-        if (msgStatus == RECALL_MSG_STATUS || sysCancel) return ImMessageContent("")
         if (content.isBlank()) return ImMessageContent("")
         return when (msgType) {
             ImMsgType.TEXT -> ImMessageContent(content.readJsonString("content"))
             ImMsgType.IMAGE -> content.readImageContent()
             in ImMsgType.SHARE_TYPES -> content.readVideoCardContent()
+            ImMsgType.NOTICE,
+            ImMsgType.SYSTEM_NOTICE -> content.readNoticeContent()
             else -> ImMessageContent("")
         }
     }
@@ -351,6 +358,61 @@ class ImRepoImpl @Inject constructor(
         )
     }
 
+    private fun String.readNoticeContent(): ImMessageContent {
+        val raw = trim()
+        if (raw.isEmpty()) return ImMessageContent("")
+        if (raw[0] == '[') return parseNoticeTextArray(raw)
+        if (raw[0] != '{') return ImMessageContent("")
+
+        val body = JSONObject(raw).optString("content").takeIf(String::isNotBlank)?.trim() ?: raw
+        if (body[0] == '[') return parseNoticeTextArray(body)
+        if (body[0] != '{') return ImMessageContent("")
+
+        val obj = JSONObject(body)
+        val title = obj.optString("title").takeIf(String::isNotBlank)
+        val text = obj.optString("text").takeIf(String::isNotBlank)
+        val actionText = obj.optString("jump_text").takeIf(String::isNotBlank)
+        val coverUrl = obj.optString("cover").takeIf(String::isNotBlank)
+            ?: obj.optJSONObject("biz_content")?.optString("backup_cover")?.takeIf(String::isNotBlank)
+        val detailText = obj.optJSONArray("modules")?.let { modules ->
+            buildString {
+                for (i in 0 until modules.length()) {
+                    val module = modules.optJSONObject(i) ?: continue
+                    val mt = module.optString("title").takeIf(String::isNotBlank)
+                    val md = module.optString("detail").takeIf(String::isNotBlank)
+                    if (mt == null && md == null) continue
+                    if (isNotEmpty()) append('\n')
+                    mt?.let(::append)
+                    if (mt != null && md != null) append(' ')
+                    md?.let(::append)
+                }
+            }.takeIf(String::isNotBlank)
+        }
+        return ImMessageContent(
+            text = title ?: text.orEmpty(),
+            noticeTitle = title,
+            noticeText = text,
+            noticeActionText = actionText,
+            noticeCoverUrl = coverUrl?.replace("http://", "https://"),
+            noticeDetailText = detailText
+        )
+    }
+
+    private fun parseNoticeTextArray(raw: String): ImMessageContent {
+        val arr = JSONArray(raw)
+        val text = buildString {
+            for (i in 0 until arr.length()) {
+                val t = arr.optJSONObject(i)?.optString("text")?.takeIf(String::isNotBlank) ?: continue
+                if (isNotEmpty()) append('\n')
+                append(t)
+            }
+        }
+        return ImMessageContent(
+            text = text,
+            noticeText = text.takeIf(String::isNotBlank)
+        )
+    }
+
     private fun buildTextContent(text: String): String {
         return JSONObject()
             .put("content", text)
@@ -374,11 +436,18 @@ class ImRepoImpl @Inject constructor(
         val imageWidth: Int = 0,
         val imageHeight: Int = 0,
         val shareCoverUrl: String? = null,
-        val shareViewCount: Long = 0L
+        val shareViewCount: Long = 0L,
+        val noticeTitle: String? = null,
+        val noticeText: String? = null,
+        val noticeActionText: String? = null,
+        val noticeCoverUrl: String? = null,
+        val noticeDetailText: String? = null
     )
 
     private fun RspSessionMsg.toMessages(): List<ImMessage> {
-        return messagesList.map(::mapMessage)
+        return messagesList
+            .filterNot { it.msgType == RECALL_MSG_TYPE && it.msgStatus != RECALL_MSG_STATUS }
+            .map(::mapMessage)
     }
 
     private fun RspSessionMsg.toConversationPage(): ImConversationPage {

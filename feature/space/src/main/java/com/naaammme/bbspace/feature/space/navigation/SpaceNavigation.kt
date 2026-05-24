@@ -33,7 +33,8 @@ fun NavController.navigateToSpace(route: SpaceRoute) {
 
 fun NavGraphBuilder.spaceScreen(
     onBack: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit
+    onOpenVideo: (VideoTarget) -> Unit,
+    onOpenIm: ((Long, String, String?) -> Unit)? = null
 ) {
     composable(
         route = SPACE_ROUTE,
@@ -58,7 +59,8 @@ fun NavGraphBuilder.spaceScreen(
     ) {
         SpaceScreen(
             onBack = onBack,
-            onOpenVideo = onOpenVideo
+            onOpenVideo = onOpenVideo,
+            onOpenIm = onOpenIm
         )
     }
 }

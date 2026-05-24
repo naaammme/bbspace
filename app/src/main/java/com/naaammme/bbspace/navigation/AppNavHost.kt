@@ -278,7 +278,18 @@ fun AppNavHost(
             }
             spaceScreen(
                 onBack = { rootNavController.popBackStack() },
-                onOpenVideo = openVideo
+                onOpenVideo = openVideo,
+                onOpenIm = { mid, name, avatar ->
+                    rootNavController.navigateToImConversation(
+                        ImSessionItem(
+                            key = "space:$mid",
+                            talkerId = mid,
+                            sessionType = 1,
+                            name = name,
+                            avatar = avatar
+                        )
+                    )
+                }
             )
             downloadScreen(
                 navController = rootNavController,
@@ -300,7 +311,10 @@ fun AppNavHost(
             )
 
             imConversationScreen(
-                onBack = { rootNavController.popBackStack() }
+                onBack = { rootNavController.popBackStack() },
+                onOpenSpace = { mid ->
+                    rootNavController.navigateToSpace(SpaceRoute(mid = mid))
+                }
             )
         }
 

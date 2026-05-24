@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.feature.im.conversation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +57,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ImConversationScreen(
     onBack: () -> Unit,
+    onOpenSpace: ((Long) -> Unit)? = null,
     vm: ImConversationViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -150,7 +152,8 @@ fun ImConversationScreen(
                             ImMessageBubble(
                                 item = item,
                                 avatar = state.avatar,
-                                title = state.title
+                                title = state.title,
+                                onOpenSpace = onOpenSpace
                             )
                         }
                     }
@@ -164,21 +167,39 @@ fun ImConversationScreen(
 private fun ImMessageBubble(
     item: ConversationMessageItem,
     avatar: String?,
-    title: String?
+    title: String?,
+    onOpenSpace: ((Long) -> Unit)?
 ) {
     val message = item.message
+    if (message.msgType == ImMsgType.SYSTEM_NOTICE) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            SystemNoticeContent(item = item)
+        }
+        return
+    }
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isSelf) Alignment.End else Alignment.Start
     ) {
-        if (!message.shareCoverUrl.isNullOrBlank() || message.isSelf) {
+        if (message.isSelf) {
             MessageContent(item = item)
         } else {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                Box(modifier = Modifier.size(32.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .then(
+                            if (item.showAvatar && onOpenSpace != null && message.senderUid > 0L) {
+                                Modifier.clickable { onOpenSpace(message.senderUid) }
+                            } else Modifier
+                        )
+                ) {
                     if (item.showAvatar) {
                         AvatarImage(
                             url = avatar,
@@ -201,6 +222,78 @@ private fun MessageContent(item: ConversationMessageItem) {
         horizontalAlignment = if (message.isSelf) Alignment.End else Alignment.Start
     ) {
         when {
+            message.msgType == ImMsgType.NOTICE -> {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.widthIn(max = 220.dp)
+                ) {
+                    Column {
+                        if (!message.noticeCoverUrl.isNullOrBlank()) {
+                            CoverImage(
+                                url = message.noticeCoverUrl,
+                                contentDescription = message.noticeTitle ?: "通知",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f)
+                            ) {
+                                MessageTimeChip(
+                                    text = item.timeText,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(end = 6.dp, bottom = 4.dp)
+                                )
+                            }
+                        }
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = message.noticeTitle ?: message.content.ifBlank { "通知" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            message.noticeText?.takeIf(String::isNotBlank)?.let { notice ->
+                                Text(
+                                    text = notice,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            message.noticeDetailText?.takeIf(String::isNotBlank)?.let { detail ->
+                                Text(
+                                    text = detail,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            message.noticeActionText?.takeIf(String::isNotBlank)?.let { action ->
+                                Text(
+                                    text = action,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (message.noticeCoverUrl.isNullOrBlank()) {
+                                MessageTimeChip(
+                                    text = item.timeText,
+                                    modifier = Modifier.align(Alignment.End)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             !message.shareCoverUrl.isNullOrBlank() -> {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -229,11 +322,11 @@ private fun MessageContent(item: ConversationMessageItem) {
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = message.content.ifBlank { "视频卡片" },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = bodyColor,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
+                            text = message.content.ifBlank { "视频卡片" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = bodyColor,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "${message.shareViewCount.formatCount()} 播放",
@@ -245,6 +338,7 @@ private fun MessageContent(item: ConversationMessageItem) {
                         }
                     }
                 }
+                RecallFlag(message.isRecalled)
             }
 
             !message.imageUrl.isNullOrBlank() -> {
@@ -270,6 +364,7 @@ private fun MessageContent(item: ConversationMessageItem) {
                         )
                     }
                 }
+                RecallFlag(message.isRecalled)
             }
 
             else -> {
@@ -305,11 +400,12 @@ private fun MessageContent(item: ConversationMessageItem) {
                     }
                     Text(
                         text = text,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = bodyColor
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = bodyColor
                     )
                 }
+                RecallFlag(message.isRecalled)
             }
         }
     }
@@ -335,6 +431,38 @@ private fun MessageTimeChip(
     )
 }
 
+@Composable
+private fun SystemNoticeContent(item: ConversationMessageItem) {
+    val message = item.message
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            text = message.noticeText ?: message.content,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun RecallFlag(
+    isRecalled: Boolean
+) {
+    if (!isRecalled) return
+    Text(
+        text = "已撤回",
+        modifier = Modifier.padding(top = 2.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
 @Immutable
 private data class ConversationMessageItem(
     val message: ImMessage,
@@ -355,6 +483,8 @@ private fun List<ImMessage>.toConversationMessageItems(): List<ConversationMessa
             timeText = formatMessageTime(message.timestampSec),
             imageRatio = message.imageRatio(),
             contentType = when {
+                message.msgType == ImMsgType.SYSTEM_NOTICE -> CONTENT_TYPE_SYSTEM_NOTICE
+                message.msgType == ImMsgType.NOTICE -> CONTENT_TYPE_NOTICE
                 !message.shareCoverUrl.isNullOrBlank() -> CONTENT_TYPE_SHARE
                 !message.imageUrl.isNullOrBlank() -> CONTENT_TYPE_IMAGE
                 else -> CONTENT_TYPE_TEXT
@@ -364,7 +494,6 @@ private fun List<ImMessage>.toConversationMessageItems(): List<ConversationMessa
 }
 
 private fun ImMessage.displayText(): String {
-    if (isRecalled) return "消息已撤回"
     content.takeIf(String::isNotBlank)?.let { return it }
     return when (msgType) {
         ImMsgType.IMAGE -> "[图片]"
@@ -402,6 +531,8 @@ private fun formatDecimal(value: Float, suffix: String): String {
     return "$text$suffix"
 }
 
+private const val CONTENT_TYPE_SYSTEM_NOTICE = "system_notice"
+private const val CONTENT_TYPE_NOTICE = "notice"
 private const val CONTENT_TYPE_SHARE = "share"
 private const val CONTENT_TYPE_TEXT = "text"
 private const val CONTENT_TYPE_IMAGE = "image"
