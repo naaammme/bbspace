@@ -279,6 +279,7 @@ class ImRepoImpl @Inject constructor(
             isRecalled = msg.sysCancel || msg.msgStatus == RECALL_MSG_STATUS,
             shareCoverUrl = content.shareCoverUrl,
             shareViewCount = content.shareViewCount,
+            shareAid = content.shareAid,
             noticeTitle = content.noticeTitle,
             noticeText = content.noticeText,
             noticeActionText = content.noticeActionText,
@@ -339,6 +340,7 @@ class ImRepoImpl @Inject constructor(
         var title = ""
         var coverUrl: String? = null
         var viewCount = 0L
+        var shareAid = 0L
         JsonReader(StringReader(this)).use { reader ->
             reader.beginObject()
             while (reader.hasNext()) {
@@ -346,6 +348,7 @@ class ImRepoImpl @Inject constructor(
                     "title" -> title = reader.nextString()
                     "cover" -> coverUrl = reader.nextString().takeIf(String::isNotBlank)?.replace("http://", "https://")
                     "view" -> viewCount = reader.nextLong()
+                    "rid" -> shareAid = reader.nextLong()
                     else -> reader.skipValue()
                 }
             }
@@ -354,7 +357,8 @@ class ImRepoImpl @Inject constructor(
         return ImMessageContent(
             text = title,
             shareCoverUrl = coverUrl,
-            shareViewCount = viewCount
+            shareViewCount = viewCount,
+            shareAid = shareAid
         )
     }
 
@@ -437,6 +441,7 @@ class ImRepoImpl @Inject constructor(
         val imageHeight: Int = 0,
         val shareCoverUrl: String? = null,
         val shareViewCount: Long = 0L,
+        val shareAid: Long = 0L,
         val noticeTitle: String? = null,
         val noticeText: String? = null,
         val noticeActionText: String? = null,

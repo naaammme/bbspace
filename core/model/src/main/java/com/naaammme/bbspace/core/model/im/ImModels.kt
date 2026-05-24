@@ -76,6 +76,7 @@ data class ImMessage(
     val isRecalled: Boolean,
     val shareCoverUrl: String? = null,
     val shareViewCount: Long = 0L,
+    val shareAid: Long = 0L,
     val noticeTitle: String? = null,
     val noticeText: String? = null,
     val noticeActionText: String? = null,
