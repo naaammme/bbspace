@@ -1,19 +1,22 @@
 package com.naaammme.bbspace
 
 import android.content.Intent
+import android.graphics.Color
 import android.hardware.display.DisplayManager
+import android.os.Build
 import android.os.Bundle
 import android.view.Display
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.core.net.toUri
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.update.AppUpdateCheckResult
@@ -54,7 +57,16 @@ class MainActivity : ComponentActivity() {
             autoCheckUpdate()
         }
         pendingAppLink = toAppLink(intent)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.auto(
+                lightScrim = Color.TRANSPARENT,
+                darkScrim = Color.TRANSPARENT
+            )
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         setContent {
             val themeConfig by appSettings.themeConfig.collectAsState(initial = ThemeConfig())
 
@@ -123,7 +135,7 @@ class MainActivity : ComponentActivity() {
         val h = currentMode.physicalHeight
         val modes = cachedDisplayModes ?: display.supportedModes
             ?.also { cachedDisplayModes = it }
-            ?: return null
+        ?: return null
         return modes
             .filter { it.physicalWidth == w && it.physicalHeight == h }
             .minByOrNull { abs(it.refreshRate - targetHz) }
@@ -136,6 +148,7 @@ class MainActivity : ComponentActivity() {
             is WebLinkTarget.ToVideo,
             is WebLinkTarget.ToSpace,
             is WebLinkTarget.ToLive -> target
+
             is WebLinkTarget.External,
             is WebLinkTarget.Stay -> null
         }
