@@ -9,6 +9,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
 import android.os.StatFs
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.edit
 import androidx.core.content.getSystemService
@@ -17,10 +18,12 @@ import datacenter.hakase.protobuf.AndroidDeviceInfoOuterClass
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
+import java.util.UUID
 
 class DeviceInfoCollector(context: Context, private val deviceIdentity: DeviceIdentity) {
     companion object {
         private const val BILI_FILES_PATH = "/data/user/0/tv.danmaku.bili/files"
+        private const val DEFAULT_OAID = "00000000-0000-0000-0000-000000000000"
     }
 
     private data class Battery(
@@ -79,7 +82,7 @@ class DeviceInfoCollector(context: Context, private val deviceIdentity: DeviceId
             first = 0
             proc = "tv.danmaku.bili"
             net = ""
-            band = ""
+            band = Build.getRadioVersion() ?: ""
 
             osver = deviceIdentity.osVer
             t = System.currentTimeMillis()
@@ -89,7 +92,7 @@ class DeviceInfoCollector(context: Context, private val deviceIdentity: DeviceId
             screen = "${displayMetrics.widthPixels},${displayMetrics.heightPixels},${displayMetrics.densityDpi}"
             cpuModel = snapshot.cpuModel
             btmac = ""
-            boot = Random.nextLong(100000, 948576)
+            boot = SystemClock.elapsedRealtime()
             emu = "000"
             oid = "46000"
             network = "WIFI"
@@ -126,12 +129,12 @@ class DeviceInfoCollector(context: Context, private val deviceIdentity: DeviceId
             gadid = ""
             glimit = ""
             apps = "[]"
-            guid = ""
+            guid = getStableString("guid") { UUID.randomUUID().toString() }
             uid = snapshot.uid
             root = 0
             camzoom = ""
             camlight = ""
-            oaid = ""
+            oaid = DEFAULT_OAID
             udid = deviceIdentity.androidId
             vaid = ""
             aaid = ""

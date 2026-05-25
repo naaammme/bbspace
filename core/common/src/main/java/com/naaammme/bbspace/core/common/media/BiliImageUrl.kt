@@ -7,7 +7,7 @@ private val thumbReg = Regex(
 
 const val BILI_IMAGE_DEFAULT_Q = 15
 private const val AVATAR_IMAGE_SUFFIX = "@120w_120h_85q_!widget-layer-avatar.webp"
-private const val COVER_IMAGE_SUFFIX = "@575w_360h_1e_1c_85q.avif"
+private const val COVER_IMAGE_SUFFIX = "@575w_360h_1e_1c_85q.webp"
 
 fun coverThumbnailUrl(src: String?): String? {
     if (src.isNullOrBlank()) return src
