@@ -71,6 +71,7 @@ data class LiveRoomSessionState(
     val popularCount: Long = 0L,
     val panel: LiveRoomPanelState = LiveRoomPanelState(),
     val messages: List<LiveRoomMessage> = emptyList(),
+    val latestMessage: LiveRoomMessage? = null,
     val queueId: String? = null,
     val retryCount: Int = 0,
     val lastHeartbeatAtMs: Long = 0L,

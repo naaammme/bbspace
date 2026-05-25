@@ -51,7 +51,7 @@ fun LiveScreen(
 ) {
     val route by viewModel.route.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-    val roomSession by viewModel.roomSession.collectAsStateWithLifecycle()
+    val roomPanel by viewModel.roomPanel.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
@@ -98,11 +98,10 @@ fun LiveScreen(
     }
 
     DisposableEffect(act, fullOn) {
-        val activity = act
-        if (activity == null) {
+        if (act == null) {
             onDispose { }
         } else {
-            val win = activity.window
+            val win = act.window
             val ctrl = WindowInsetsControllerCompat(win, win.decorView)
             if (fullOn) {
                 ctrl.systemBarsBehavior =
@@ -141,16 +140,17 @@ fun LiveScreen(
 
         if (fullOn) {
             LivePlayerPane(
-                viewModel = viewModel,
                 route = route,
                 player = player,
                 playbackState = playbackState,
-                roomSession = roomSession,
+                roomSessionState = viewModel.roomSession,
                 isFull = true,
                 onToggleFull = toggleFull,
                 onTogglePlay = viewModel::togglePlayPause,
+                onToggleDanmaku = viewModel::setDanmakuEnabled,
                 onRetry = viewModel::retry,
                 onSwitchQuality = viewModel::switchQuality,
+                settingsState = settingsState,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -158,8 +158,8 @@ fun LiveScreen(
                 TopAppBar(
                     title = {
                         TopBarPanel(
-                            popularCount = roomSession.popularCount,
-                            panel = roomSession.panel
+                            popularCount = roomPanel.popularCount,
+                            panel = roomPanel.panel
                         )
                     },
                     navigationIcon = {
@@ -173,18 +173,19 @@ fun LiveScreen(
                 )
 
                 LivePlaybackBody(
-                    viewModel = viewModel,
                     route = route,
                     playbackState = playbackState,
-                    roomSession = roomSession,
+                    roomSessionState = viewModel.roomSession,
                     player = player,
                     isExpanded = isExpanded,
                     playerSpaceWidth = expandedPlayerW,
                     playerSpaceHeight = if (isExpanded) expandedPlayerH else compactVideoH,
                     onToggleFull = toggleFull,
                     onTogglePlay = viewModel::togglePlayPause,
+                    onToggleDanmaku = viewModel::setDanmakuEnabled,
                     onRetry = viewModel::retry,
                     onSwitchQuality = viewModel::switchQuality,
+                    settingsState = settingsState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)

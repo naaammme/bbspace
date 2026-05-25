@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoomMessage
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
@@ -34,16 +35,19 @@ import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.feature.live.toUiMessage
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 internal fun LiveDetailPane(
     route: LiveRoute?,
     playbackState: LivePlaybackViewState,
-    roomSession: LiveRoomSessionState,
+    roomSessionState: StateFlow<LiveRoomSessionState>,
     showHeader: Boolean,
     modifier: Modifier = Modifier,
     horizontalPad: Dp = 16.dp
 ) {
+    val roomSession by roomSessionState.collectAsStateWithLifecycle()
     val timeFmt = remember {
         DateFormat.getTimeInstance(DateFormat.SHORT)
     }
@@ -51,8 +55,10 @@ internal fun LiveDetailPane(
     val messages = roomSession.messages
     var followNew by remember { mutableStateOf(true) }
 
-    LaunchedEffect(messages.size) {
+    LaunchedEffect(messages.lastOrNull()?.localId) {
         if (followNew) {
+            delay(AUTO_SCROLL_COALESCE_MS)
+            if (!followNew || listState.isScrollInProgress) return@LaunchedEffect
             val total = listState.layoutInfo.totalItemsCount
             if (total > 0) {
                 listState.scrollToItem(total - 1)
@@ -136,6 +142,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.liveMessageItems(
         )
     }
 }
+
+private const val AUTO_SCROLL_COALESCE_MS = 80L
 
 @Composable
 private fun LiveMetaSection(

@@ -26,9 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,35 +56,37 @@ import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
 import com.naaammme.bbspace.core.model.LiveStatus
 import com.naaammme.bbspace.core.model.PlaybackState
+import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.DanmakuItem
 import com.naaammme.bbspace.core.model.DanmakuSessionState
-import com.naaammme.bbspace.feature.live.LiveViewModel
 import com.naaammme.bbspace.feature.live.toUiMessage
 import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
+import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuRenderMode
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 
 @Suppress("UnsafeOptInUsageError")
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 internal fun LivePlayerPane(
-    viewModel: LiveViewModel,
     route: LiveRoute?,
     player: Player?,
     playbackState: LivePlaybackViewState,
-    roomSession: LiveRoomSessionState,
+    roomSessionState: StateFlow<LiveRoomSessionState>,
     isFull: Boolean,
     onToggleFull: () -> Unit,
     onTogglePlay: () -> Unit,
+    onToggleDanmaku: (Boolean) -> Unit,
     onRetry: () -> Unit,
     onSwitchQuality: (Int) -> Unit,
+    settingsState: PlayerSettingsState,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     val tapSrc = remember { MutableInteractionSource() }
     var showCtrl by remember { mutableStateOf(true) }
     var showQualityDialog by remember { mutableStateOf(false) }
@@ -100,22 +102,22 @@ internal fun LivePlayerPane(
             setKeepContentOnPlayerReset(true)
         }
     }
-    val danmakuOverlayState = rememberDanmakuOverlayState(
-        initialConfig = settingsState.danmaku,
-        initialPositionMs = 0L,
-        initialIsPlaying = playbackState.isPlaying,
-        initialSpeed = 1f
-    )
+    val danmakuOverlayState = if (danmakuOn) {
+        rememberDanmakuOverlayState(
+            initialConfig = settingsState.danmaku,
+            initialPositionMs = 0L,
+            initialIsPlaying = playbackState.isPlaying,
+            initialSpeed = 1f
+        )
+    } else {
+        null
+    }
     val liveDanmakuState = remember(playbackState.playbackSource?.roomId) {
         DanmakuSessionState(
             sourceKey = playbackState.playbackSource?.roomId?.takeIf { it > 0L }?.let { "live:$it" }
         )
     }
-    val appendState = remember { AppendState() }
-    val curMessages by rememberUpdatedState(roomSession.messages)
-    val curPlaybackState by rememberUpdatedState(playbackState)
-    val curDanmakuOn by rememberUpdatedState(danmakuOn)
-    val latestMsgLocalId = roomSession.messages.lastOrNull()?.localId ?: 0L
+    val roomId = playbackState.playbackSource?.roomId ?: 0L
 
     LaunchedEffect(
         showCtrl,
@@ -133,30 +135,6 @@ internal fun LivePlayerPane(
         ) {
             delay(3_000)
             showCtrl = false
-        }
-    }
-
-    LaunchedEffect(playbackState.playbackSource?.roomId, roomSession.roomId, danmakuOn) {
-        val roomId = playbackState.playbackSource?.roomId ?: 0L
-        appendState.roomId = roomId
-        danmakuOverlayState.clearLiveDanmakus()
-        if (!danmakuOn || roomId <= 0L || roomSession.roomId != roomId) {
-            appendState.lastLocalId = 0L
-            return@LaunchedEffect
-        }
-        appendState.lastLocalId = roomSession.messages.lastOrNull()?.localId ?: 0L
-    }
-
-    LaunchedEffect(latestMsgLocalId, playbackState.playbackSource?.roomId, danmakuOn) {
-        val roomId = curPlaybackState.playbackSource?.roomId ?: return@LaunchedEffect
-        if (!curDanmakuOn || appendState.roomId != roomId || roomSession.roomId != roomId) {
-            return@LaunchedEffect
-        }
-        curMessages.forEach { msg ->
-            if (msg.localId <= appendState.lastLocalId) return@forEach
-            if (!msg.shouldRenderLiveDanmaku()) return@forEach
-            danmakuOverlayState.appendDanmaku(msg.toLiveDanmakuItem())
-            appendState.lastLocalId = msg.localId
         }
     }
 
@@ -191,22 +169,32 @@ internal fun LivePlayerPane(
             modifier = Modifier.fillMaxSize()
         )
 
-        DanmakuLayer(
-            playerView = playerView,
-            overlayState = danmakuOverlayState,
-            danmakuState = liveDanmakuState,
-            danmakuConfig = settingsState.danmaku,
-            positionMs = 0L,
-            isPlaying = playbackState.isPlaying,
-            speed = 1f,
-            seekEventId = 0L,
-            hasSource = playbackState.playbackSource != null,
-            renderMode = DanmakuRenderMode.LiveAppend
-        )
+        if (danmakuOverlayState != null) {
+            DanmakuLayer(
+                playerView = playerView,
+                overlayState = danmakuOverlayState,
+                danmakuState = liveDanmakuState,
+                danmakuConfig = settingsState.danmaku,
+                positionMs = 0L,
+                isPlaying = playbackState.isPlaying,
+                speed = 1f,
+                seekEventId = 0L,
+                hasSource = playbackState.playbackSource != null,
+                renderMode = DanmakuRenderMode.LiveAppend
+            )
 
-        if (!playbackState.hasRenderedFirstFrame && !route?.cover.isNullOrBlank()) {
+            LiveDanmakuEffect(
+                roomSessionState = roomSessionState,
+                overlayState = danmakuOverlayState,
+                playbackRoomId = roomId,
+                danmakuOn = danmakuOn
+            )
+        }
+
+        val cover = route?.cover
+        if (!playbackState.hasRenderedFirstFrame && !cover.isNullOrBlank()) {
             BiliAsyncImage(
-                url = route?.cover,
+                url = cover,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -245,7 +233,7 @@ internal fun LivePlayerPane(
                 },
                 onDanmakuClick = {
                     showCtrl = true
-                    viewModel.setDanmakuEnabled(!danmakuOn)
+                    onToggleDanmaku(!danmakuOn)
                 },
                 onQualityClick = {
                     showCtrl = true
@@ -306,6 +294,43 @@ internal fun LivePlayerPane(
             state = playbackState,
             onDismiss = { showInfoDialog = false }
         )
+    }
+}
+
+@Composable
+private fun LiveDanmakuEffect(
+    roomSessionState: StateFlow<LiveRoomSessionState>,
+    overlayState: DanmakuOverlayState,
+    playbackRoomId: Long,
+    danmakuOn: Boolean
+) {
+    val roomSession by roomSessionState.collectAsStateWithLifecycle()
+    val latestMessage = roomSession.latestMessage
+    var lastHandledMessageId by remember(playbackRoomId) {
+        mutableLongStateOf(0L)
+    }
+
+    LaunchedEffect(playbackRoomId, roomSession.roomId, danmakuOn) {
+        overlayState.clearLiveDanmakus()
+        if (!danmakuOn || playbackRoomId <= 0L || roomSession.roomId != playbackRoomId) {
+            lastHandledMessageId = 0L
+            return@LaunchedEffect
+        }
+        lastHandledMessageId = latestMessage?.localId ?: 0L
+    }
+
+    LaunchedEffect(latestMessage?.localId, playbackRoomId, danmakuOn) {
+        if (!danmakuOn || playbackRoomId <= 0L || roomSession.roomId != playbackRoomId) {
+            return@LaunchedEffect
+        }
+        val msg = latestMessage ?: return@LaunchedEffect
+        if (msg.localId <= lastHandledMessageId) {
+            return@LaunchedEffect
+        }
+        if (msg.shouldRenderLiveDanmaku()) {
+            overlayState.appendDanmaku(msg.toLiveDanmakuItem())
+        }
+        lastHandledMessageId = msg.localId
     }
 }
 
@@ -507,9 +532,7 @@ private fun buildLiveInfoText(
     state: LivePlaybackViewState
 ): String {
     val source = state.playbackSource
-    if (source == null) {
-        return if (state.isPreparing) "正在加载播放信息" else "暂无播放信息"
-    }
+        ?: return if (state.isPreparing) "正在加载播放信息" else "暂无播放信息"
 
     val sections = buildList {
         state.error?.let { add("请求错误\n错误: ${it.toUiMessage()}") }
@@ -559,11 +582,6 @@ private fun livePlaybackStateText(state: LivePlaybackViewState): String {
             PlaybackState.Idle -> "未开始"
         }
     }
-}
-
-private class AppendState {
-    var roomId: Long = 0L
-    var lastLocalId: Long = 0L
 }
 
 private fun LiveRoomMessage.shouldRenderLiveDanmaku(): Boolean {

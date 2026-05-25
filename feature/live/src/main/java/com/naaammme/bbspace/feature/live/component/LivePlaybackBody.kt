@@ -21,23 +21,25 @@ import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
 import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.feature.live.LiveViewModel
+import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.feature.live.player.LivePlayerPane
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 internal fun LivePlaybackBody(
-    viewModel: LiveViewModel,
     route: LiveRoute?,
     playbackState: LivePlaybackViewState,
-    roomSession: LiveRoomSessionState,
+    roomSessionState: StateFlow<LiveRoomSessionState>,
     player: androidx.media3.common.Player?,
     isExpanded: Boolean,
     playerSpaceWidth: Dp,
     playerSpaceHeight: Dp,
     onToggleFull: () -> Unit,
     onTogglePlay: () -> Unit,
+    onToggleDanmaku: (Boolean) -> Unit,
     onRetry: () -> Unit,
     onSwitchQuality: (Int) -> Unit,
+    settingsState: PlayerSettingsState,
     modifier: Modifier = Modifier
 ) {
     if (isExpanded) {
@@ -53,16 +55,17 @@ internal fun LivePlaybackBody(
                     .background(Color.Black)
             ) {
                 LivePlayerPane(
-                    viewModel = viewModel,
                     route = route,
                     player = player,
                     playbackState = playbackState,
-                    roomSession = roomSession,
+                    roomSessionState = roomSessionState,
                     isFull = false,
                     onToggleFull = onToggleFull,
                     onTogglePlay = onTogglePlay,
+                    onToggleDanmaku = onToggleDanmaku,
                     onRetry = onRetry,
                     onSwitchQuality = onSwitchQuality,
+                    settingsState = settingsState,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -70,7 +73,7 @@ internal fun LivePlaybackBody(
             LiveDetailPane(
                 route = route,
                 playbackState = playbackState,
-                roomSession = roomSession,
+                roomSessionState = roomSessionState,
                 showHeader = true,
                 horizontalPad = 0.dp,
                 modifier = Modifier
@@ -81,16 +84,17 @@ internal fun LivePlaybackBody(
     } else {
         Column(modifier = modifier) {
             LivePlayerPane(
-                viewModel = viewModel,
                 route = route,
                 player = player,
                 playbackState = playbackState,
-                roomSession = roomSession,
+                roomSessionState = roomSessionState,
                 isFull = false,
                 onToggleFull = onToggleFull,
                 onTogglePlay = onTogglePlay,
+                onToggleDanmaku = onToggleDanmaku,
                 onRetry = onRetry,
                 onSwitchQuality = onSwitchQuality,
+                settingsState = settingsState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(playerSpaceHeight)
@@ -99,7 +103,7 @@ internal fun LivePlaybackBody(
             LiveDetailPane(
                 route = route,
                 playbackState = playbackState,
-                roomSession = roomSession,
+                roomSessionState = roomSessionState,
                 showHeader = true,
                 modifier = Modifier
                     .fillMaxWidth()

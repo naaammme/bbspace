@@ -182,7 +182,7 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         localIdGen: AtomicLong,
         ackDeduper: AckDeduper,
         emitState: ((LiveRoomSessionState) -> LiveRoomSessionState) -> Unit
-    ) {
+    ) = withContext(Dispatchers.IO) {
         var lastError: Throwable? = null
         for (index in info.hosts.indices) {
             val host = info.hosts[index]
@@ -199,12 +199,10 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                         lastError = null
                     )
                 }
-                withContext(Dispatchers.IO) {
-                    socket.tcpNoDelay = true
-                    socket.keepAlive = true
-                    socket.connect(InetSocketAddress(host.host, host.port), CONNECT_TIMEOUT_MS)
-                    socket.soTimeout = AUTH_TIMEOUT_MS
-                }
+                socket.tcpNoDelay = true
+                socket.keepAlive = true
+                socket.connect(InetSocketAddress(host.host, host.port), CONNECT_TIMEOUT_MS)
+                socket.soTimeout = AUTH_TIMEOUT_MS
                 socket.getOutputStream().use { output ->
                     DataInputStream(socket.getInputStream()).use { input ->
                         emitState { it.copy(status = LiveRoomSessionStatus.Authorizing) }
@@ -226,7 +224,7 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                         )
                     }
                 }
-                return
+                return@withContext
             } catch (t: Throwable) {
                 lastError = t
                 socket.closeQuietly()
@@ -291,7 +289,7 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                     onMessage = { msg ->
                         emitState {
                             val next = appendMessage(it.messages, msg)
-                            it.copy(messages = next)
+                            it.copy(messages = next, latestMessage = msg)
                         }
                     }
                 )
@@ -373,14 +371,14 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         var offset = 0
         while (offset + HEADER_SIZE <= bytes.size) {
             val packetLen = readInt32(bytes, offset)
-            if (packetLen < HEADER_SIZE || packetLen > MAX_PACKET_SIZE || offset + packetLen > bytes.size) break
+            if (packetLen !in HEADER_SIZE..MAX_PACKET_SIZE || offset + packetLen > bytes.size) break
             val headerLen = readInt16(bytes, offset + 4)
-            if (headerLen < HEADER_SIZE || headerLen > packetLen) break
+            if (headerLen !in HEADER_SIZE..packetLen) break
             val version = readInt16(bytes, offset + 6)
             val op = readInt32(bytes, offset + 8)
             val payload = bytes.copyOfRange(offset + headerLen, offset + packetLen)
             if (op == OP_MESSAGE) {
-                val nested = LivePacket(packetLen, headerLen, version, op, payload)
+                val nested = LivePacket(version, op, payload)
                 packets += unpackBusinessPayload(nested)
             } else if (op == OP_AUTH_REPLY) {
                 parseJsonOrNull(payload)?.let(packets::add)
@@ -506,6 +504,25 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         )
     }
 
+    private fun appendMessage(
+        messages: List<LiveRoomMessage>,
+        msg: LiveRoomMessage
+    ): List<LiveRoomMessage> {
+        if (messages.isEmpty()) return listOf(msg)
+        val next = if (messages.size >= MAX_MESSAGE_COUNT) {
+            ArrayList<LiveRoomMessage>(MAX_MESSAGE_COUNT).apply {
+                addAll(messages.subList(1, messages.size))
+                add(msg)
+            }
+        } else {
+            ArrayList<LiveRoomMessage>(messages.size + 1).apply {
+                addAll(messages)
+                add(msg)
+            }
+        }
+        return next
+    }
+
     private fun buildAuthPayload(
         roomId: Long,
         token: String,
@@ -580,10 +597,10 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         val headerLen = readInt16(header, 4)
         val version = readInt16(header, 6)
         val op = readInt32(header, 8)
-        if (packetLen < HEADER_SIZE || packetLen > MAX_PACKET_SIZE) {
+        if (packetLen !in HEADER_SIZE..MAX_PACKET_SIZE) {
             throw IllegalStateException("直播消息包长度非法 packetLen=$packetLen")
         }
-        if (headerLen < HEADER_SIZE || headerLen > packetLen) {
+        if (headerLen !in HEADER_SIZE..packetLen) {
             throw IllegalStateException("直播消息包头长度非法 headerLen=$headerLen packetLen=$packetLen")
         }
         val extraHeaderLen = headerLen - HEADER_SIZE
@@ -594,8 +611,6 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         val payload = ByteArray(bodyLen)
         input.readFully(payload)
         return LivePacket(
-            packetLen = packetLen,
-            headerLen = headerLen,
             version = version,
             op = op,
             payload = payload
@@ -604,18 +619,18 @@ class LiveRoomMessageRepoImpl @Inject constructor(
 
     private fun parsePopularCount(payload: ByteArray): Long {
         if (payload.size < 4) return 0L
-        return readUInt32(payload, 0)
+        return readUInt32(payload)
     }
 
     private fun inflate(bytes: ByteArray): ByteArray {
-        return readAllBytes(InflaterInputStream(bytes.inputStream()), MAX_DECOMPRESSED_SIZE)
+        return readAllBytes(InflaterInputStream(bytes.inputStream()))
     }
 
     private fun decodeBrotli(bytes: ByteArray): ByteArray {
-        return readAllBytes(BrotliInputStream(bytes.inputStream()), MAX_DECOMPRESSED_SIZE)
+        return readAllBytes(BrotliInputStream(bytes.inputStream()))
     }
 
-    private fun readAllBytes(input: InputStream, maxBytes: Int): ByteArray {
+    private fun readAllBytes(input: InputStream): ByteArray {
         input.use { stream ->
             val out = ByteArrayOutputStream()
             val buf = ByteArray(IO_BUFFER_SIZE)
@@ -624,7 +639,7 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                 val read = stream.read(buf)
                 if (read <= 0) break
                 total += read
-                if (total > maxBytes) {
+                if (total > MAX_DECOMPRESSED_SIZE) {
                     throw IllegalStateException("直播消息包体超过限制")
                 }
                 out.write(buf, 0, read)
@@ -655,25 +670,6 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                 add(HostPort(host, port))
             }
         }
-    }
-
-    private fun appendMessage(
-        messages: List<LiveRoomMessage>,
-        msg: LiveRoomMessage
-    ): List<LiveRoomMessage> {
-        if (messages.isEmpty()) return listOf(msg)
-        val next = if (messages.size >= MAX_MESSAGE_COUNT) {
-            ArrayList<LiveRoomMessage>(MAX_MESSAGE_COUNT).apply {
-                addAll(messages.subList(1, messages.size))
-                add(msg)
-            }
-        } else {
-            ArrayList<LiveRoomMessage>(messages.size + 1).apply {
-                addAll(messages)
-                add(msg)
-            }
-        }
-        return next
     }
 
     private fun nextRetryDelayMs(retryCount: Int): Long {
@@ -718,8 +714,8 @@ class LiveRoomMessageRepoImpl @Inject constructor(
             (bytes[offset + 1].toInt() and 0xFF)
     }
 
-    private fun readUInt32(bytes: ByteArray, offset: Int): Long {
-        return readInt32(bytes, offset).toLong() and 0xFFFFFFFFL
+    private fun readUInt32(bytes: ByteArray): Long {
+        return readInt32(bytes, 0).toLong() and 0xFFFFFFFFL
     }
 
     private fun skipFully(input: DataInputStream, count: Int) {
@@ -745,9 +741,7 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         val port: Int
     )
 
-    private data class LivePacket(
-        val packetLen: Int,
-        val headerLen: Int,
+    private class LivePacket(
         val version: Int,
         val op: Int,
         val payload: ByteArray

@@ -7,17 +7,18 @@ import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
+import com.naaammme.bbspace.core.model.LiveRoomPanelState
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -57,6 +58,18 @@ class LiveViewModel @Inject constructor(
                 replayExpirationMillis = 0
             ),
             initialValue = LiveRoomSessionState()
+        )
+
+    val roomPanel: StateFlow<LiveRoomPanelUiState> = roomSession
+        .map { LiveRoomPanelUiState(popularCount = it.popularCount, panel = it.panel) }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(
+                stopTimeoutMillis = 5_000,
+                replayExpirationMillis = 0
+            ),
+            initialValue = LiveRoomPanelUiState()
         )
 
     private var startJob: Job? = null
@@ -120,6 +133,11 @@ class LiveViewModel @Inject constructor(
         super.onCleared()
     }
 }
+
+data class LiveRoomPanelUiState(
+    val popularCount: Long = 0L,
+    val panel: LiveRoomPanelState = LiveRoomPanelState()
+)
 
 internal fun LivePlaybackError.toUiMessage(): String {
     return when (this) {
