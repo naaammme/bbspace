@@ -135,7 +135,7 @@ class MainActivity : ComponentActivity() {
         val h = currentMode.physicalHeight
         val modes = cachedDisplayModes ?: display.supportedModes
             ?.also { cachedDisplayModes = it }
-        ?: return null
+            ?: return null
         return modes
             .filter { it.physicalWidth == w && it.physicalHeight == h }
             .minByOrNull { abs(it.refreshRate - targetHz) }
@@ -148,7 +148,6 @@ class MainActivity : ComponentActivity() {
             is WebLinkTarget.ToVideo,
             is WebLinkTarget.ToSpace,
             is WebLinkTarget.ToLive -> target
-
             is WebLinkTarget.External,
             is WebLinkTarget.Stay -> null
         }

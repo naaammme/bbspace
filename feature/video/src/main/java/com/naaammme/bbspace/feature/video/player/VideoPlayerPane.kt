@@ -324,7 +324,7 @@ internal fun VideoPlayerPane(
                                 )
                             )
                         )
-                        .padding(12.dp),
+                        .padding(1.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

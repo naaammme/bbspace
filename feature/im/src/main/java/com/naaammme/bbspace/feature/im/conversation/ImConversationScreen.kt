@@ -147,7 +147,7 @@ fun ImConversationScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                        contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         reverseLayout = true
                     ) {

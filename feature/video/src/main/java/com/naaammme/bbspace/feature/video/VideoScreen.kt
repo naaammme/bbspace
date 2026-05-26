@@ -30,11 +30,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
@@ -87,6 +89,7 @@ fun VideoScreen(
     val ctx = LocalContext.current
     val act = remember(ctx) { ctx.findActivity() }
     val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
+    val themeUsesDarkSystemBarIcons = MaterialTheme.colorScheme.background.luminance() > 0.5f
     var isFull by rememberSaveable { mutableStateOf(false) }
     var downloadSheetOn by rememberSaveable { mutableStateOf(false) }
     val fullOn = hostExpanded && isFull
@@ -118,12 +121,17 @@ fun VideoScreen(
         }
     }
 
-    DisposableEffect(act, fullOn) {
-        if (act == null) {
-            onDispose { }
-        } else {
-            val win = act.window
-            val ctrl = WindowInsetsControllerCompat(win, win.decorView)
+    if (act != null) {
+        val win = act.window
+        val ctrl = remember(win) { WindowInsetsControllerCompat(win, win.decorView) }
+        val restoreLightSystemBars by rememberUpdatedState(themeUsesDarkSystemBarIcons)
+
+        LaunchedEffect(ctrl, fullOn, widthClass, themeUsesDarkSystemBarIcons) {
+            val statusBarOnDarkBg = fullOn || widthClass != WindowWidthSizeClass.EXPANDED
+
+            ctrl.isAppearanceLightStatusBars = !statusBarOnDarkBg && themeUsesDarkSystemBarIcons
+            ctrl.isAppearanceLightNavigationBars = !fullOn && themeUsesDarkSystemBarIcons
+
             if (fullOn) {
                 ctrl.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -131,7 +139,12 @@ fun VideoScreen(
             } else {
                 ctrl.show(WindowInsetsCompat.Type.systemBars())
             }
+        }
+
+        DisposableEffect(ctrl) {
             onDispose {
+                ctrl.isAppearanceLightStatusBars = restoreLightSystemBars
+                ctrl.isAppearanceLightNavigationBars = restoreLightSystemBars
                 ctrl.show(WindowInsetsCompat.Type.systemBars())
             }
         }
