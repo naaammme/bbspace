@@ -28,18 +28,18 @@ class PlaybackReporter @Inject constructor(
     private var pageOwnerId = 0L
     private var pagePolarisId = ""
     @Volatile
-    private var pageMeta: PlaybackHistoryMeta? = null
+    private var historyMeta: PlaybackHistoryMeta? = null
     private var ctx: PlaybackReportSession? = null
 
     fun bindOwner(who: Long) {
         if (pageOwnerId == who) return
         pageOwnerId = who
         pagePolarisId = BiliSessionId.polarisAction()
-        pageMeta = null
+        historyMeta = null
     }
 
-    fun updatePlaybackMeta(meta: PlaybackHistoryMeta?) {
-        pageMeta = meta
+    fun updateHistoryMeta(meta: PlaybackHistoryMeta?) {
+        historyMeta = meta
     }
 
     suspend fun startSession(
@@ -121,7 +121,7 @@ class PlaybackReporter @Inject constructor(
 
     internal suspend fun detachSession(
         snapshot: PlaybackSnapshot,
-        meta: PlaybackHistoryMeta? = null
+        historyMeta: PlaybackHistoryMeta? = null
     ): DetachedPlaybackReport? {
         return mu.withLock {
             val current = ctx ?: return@withLock null
@@ -129,7 +129,7 @@ class PlaybackReporter @Inject constructor(
             current.lastSnapshot = snapshot
             val detached = DetachedPlaybackReport(
                 session = current.copy(),
-                meta = meta ?: pageMeta,
+                historyMeta = historyMeta ?: this.historyMeta,
                 snapshot = snapshot
             )
             if (ctx?.sessionId == current.sessionId) {
@@ -145,7 +145,7 @@ class PlaybackReporter @Inject constructor(
         if (!active.finalized) {
             recordAndReportPlaybackHistory(
                 active = active,
-                meta = report.meta,
+                historyMeta = report.historyMeta,
                 snapshot = report.snapshot,
                 complete = active.isComplete(report.snapshot, allowEndedOnly = false)
             )
@@ -191,7 +191,7 @@ class PlaybackReporter @Inject constructor(
     ) {
         recordAndReportPlaybackHistory(
             active = active,
-            meta = pageMeta,
+            historyMeta = historyMeta,
             snapshot = snapshot,
             complete = complete
         )
@@ -204,11 +204,11 @@ class PlaybackReporter @Inject constructor(
 
     private suspend fun recordAndReportPlaybackHistory(
         active: PlaybackReportSession,
-        meta: PlaybackHistoryMeta?,
+        historyMeta: PlaybackHistoryMeta?,
         snapshot: PlaybackSnapshot,
         complete: Boolean
     ) {
-        localHistoryRecorder.record(active, meta, snapshot)
+        localHistoryRecorder.record(active, historyMeta, snapshot)
         remoteReporter.reportPlaybackHistory(active, snapshot, complete)
     }
 
@@ -227,6 +227,6 @@ class PlaybackReporter @Inject constructor(
 
 internal data class DetachedPlaybackReport(
     val session: PlaybackReportSession,
-    val meta: PlaybackHistoryMeta?,
+    val historyMeta: PlaybackHistoryMeta?,
     val snapshot: PlaybackSnapshot
 )

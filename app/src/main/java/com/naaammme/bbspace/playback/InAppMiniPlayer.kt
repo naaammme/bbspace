@@ -36,7 +36,7 @@ import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.BiliImageVariant
 import com.naaammme.bbspace.core.designsystem.icon.AppIcons
-import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
+import com.naaammme.bbspace.core.model.PlaybackDisplayMeta
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
@@ -47,7 +47,7 @@ fun InAppMiniPlayer(
     player: Player?,
     target: StreamPlaybackTarget,
     sessionState: StreamPlaybackSessionState,
-    pageMeta: PlaybackHistoryMeta?,
+    displayMeta: PlaybackDisplayMeta?,
     onExpand: () -> Unit,
     onTogglePlay: () -> Unit,
     onClose: () -> Unit
@@ -62,7 +62,7 @@ fun InAppMiniPlayer(
     }
     val title = when (target) {
         is StreamPlaybackTarget.Video -> {
-            pageMeta?.title?.takeIf(String::isNotBlank) ?: "视频播放"
+            displayMeta?.title?.takeIf(String::isNotBlank) ?: "视频播放"
         }
 
         is StreamPlaybackTarget.Live -> {
@@ -72,7 +72,7 @@ fun InAppMiniPlayer(
     }
     val subtitle = when (target) {
         is StreamPlaybackTarget.Video -> {
-            pageMeta?.ownerName.orEmpty()
+            displayMeta?.subtitle.orEmpty()
         }
 
         is StreamPlaybackTarget.Live -> {

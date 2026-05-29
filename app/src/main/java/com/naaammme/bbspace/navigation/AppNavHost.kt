@@ -95,7 +95,7 @@ fun AppNavHost(
     val player by playbackHostViewModel.player.collectAsStateWithLifecycle()
     val target by playbackHostViewModel.currentTarget.collectAsStateWithLifecycle()
     val sessionState by playbackHostViewModel.sessionState.collectAsStateWithLifecycle()
-    val pageMeta by playbackHostViewModel.pageMeta.collectAsStateWithLifecycle()
+    val displayMeta by playbackHostViewModel.displayMeta.collectAsStateWithLifecycle()
     val backgroundPlaybackEnabled by playbackHostViewModel.backgroundPlaybackEnabled.collectAsStateWithLifecycle()
     val miniPlayerAvailable by playbackHostViewModel.miniPlayerAvailable.collectAsStateWithLifecycle()
     val hostMode = playbackHostViewModel.hostMode
@@ -336,7 +336,7 @@ fun AppNavHost(
             target = target,
             player = player,
             sessionState = sessionState,
-            pageMeta = pageMeta,
+            displayMeta = displayMeta,
             miniPlayerAvailable = miniPlayerAvailable,
             backgroundPlaybackEnabled = backgroundPlaybackEnabled,
             onExpand = {

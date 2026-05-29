@@ -1,20 +1,12 @@
-﻿package com.naaammme.bbspace.infra.player
+package com.naaammme.bbspace.infra.player
 
 sealed interface EngineSource {
-    val title: String?
-    val subtitle: String?
 
-    data class LiveFlv(
-        val url: String,
-        override val title: String? = null,
-        override val subtitle: String? = null
-    ) : EngineSource
+    data class LiveFlv(val url: String) : EngineSource
 
     data class Dash(
         val videoUrl: String,
-        val audioUrl: String? = null,
-        override val title: String? = null,
-        override val subtitle: String? = null
+        val audioUrl: String? = null
     ) : EngineSource
 
     data class ProgressiveSegment(
@@ -22,9 +14,5 @@ sealed interface EngineSource {
         val durationMs: Long?
     )
 
-    data class Progressive(
-        val segments: List<ProgressiveSegment>,
-        override val title: String? = null,
-        override val subtitle: String? = null
-    ) : EngineSource
+    data class Progressive(val segments: List<ProgressiveSegment>) : EngineSource
 }

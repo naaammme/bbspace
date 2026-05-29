@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.core.data.player
 
 import androidx.media3.common.Player
+import androidx.media3.common.MediaMetadata
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.data.AppSettings
@@ -16,6 +17,7 @@ import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackAudio
+import com.naaammme.bbspace.core.model.PlaybackDisplayMeta
 import com.naaammme.bbspace.core.model.PlaybackControlMode
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackHistory
@@ -29,6 +31,7 @@ import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
+import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.core.model.isSameEntry
@@ -85,8 +88,9 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private val vodSession = MutableStateFlow(PlayerSessionState())
     private val _videoState = MutableStateFlow(PlaybackViewState())
     override val videoState: StateFlow<PlaybackViewState> = _videoState.asStateFlow()
-    private val _pageMeta = MutableStateFlow<PlaybackHistoryMeta?>(null)
-    override val pageMeta: StateFlow<PlaybackHistoryMeta?> = _pageMeta.asStateFlow()
+    private val _displayMeta = MutableStateFlow<PlaybackDisplayMeta?>(null)
+    override val displayMeta: StateFlow<PlaybackDisplayMeta?> = _displayMeta.asStateFlow()
+    private var historyMeta: PlaybackHistoryMeta? = null
     private val prepMu = Mutex()
     private val openId = AtomicLong(0L)
     private var lastDiscontinuitySeq = 0L
@@ -172,7 +176,12 @@ class StreamPlaybackSessionImpl @Inject constructor(
             val source = liveRepository.fetchPlaybackSource(route.roomId, preferredQuality)
             playerEngine.setSource(
                 source = EngineSource.LiveFlv(source.primaryUrl),
-                playWhenReady = true
+                playWhenReady = true,
+                metadata = MediaMetadata.Builder()
+                    .setTitle(route.title?.takeIf(String::isNotBlank))
+                    .setArtist(source.currentDescription?.takeIf(String::isNotBlank))
+                    .setArtworkUri(route.cover?.takeIf(String::isNotBlank)?.let(android.net.Uri::parse))
+                    .build()
             )
             _liveState.value = _liveState.value.copy(
                 isPreparing = false,
@@ -311,10 +320,43 @@ class StreamPlaybackSessionImpl @Inject constructor(
         }
     }
 
-    override fun updatePlaybackMeta(meta: PlaybackHistoryMeta?) {
+    override fun updateVideoMeta(
+        detail: VideoDetail?,
+        cid: Long?
+    ) {
         if (_currentTarget.value !is StreamPlaybackTarget.Video) return
-        _pageMeta.value = meta
-        reporter.updatePlaybackMeta(meta)
+        val idx = cid?.let { targetCid -> detail?.pages?.indexOfFirst { it.cid == targetCid } } ?: -1
+        val part = detail?.pages?.getOrNull(idx)
+        val nextDisplayMeta = detail?.let {
+            PlaybackDisplayMeta(
+                title = it.title,
+                subtitle = listOfNotNull(
+                    it.owner?.name?.takeIf(String::isNotBlank),
+                    part?.part?.takeIf(String::isNotBlank)
+                ).joinToString(" · ").takeIf(String::isNotBlank),
+                cover = it.cover
+            )
+        }
+        val nextHistoryMeta = detail?.let {
+            PlaybackHistoryMeta(
+                title = it.title,
+                cover = it.cover,
+                ownerUid = it.owner?.mid?.takeIf { mid -> mid > 0L },
+                ownerName = it.owner?.name,
+                part = if (idx >= 0) idx + 1 else null,
+                partTitle = part?.part
+            )
+        }
+        _displayMeta.value = nextDisplayMeta
+        historyMeta = nextHistoryMeta
+        playerEngine.setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(nextDisplayMeta?.title?.takeIf(String::isNotBlank))
+                .setArtist(nextDisplayMeta?.subtitle?.takeIf(String::isNotBlank))
+                .setArtworkUri(nextDisplayMeta?.cover?.takeIf(String::isNotBlank)?.let(android.net.Uri::parse))
+                .build()
+        )
+        reporter.updateHistoryMeta(nextHistoryMeta)
     }
 
     // vod: open & state
@@ -346,7 +388,8 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
         val token = openId.incrementAndGet()
         nextPlayWhenReady = true
-        _pageMeta.value = null
+        _displayMeta.value = null
+        historyMeta = null
         reporter.bindOwner(token)
         if (reopenSameEntry) {
             _currentTarget.value = StreamPlaybackTarget.Video(target)
@@ -512,11 +555,12 @@ class StreamPlaybackSessionImpl @Inject constructor(
         val hadVideo = vodSession.value.playbackSource != null
         val hasEngineMedia = playerEngine.currentSource.value != null ||
             player.value?.currentMediaItem != null
-        val pageMeta = _pageMeta.value
+        val reportMeta = historyMeta
         if (invalidateOpen) openId.incrementAndGet()
         _currentTarget.value = nextTarget?.let { StreamPlaybackTarget.Video(it) }
         nextPlayWhenReady = true
-        _pageMeta.value = null
+        _displayMeta.value = null
+        historyMeta = null
         vodSession.value = nextState ?: PlayerSessionState()
         _videoState.value = nextViewState ?: PlaybackViewState()
         syncSessionState()
@@ -527,7 +571,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
             }
         }
 
-        val detached = if (hadVideo) reporter.detachSession(snapshot, pageMeta) else null
+        val detached = if (hadVideo) reporter.detachSession(snapshot, reportMeta) else null
         detached ?: return
         if (!finalizeReportAsync) {
             reporter.finalizeSession(detached)
@@ -575,12 +619,17 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 val cdns = buildPlaybackCdns(stream, audio)
                 if (cdns.isEmpty()) return null
                 val index = cdnIndex.coerceIn(0, cdns.lastIndex)
-                EngineSource.Dash(cdns[index].videoUrl, cdns[index].audioUrl) to index
+                EngineSource.Dash(
+                    videoUrl = cdns[index].videoUrl,
+                    audioUrl = cdns[index].audioUrl
+                ) to index
             }
 
             is PlaybackStream.Progressive -> {
                 EngineSource.Progressive(
-                    stream.segments.map { EngineSource.ProgressiveSegment(it.url, it.durationMs) }
+                    segments = stream.segments.map {
+                        EngineSource.ProgressiveSegment(it.url, it.durationMs)
+                    }
                 ) to 0
             }
 

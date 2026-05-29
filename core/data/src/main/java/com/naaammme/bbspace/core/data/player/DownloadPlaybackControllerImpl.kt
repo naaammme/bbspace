@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.core.data.player
 
 import android.net.Uri
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.domain.player.DownloadPlaybackController
@@ -84,7 +85,11 @@ class DownloadPlaybackControllerImpl @Inject constructor(
             playerEngine.setSource(
                 source = task.toEngineSource(),
                 startPositionMs = 0L,
-                playWhenReady = true
+                playWhenReady = true,
+                metadata = MediaMetadata.Builder()
+                    .setTitle(task.title.takeIf(String::isNotBlank))
+                    .setArtist(task.summaryLabel().takeIf(String::isNotBlank))
+                    .build()
             )
             session.value = DownloadPlaybackSession(task = task)
         } catch (c: CancellationException) {
@@ -119,24 +124,16 @@ class DownloadPlaybackControllerImpl @Inject constructor(
     }
 
     private fun VideoDownloadTask.toEngineSource(): EngineSource {
-        val taskTitle = title
-        val subtitle = summaryLabel()
         val videoUri = videoPath?.let { Uri.fromFile(java.io.File(it)).toString() }
         val audioUri = audioPath?.let { Uri.fromFile(java.io.File(it)).toString() }
         return when {
             !videoUri.isNullOrBlank() -> EngineSource.Dash(
                 videoUrl = videoUri,
-                audioUrl = audioUri,
-                title = taskTitle,
-                subtitle = subtitle
+                audioUrl = audioUri
             )
-
             !audioUri.isNullOrBlank() -> EngineSource.Progressive(
-                segments = listOf(EngineSource.ProgressiveSegment(audioUri, durationMs)),
-                title = taskTitle,
-                subtitle = subtitle
+                segments = listOf(EngineSource.ProgressiveSegment(audioUri, durationMs))
             )
-
             else -> error("缓存文件不存在")
         }
     }

@@ -164,11 +164,13 @@ class Media3PlayerEngine @Inject constructor(
     override fun setSource(
         source: EngineSource,
         startPositionMs: Long?,
-        playWhenReady: Boolean
+        playWhenReady: Boolean,
+        metadata: MediaMetadata?
     ) {
         val player = ensurePlayer()
+        val itemMetadata = metadata ?: player.currentMediaItem?.mediaMetadata ?: MediaMetadata.EMPTY
         firstFrameSeq = 0L
-        player.setMediaSource(buildMediaSource(source))
+        player.setMediaSource(buildMediaSource(source, itemMetadata))
         if (startPositionMs != null && startPositionMs > 0) {
             player.seekTo(startPositionMs.coerceAtLeast(0L))
         }
@@ -199,11 +201,21 @@ class Media3PlayerEngine @Inject constructor(
         player.seekTo(positionMs.coerceAtLeast(0L))
     }
 
+    override fun setMediaMetadata(metadata: MediaMetadata) {
+        val player = exoPlayer ?: return
+        val current = player.currentMediaItem ?: return
+        val next = current.buildUpon()
+            .setMediaMetadata(metadata)
+            .build()
+        player.replaceMediaItem(player.currentMediaItemIndex, next)
+    }
+
     override fun stopForReuse(resetPosition: Boolean) {
         progressJob?.cancel()
         progressJob = null
         val player = exoPlayer ?: run {
             resetRuntimeState()
+            _currentSource.value = null
             _snapshot.value = PlaybackSnapshot()
             return
         }
@@ -303,23 +315,26 @@ class Media3PlayerEngine @Inject constructor(
         )
     }
 
-    private fun buildMediaSource(source: EngineSource): MediaSource {
+    private fun buildMediaSource(
+        source: EngineSource,
+        metadata: MediaMetadata
+    ): MediaSource {
         val mediaSourceFactory = buildMediaSourceFactory(source)
         return when (source) {
             is EngineSource.LiveFlv -> {
-                val mediaItem = mediaItem(source.url, source)
+                val item = mediaItem(source.url, metadata)
                     .buildUpon()
                     .setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
                     .build()
-                mediaSourceFactory.createMediaSource(mediaItem)
+                mediaSourceFactory.createMediaSource(item)
             }
 
             is EngineSource.Dash -> {
-                val video = mediaSourceFactory.createMediaSource(mediaItem(source.videoUrl, source))
+                val video = mediaSourceFactory.createMediaSource(mediaItem(source.videoUrl, metadata))
                 if (source.audioUrl.isNullOrBlank()) {
                     video
                 } else {
-                    val audio = mediaSourceFactory.createMediaSource(mediaItem(source.audioUrl, source))
+                    val audio = mediaSourceFactory.createMediaSource(mediaItem(source.audioUrl, metadata))
                     MergingMediaSource(true, video, audio)
                 }
             }
@@ -327,13 +342,13 @@ class Media3PlayerEngine @Inject constructor(
             is EngineSource.Progressive -> {
                 if (source.segments.size == 1) {
                     mediaSourceFactory.createMediaSource(
-                        mediaItem(source.segments.first().url, source)
+                        mediaItem(source.segments.first().url, metadata)
                     )
                 } else {
                     val builder = ConcatenatingMediaSource2.Builder()
                     source.segments.forEach { segment ->
                         builder.add(
-                            mediaSourceFactory.createMediaSource(mediaItem(segment.url, source)),
+                            mediaSourceFactory.createMediaSource(mediaItem(segment.url, metadata)),
                             segment.durationMs ?: C.TIME_UNSET
                         )
                     }
@@ -373,20 +388,10 @@ class Media3PlayerEngine @Inject constructor(
         return contains("platform=pc", ignoreCase = true)
     }
 
-    private fun mediaItem(
-        uri: String,
-        source: EngineSource
-    ): MediaItem {
-        val title = source.title
-        val subtitle = source.subtitle
+    private fun mediaItem(uri: String, metadata: MediaMetadata): MediaItem {
         return MediaItem.Builder()
             .setUri(uri)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setArtist(subtitle)
-                    .build()
-            )
+            .setMediaMetadata(metadata)
             .build()
     }
 

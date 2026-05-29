@@ -2,6 +2,7 @@ package com.naaammme.bbspace.feature.listen.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.MediaMetadata
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.domain.listen.ListenRepository
 import com.naaammme.bbspace.infra.player.EnginePlaybackState
@@ -24,7 +25,6 @@ class ListenDetailViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "ListenDetailVM"
-        private const val LISTEN_SOURCE_MARK = "__listen_audio__"
     }
 
     private val _uiState = MutableStateFlow(ListenDetailUiState())
@@ -39,7 +39,9 @@ class ListenDetailViewModel @Inject constructor(
             combine(playerEngine.currentSource, playerEngine.snapshot) { source, snapshot ->
                 source to snapshot
             }.collect { (source, snapshot) ->
-                val isListenSource = source?.subtitle?.startsWith(LISTEN_SOURCE_MARK) == true
+                val audioUrl = _uiState.value.audioUrl
+                val isListenSource = audioUrl != null &&
+                    (source as? EngineSource.Progressive)?.segments?.any { it.url == audioUrl } == true
                 if (!isListenSource) return@collect
                 _uiState.update {
                     it.copy(
@@ -92,12 +94,14 @@ class ListenDetailViewModel @Inject constructor(
                 }
                 playerEngine.setSource(
                     source = EngineSource.Progressive(
-                        segments = listOf(EngineSource.ProgressiveSegment(audioUrl, info.durationMs)),
-                        title = title,
-                        subtitle = "$LISTEN_SOURCE_MARK${author.ifBlank { title }}"
+                        segments = listOf(EngineSource.ProgressiveSegment(audioUrl, info.durationMs))
                     ),
                     startPositionMs = 0L,
-                    playWhenReady = true
+                    playWhenReady = true,
+                    metadata = MediaMetadata.Builder()
+                        .setTitle(title.takeIf(String::isNotBlank))
+                        .setArtist(author.takeIf(String::isNotBlank))
+                        .build()
                 )
             } catch (e: Exception) {
                 Logger.e(TAG, e) { "获取播放地址失败" }
@@ -125,7 +129,12 @@ class ListenDetailViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        if (playerEngine.currentSource.value?.subtitle?.startsWith(LISTEN_SOURCE_MARK) == true) {
+        val audioUrl = _uiState.value.audioUrl
+        val isListenSource = audioUrl != null &&
+            (playerEngine.currentSource.value as? EngineSource.Progressive)
+                ?.segments
+                ?.any { it.url == audioUrl } == true
+        if (isListenSource) {
             playerEngine.stopForReuse(resetPosition = true)
         }
         super.onCleared()

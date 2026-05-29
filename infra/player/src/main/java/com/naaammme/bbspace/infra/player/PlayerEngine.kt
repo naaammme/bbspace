@@ -1,5 +1,6 @@
 ﻿package com.naaammme.bbspace.infra.player
 
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import kotlinx.coroutines.flow.StateFlow
 
@@ -27,12 +28,14 @@ interface PlayerEngine {
     fun setSource(
         source: EngineSource,
         startPositionMs: Long? = null,
-        playWhenReady: Boolean = true
+        playWhenReady: Boolean = true,
+        metadata: MediaMetadata? = null
     )
     fun play()
     fun pause()
     fun setSpeed(speed: Float)
     fun seekTo(positionMs: Long)
+    fun setMediaMetadata(metadata: MediaMetadata)
     fun stopForReuse(resetPosition: Boolean = true)
     fun release()
 }

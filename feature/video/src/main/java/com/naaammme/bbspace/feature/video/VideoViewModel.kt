@@ -13,7 +13,6 @@ import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackError
-import com.naaammme.bbspace.core.model.PlaybackHistoryMeta
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoDownloadKind
@@ -103,7 +102,7 @@ class VideoViewModel @Inject constructor(
     internal val danmakuState = streamPlaybackSession.danmakuState
 
     init {
-        bindPlaybackMeta()
+        bindVideoMeta()
         bindPgcDetail()
         syncWithPlaybackTarget()
     }
@@ -312,19 +311,16 @@ class VideoViewModel @Inject constructor(
         }
     }
 
-    private fun bindPlaybackMeta() {
+    private fun bindVideoMeta() {
         viewModelScope.launch {
             combine(_detail, currentPageTarget, currentTarget, playerState) { detail, pageTarget, activeTarget, playbackState ->
-                val activeCid = (pageSessionTarget(pageTarget, activeTarget) as? VideoTarget.Ugc)?.cid
-                detail.toPlaybackHistoryMeta(
+                detail to (
                     playbackState.playbackSource?.videoId?.cid
-                        ?: activeCid
+                        ?: (pageSessionTarget(pageTarget, activeTarget) as? VideoTarget.Ugc)?.cid
                         ?: (pageTarget as? VideoTarget.Ugc)?.cid
                 )
-            }.collect { meta ->
-                if (meta != null) {
-                    streamPlaybackSession.updatePlaybackMeta(meta)
-                }
+            }.collect { (detail, cid) ->
+                streamPlaybackSession.updateVideoMeta(detail, cid)
             }
         }
     }
@@ -368,6 +364,9 @@ class VideoViewModel @Inject constructor(
     private fun loadTargetDetail(target: VideoTarget) {
         when (target) {
             is VideoTarget.Ugc -> {
+                _detail.value = null
+                _detailError.value = null
+                _detailLoading.value = true
                 viewModelScope.launch {
                     fetchDetail(target.aid, target.bvid, target.src)
                 }
@@ -443,18 +442,4 @@ private fun PlaybackError.toUiMsg(): String {
         is PlaybackError.RequestFailed -> message
         is PlaybackError.NoPlayableStream -> message
     }
-}
-
-private fun VideoDetail?.toPlaybackHistoryMeta(cid: Long?): PlaybackHistoryMeta? {
-    this ?: return null
-    val idx = cid?.let { target -> pages.indexOfFirst { it.cid == target } } ?: -1
-    val part = if (idx >= 0) pages[idx] else null
-    return PlaybackHistoryMeta(
-        title = title,
-        cover = cover,
-        ownerUid = owner?.mid?.takeIf { it > 0L },
-        ownerName = owner?.name,
-        part = if (idx >= 0) idx + 1 else null,
-        partTitle = part?.part
-    )
 }
