@@ -38,6 +38,7 @@ fun PlaybackHost(
     onPauseInBackground: () -> Unit,
     onClose: () -> Unit,
     onDismissExpanded: () -> Unit,
+    onGoHome: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
     onOpenDownloadCache: () -> Unit,
     onStartDownload: (VideoDownloadRequest) -> Unit,
@@ -81,6 +82,7 @@ fun PlaybackHost(
                 if (mode == PlaybackHostMode.Expanded) {
                     VideoScreen(
                         onBack = onDismissExpanded,
+                        onGoHome = onGoHome,
                         onOpenSpace = onOpenSpace,
                         onOpenDownloadCache = onOpenDownloadCache,
                         onStartDownload = onStartDownload,

@@ -76,6 +76,7 @@ internal val speedOps = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 @Composable
 fun VideoScreen(
     onBack: () -> Unit,
+    onGoHome: () -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
     onOpenDownloadCache: () -> Unit,
     onStartDownload: (VideoDownloadRequest) -> Unit,
@@ -242,6 +243,7 @@ fun VideoScreen(
                 isFull = fullOn,
                 onToggleFull = { isFull = !isFull },
                 onBackClick = handleBack,
+                onGoHome = onGoHome,
                 danmakuOverlayState = danmakuOverlayState
             )
         }

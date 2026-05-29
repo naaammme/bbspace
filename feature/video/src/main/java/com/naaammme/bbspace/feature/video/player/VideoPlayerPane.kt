@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -92,6 +93,7 @@ internal fun VideoPlayerPane(
     isFull: Boolean,
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit,
+    onGoHome: () -> Unit,
     danmakuOverlayState: DanmakuOverlayState? = null
 ) {
     val context = LocalContext.current
@@ -134,7 +136,7 @@ internal fun VideoPlayerPane(
             !showSp &&
             !showPlaybackSheet
         ) {
-            delay(3_000)
+            delay(2_000)
             showCtrl = false
         }
     }
@@ -333,6 +335,15 @@ internal fun VideoPlayerPane(
                                 contentDescription = "返回",
                                 tint = Color.White
                             )
+                        }
+                        if (!isFull) {
+                            IconButton(onClick = onGoHome) {
+                                Icon(
+                                    imageVector = Icons.Default.Home,
+                                    contentDescription = "首页",
+                                    tint = Color.White
+                                )
+                            }
                         }
                         if (isFull) {
                             Column(modifier = Modifier.weight(1f)) {

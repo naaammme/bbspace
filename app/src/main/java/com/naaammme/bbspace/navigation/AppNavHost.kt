@@ -88,6 +88,7 @@ fun AppNavHost(
     onAppLinkConsumed: () -> Unit = {}
 ) {
     val rootNavController = rememberNavController()
+    var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val downloadViewModel: DownloadViewModel = hiltViewModel()
     val playbackHostViewModel: PlaybackHostViewModel = hiltViewModel()
     val videoViewModel: VideoViewModel = hiltViewModel()
@@ -135,6 +136,12 @@ fun AppNavHost(
         collapseExpandedPlayback()
         dismissPlaybackHost()
         rootNavController.navigateToDownload()
+    }
+    val goHomeFromVideo: () -> Unit = {
+        collapseExpandedPlayback()
+        dismissPlaybackHost()
+        rootNavController.popBackStack(MAIN_ROUTE, false)
+        currentTab = TopLevelRoute.HOME
     }
     val openVideo: (VideoTarget) -> Unit = { target ->
         playbackHostViewModel.expand()
@@ -197,6 +204,8 @@ fun AppNavHost(
         ) {
             composable(MAIN_ROUTE) {
                 MainTabsScaffold(
+                    currentTab = currentTab,
+                    onTabChange = { currentTab = it },
                     onNavigateToSearch = { rootNavController.navigateToSearch() },
                     onNavigateToSettings = { rootNavController.navigate(SETTINGS_ROUTE) },
                     onNavigateToAccount = { rootNavController.navigate(ACCOUNT_ROUTE) },
@@ -355,6 +364,7 @@ fun AppNavHost(
                 }
             },
             onDismissExpanded = dismissPlaybackHost,
+            onGoHome = goHomeFromVideo,
             onOpenSpace = openSpaceFromVideo,
             onOpenDownloadCache = openDownloadFromVideo,
             onStartDownload = downloadViewModel::enqueueDownload,
@@ -367,6 +377,8 @@ fun AppNavHost(
 
 @Composable
 private fun MainTabsScaffold(
+    currentTab: TopLevelRoute,
+    onTabChange: (TopLevelRoute) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToAccount: () -> Unit,
@@ -381,7 +393,6 @@ private fun MainTabsScaffold(
     onNavigateToListenDetail: (Long, Int, Long, String, String, String) -> Unit,
     onNavigateToImConversation: (ImSessionItem) -> Unit
 ) {
-    var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()
     val userViewModel: UserViewModel = hiltViewModel()
     val userState by userViewModel.uiState.collectAsStateWithLifecycle()
@@ -393,7 +404,7 @@ private fun MainTabsScaffold(
                 TopLevelRoute.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = currentTab == tab,
-                        onClick = { currentTab = tab },
+                        onClick = { onTabChange(tab) },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
                         label = { Text(tab.label) }
                     )
@@ -408,7 +419,7 @@ private fun MainTabsScaffold(
                         when (tab) {
                             TopLevelRoute.HOME -> HomeScreen(
                                 onNavigateToSearch = onNavigateToSearch,
-                                onNavigateToProfile = { currentTab = TopLevelRoute.PROFILE },
+                                onNavigateToProfile = { onTabChange(TopLevelRoute.PROFILE) },
                                 profileAvatar = userState.user?.avatar,
                                 onOpenVideo = onNavigateToVideo,
                                 onOpenSpace = onNavigateToSpace,
