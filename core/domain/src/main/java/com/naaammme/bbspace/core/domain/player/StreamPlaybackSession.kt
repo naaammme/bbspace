@@ -4,7 +4,6 @@ import androidx.media3.common.Player
 import com.naaammme.bbspace.core.model.DanmakuSessionState
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.PlaybackDisplayMeta
 import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
@@ -18,7 +17,6 @@ interface StreamPlaybackSession {
     val sessionState: StateFlow<StreamPlaybackSessionState>
     val videoState: StateFlow<PlaybackViewState>
     val liveState: StateFlow<LivePlaybackViewState>
-    val displayMeta: StateFlow<PlaybackDisplayMeta?>
     val danmakuState: StateFlow<DanmakuSessionState>
 
     suspend fun prepare()
@@ -40,6 +38,6 @@ interface StreamPlaybackSession {
     fun switchVideoCdn(index: Int)
     fun switchVideoPage(cid: Long)
     fun switchLiveQuality(quality: Int)
-    fun updateVideoMeta(detail: VideoDetail?, cid: Long?)
+    fun updateVideoInfo(detail: VideoDetail?)
     fun close()
 }

@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import androidx.core.content.ContextCompat
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.CacheManager
@@ -162,7 +163,7 @@ class AppInitializer @Inject constructor(
                 .collect { shouldStart ->
                     val intent = Intent(context, PlaybackService::class.java)
                     if (shouldStart) {
-                        context.startService(intent)
+                        ContextCompat.startForegroundService(context, intent)
                     } else {
                         context.stopService(intent)
                     }

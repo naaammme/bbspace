@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -102,7 +103,7 @@ class VideoViewModel @Inject constructor(
     internal val danmakuState = streamPlaybackSession.danmakuState
 
     init {
-        bindVideoMeta()
+        bindVideoInfo()
         bindPgcDetail()
         syncWithPlaybackTarget()
     }
@@ -311,7 +312,7 @@ class VideoViewModel @Inject constructor(
         }
     }
 
-    private fun bindVideoMeta() {
+    private fun bindVideoInfo() {
         viewModelScope.launch {
             combine(_detail, currentPageTarget, currentTarget, playerState) { detail, pageTarget, activeTarget, playbackState ->
                 detail to (
@@ -319,8 +320,10 @@ class VideoViewModel @Inject constructor(
                         ?: (pageSessionTarget(pageTarget, activeTarget) as? VideoTarget.Ugc)?.cid
                         ?: (pageTarget as? VideoTarget.Ugc)?.cid
                 )
-            }.collect { (detail, cid) ->
-                streamPlaybackSession.updateVideoMeta(detail, cid)
+            }
+                .distinctUntilChanged()
+                .collect { (detail, _) ->
+                streamPlaybackSession.updateVideoInfo(detail)
             }
         }
     }

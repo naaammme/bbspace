@@ -17,7 +17,6 @@ import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackAudio
-import com.naaammme.bbspace.core.model.PlaybackDisplayMeta
 import com.naaammme.bbspace.core.model.PlaybackControlMode
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackHistory
@@ -87,8 +86,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private val vodSession = MutableStateFlow(PlayerSessionState())
     private val _videoState = MutableStateFlow(PlaybackViewState())
     override val videoState: StateFlow<PlaybackViewState> = _videoState.asStateFlow()
-    private val _displayMeta = MutableStateFlow<PlaybackDisplayMeta?>(null)
-    override val displayMeta: StateFlow<PlaybackDisplayMeta?> = _displayMeta.asStateFlow()
     private val prepMu = Mutex()
     private val openId = AtomicLong(0L)
     private var lastDiscontinuitySeq = 0L
@@ -318,31 +315,25 @@ class StreamPlaybackSessionImpl @Inject constructor(
         }
     }
 
-    override fun updateVideoMeta(
-        detail: VideoDetail?,
-        cid: Long?
-    ) {
+    override fun updateVideoInfo(detail: VideoDetail?) {
         if (_currentTarget.value !is StreamPlaybackTarget.Video) return
+        val cid = vodSession.value.playbackSource?.videoId?.cid
+            ?: ((_currentTarget.value as? StreamPlaybackTarget.Video)?.target as? VideoTarget.Ugc)?.cid
         val idx = cid?.let { targetCid -> detail?.pages?.indexOfFirst { it.cid == targetCid } } ?: -1
         val part = detail?.pages?.getOrNull(idx)
-        val nextDisplayMeta = detail?.let {
-            PlaybackDisplayMeta(
-                title = it.title,
-                subtitle = listOfNotNull(
-                    it.owner?.name?.takeIf(String::isNotBlank),
-                    part?.part?.takeIf(String::isNotBlank)
-                ).joinToString(" · ").takeIf(String::isNotBlank),
-                cover = it.cover
-            )
-        }
-        _displayMeta.value = nextDisplayMeta
         playerEngine.setMediaMetadata(
             MediaMetadata.Builder()
-                .setTitle(nextDisplayMeta?.title?.takeIf(String::isNotBlank))
-                .setArtist(nextDisplayMeta?.subtitle?.takeIf(String::isNotBlank))
-                .setArtworkUri(nextDisplayMeta?.cover?.takeIf(String::isNotBlank)?.let(android.net.Uri::parse))
+                .setTitle(detail?.title?.takeIf(String::isNotBlank))
+                .setArtist(
+                    listOfNotNull(
+                        detail?.owner?.name?.takeIf(String::isNotBlank),
+                        part?.part?.takeIf(String::isNotBlank)
+                    ).joinToString(" · ").takeIf(String::isNotBlank)
+                )
+                .setArtworkUri(detail?.cover?.takeIf(String::isNotBlank)?.let(android.net.Uri::parse))
                 .build()
         )
+        syncSessionState()
     }
 
     // vod: open & state
@@ -374,7 +365,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
         val token = openId.incrementAndGet()
         nextPlayWhenReady = true
-        _displayMeta.value = null
         reporter.bindOwner(token)
         if (reopenSameEntry) {
             _currentTarget.value = StreamPlaybackTarget.Video(target)
@@ -543,7 +533,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
         if (invalidateOpen) openId.incrementAndGet()
         _currentTarget.value = nextTarget?.let { StreamPlaybackTarget.Video(it) }
         nextPlayWhenReady = true
-        _displayMeta.value = null
         vodSession.value = nextState ?: PlayerSessionState()
         _videoState.value = nextViewState ?: PlaybackViewState()
         syncSessionState()
@@ -744,6 +733,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
     // session state
     private fun syncSessionState() {
+        val mediaMetadata = player.value?.currentMediaItem?.mediaMetadata
         _sessionState.value = when (val target = _currentTarget.value) {
             is StreamPlaybackTarget.Video -> {
                 val state = _videoState.value
@@ -753,6 +743,9 @@ class StreamPlaybackSessionImpl @Inject constructor(
                     isPlaying = state.isPlaying,
                     playWhenReady = state.playWhenReady,
                     playbackState = state.playbackState,
+                    title = mediaMetadata?.title?.toString().orEmpty(),
+                    subtitle = mediaMetadata?.artist?.toString()?.takeIf(String::isNotBlank),
+                    cover = mediaMetadata?.artworkUri?.toString()?.takeIf(String::isNotBlank),
                     videoWidth = state.videoWidth,
                     videoHeight = state.videoHeight,
                     hasRenderedFirstFrame = state.hasRenderedFirstFrame,
@@ -768,6 +761,12 @@ class StreamPlaybackSessionImpl @Inject constructor(
                     isPlaying = state.isPlaying,
                     playWhenReady = state.playWhenReady,
                     playbackState = state.playbackState,
+                    title = target.route.title?.takeIf(String::isNotBlank)
+                        ?: mediaMetadata?.title?.toString().orEmpty(),
+                    subtitle = target.route.ownerName?.takeIf(String::isNotBlank)
+                        ?: mediaMetadata?.artist?.toString()?.takeIf(String::isNotBlank),
+                    cover = target.route.cover?.takeIf(String::isNotBlank)
+                        ?: mediaMetadata?.artworkUri?.toString()?.takeIf(String::isNotBlank),
                     videoWidth = state.videoWidth,
                     videoHeight = state.videoHeight,
                     hasRenderedFirstFrame = state.hasRenderedFirstFrame,

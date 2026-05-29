@@ -26,7 +26,6 @@ class PlaybackHostViewModel @Inject constructor(
     val player = playbackSession.player
     val currentTarget = playbackSession.currentTarget
     val sessionState = playbackSession.sessionState
-    val displayMeta = playbackSession.displayMeta
     val backgroundPlaybackEnabled = playerSettings.state
         .map { it.playback.backgroundPlayback }
         .stateIn(

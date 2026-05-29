@@ -14,7 +14,6 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.naaammme.bbspace.core.model.DanmakuConfig
-import com.naaammme.bbspace.core.model.PlaybackDisplayMeta
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
@@ -32,7 +31,6 @@ fun PlaybackHost(
     target: StreamPlaybackTarget?,
     player: Player?,
     sessionState: StreamPlaybackSessionState,
-    displayMeta: PlaybackDisplayMeta?,
     miniPlayerAvailable: Boolean,
     backgroundPlaybackEnabled: Boolean,
     onExpand: () -> Unit,
@@ -117,7 +115,6 @@ fun PlaybackHost(
                     player = player,
                     target = target,
                     sessionState = sessionState,
-                    displayMeta = displayMeta,
                     onExpand = onExpand,
                     onTogglePlay = onTogglePlay,
                     onClose = onClose
