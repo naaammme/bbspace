@@ -94,6 +94,7 @@ private const val DOUBLE_TAP_SEEK_MS = 10_000L
 private const val DRAG_SENSITIVITY = 0.6f
 private const val SIDE_GESTURE_ZONE = 0.2f
 private const val RIGHT_GESTURE_ZONE_START = 1f - SIDE_GESTURE_ZONE
+private val SpeedBadgeTopPadding = 20.dp
 
 @Composable
 fun Modifier.videoGestures(
@@ -375,7 +376,8 @@ fun VideoGestureFeedback(
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier
-                    .align(Alignment.Center)
+                    .align(Alignment.TopCenter)
+                    .padding(top = SpeedBadgeTopPadding)
                     .clip(MaterialTheme.shapes.small)
                     .background(Color.Black.copy(alpha = 0.6f))
                     .padding(horizontal = 12.dp, vertical = 6.dp)

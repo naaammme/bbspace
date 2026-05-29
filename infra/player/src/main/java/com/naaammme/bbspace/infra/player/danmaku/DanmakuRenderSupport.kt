@@ -174,6 +174,8 @@ private val DanmakuConfig.overlappingRules: Map<Int, Boolean>?
         )
 
         1 -> hashMapOf(
+            BaseDanmaku.TYPE_SCROLL_RL to true,
+            BaseDanmaku.TYPE_SCROLL_LR to true,
             BaseDanmaku.TYPE_FIX_TOP to true,
             BaseDanmaku.TYPE_FIX_BOTTOM to true
         )

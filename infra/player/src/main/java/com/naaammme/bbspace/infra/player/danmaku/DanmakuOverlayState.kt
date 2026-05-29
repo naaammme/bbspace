@@ -217,8 +217,12 @@ class DanmakuOverlayState internal constructor(
         val nextState = DanmakuCfgState(config)
         if (lastCfgState == nextState) return
 
+        val hadConfig = lastCfgState != null
         danmakuContext.applyConfig(config)
         lastCfgState = nextState
+        if (hadConfig) {
+            danmakuCtrl.clearDanmakusOnScreen()
+        }
         danmakuCtrl.forceRender()
     }
 
