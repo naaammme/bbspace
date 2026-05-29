@@ -7,9 +7,6 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.CacheManager
@@ -28,7 +25,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -60,7 +56,6 @@ class AppInitializer @Inject constructor(
     }
 
     private val initScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val appInForeground = MutableStateFlow(true)
 
     @Volatile
     private var initialized = false
@@ -70,7 +65,6 @@ class AppInitializer @Inject constructor(
         biliDns.prefetch()
         warmupImageConnections()
         registerNetworkCallback()
-        observeAppForeground()
         initScope.launch {
             runCatching {
                 playbackSession.prepare()
@@ -161,10 +155,9 @@ class AppInitializer @Inject constructor(
         initScope.launch {
             combine(
                 playerEngine.currentSource.map { it != null },
-                appInForeground,
                 playerSettings.state.map { it.playback.backgroundPlayback }
-            ) { hasSource, inForeground, backgroundPlayback ->
-                hasSource && !inForeground && backgroundPlayback
+            ) { hasSource, backgroundPlayback ->
+                hasSource && backgroundPlayback
             }
                 .distinctUntilChanged()
                 .collect { shouldStart ->
@@ -176,17 +169,5 @@ class AppInitializer @Inject constructor(
                     }
                 }
         }
-    }
-
-    private fun observeAppForeground() {
-        val lifecycle = ProcessLifecycleOwner.get().lifecycle
-        appInForeground.value = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-        lifecycle.addObserver(LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> appInForeground.value = true
-                Lifecycle.Event.ON_STOP -> appInForeground.value = false
-                else -> Unit
-            }
-        })
     }
 }

@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.IBinder
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
@@ -14,12 +15,16 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.toBitmap
 import com.naaammme.bbspace.MainActivity
 import com.naaammme.bbspace.R
+import com.naaammme.bbspace.core.common.media.coverThumbnailUrl
 import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
+import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerEngine
-import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -183,7 +188,20 @@ class PlaybackService : Service() {
         override fun getCurrentLargeIcon(
             player: Player,
             callback: PlayerNotificationManager.BitmapCallback
-        ) = null
+        ): Bitmap? {
+            val coverUrl = currentLargeIconUrl() ?: return null
+            SingletonImageLoader.get(this@PlaybackService).enqueue(
+                ImageRequest.Builder(this@PlaybackService)
+                    .data(coverUrl)
+                    .listener(
+                        onSuccess = { _, result ->
+                            callback.onBitmap(result.image.toBitmap())
+                        },
+                    )
+                    .build()
+            )
+            return null
+        }
     }
 
     private inner class NotificationListener : PlayerNotificationManager.NotificationListener {
@@ -284,6 +302,14 @@ class PlaybackService : Service() {
         notificationManager?.setUseFastForwardAction(!isLive)
         notificationManager?.setUseRewindAction(!isLive)
         notificationManager?.setUseChronometer(!isLive)
+    }
+
+    private fun currentLargeIconUrl(): String? {
+        return when (val target = playbackSession.currentTarget.value) {
+            is StreamPlaybackTarget.Live -> coverThumbnailUrl(target.route.cover)
+            is StreamPlaybackTarget.Video -> coverThumbnailUrl(playbackSession.pageMeta.value?.cover)
+            null -> null
+        }
     }
 
     private fun isLivePlayback(): Boolean {
