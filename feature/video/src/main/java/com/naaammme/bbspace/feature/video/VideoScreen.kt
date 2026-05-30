@@ -85,7 +85,7 @@ fun VideoScreen(
     danmakuOverlayState: DanmakuOverlayState? = null
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
-    val playerState by viewModel.playerState.collectAsStateWithLifecycle()
+    val videoState by viewModel.videoState.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
     val owner = LocalLifecycleOwner.current
     val ctx = LocalContext.current
@@ -95,9 +95,9 @@ fun VideoScreen(
     var isFull by rememberSaveable { mutableStateOf(false) }
     var downloadSheetOn by rememberSaveable { mutableStateOf(false) }
     val fullOn = hostExpanded && isFull
-    val isPortraitVideo = remember(playerState.currentStream) {
-        val width = playerState.currentStream?.width ?: return@remember false
-        val height = playerState.currentStream?.height ?: return@remember false
+    val isPortraitVideo = remember(videoState.currentStream) {
+        val width = videoState.currentStream?.width ?: return@remember false
+        val height = videoState.currentStream?.height ?: return@remember false
         width in 1..<height
     }
 
@@ -250,8 +250,8 @@ fun VideoScreen(
     }
 
     if (hostExpanded && downloadSheetOn) {
-        val sheetVideoQuality = playerState.currentStream?.quality ?: 80
-        val sheetAudioQuality = playerState.currentAudio?.id ?: 0
+        val sheetVideoQuality = videoState.currentStream?.quality ?: 80
+        val sheetAudioQuality = videoState.currentAudio?.id ?: 0
         DownloadTaskSheet(
             currentVideoQuality = sheetVideoQuality,
             currentAudioQuality = sheetAudioQuality,

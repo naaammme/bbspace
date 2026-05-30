@@ -10,7 +10,7 @@ enum class PlaybackState {
 }
 
 @Immutable
-data class PlaybackViewState(
+data class VideoPlaybackState(
     val isPreparing: Boolean = false,
     val playbackSource: PlaybackSource? = null,
     val currentStream: PlaybackStream? = null,
@@ -20,10 +20,6 @@ data class PlaybackViewState(
     val isPlaying: Boolean = false,
     val playWhenReady: Boolean = false,
     val playbackState: PlaybackState = PlaybackState.Idle,
-    val positionMs: Long = 0L,
-    val bufferedPositionMs: Long = 0L,
-    val totalBufferedDurationMs: Long = 0L,
-    val durationMs: Long = 0L,
     val speed: Float = 1f,
     val videoWidth: Int = 0,
     val videoHeight: Int = 0,

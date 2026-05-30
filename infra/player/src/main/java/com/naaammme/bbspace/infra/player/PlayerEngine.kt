@@ -2,6 +2,7 @@
 
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import com.naaammme.bbspace.core.model.PlaybackProgress
 import kotlinx.coroutines.flow.StateFlow
 
 enum class DecoderMode {
@@ -22,7 +23,8 @@ data class PlayerConfig(
 interface PlayerEngine {
     val player: StateFlow<Player?>
     val currentSource: StateFlow<EngineSource?>
-    val snapshot: StateFlow<PlaybackSnapshot>
+    val playbackState: StateFlow<PlayerPlaybackState>
+    val playbackProgress: StateFlow<PlaybackProgress>
 
     fun updateConfig(config: PlayerConfig)
     fun setSource(

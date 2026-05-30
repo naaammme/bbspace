@@ -10,7 +10,6 @@ import com.naaammme.bbspace.core.model.VideoTargetTool
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
-import com.naaammme.bbspace.infra.player.PlaybackSnapshot
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
@@ -46,14 +45,14 @@ class RemotePlaybackReporter @Inject constructor(
 
     internal suspend fun reportPlaybackHistory(
         active: PlaybackReportSession,
-        snapshot: PlaybackSnapshot,
-        complete: Boolean
+        positionMs: Long,
+        completePlayback: Boolean
     ) {
-        if (!active.playbackHistoryStarted && snapshot.firstFrameSeq <= 0L) {
-            return
-        }
         if (canReport(active)) {
-            request(PLAYBACK_HISTORY_URL, buildPlaybackHistoryParams(active, snapshot, complete))
+            request(
+                PLAYBACK_HISTORY_URL,
+                buildPlaybackHistoryParams(active, positionMs, completePlayback)
+            )
         }
     }
 
@@ -140,8 +139,8 @@ class RemotePlaybackReporter @Inject constructor(
 
     private fun buildPlaybackHistoryParams(
         active: PlaybackReportSession,
-        snapshot: PlaybackSnapshot,
-        complete: Boolean
+        positionMs: Long,
+        completePlayback: Boolean
     ): Map<String, String> {
         val report = active.report
         val now = nowSec()
@@ -149,7 +148,7 @@ class RemotePlaybackReporter @Inject constructor(
         base["aid"] = report.aid.toString()
         base["cid"] = report.cid.toString()
         base["duration"] = active.durationSec().toString()
-        base["progress"] = active.progressSec(snapshot, complete).toString()
+        base["progress"] = active.progressSec(positionMs, completePlayback).toString()
         base["type"] = report.type.toString()
         base["device_ts"] = now.toString()
         base["start_ts"] = active.playbackHistoryStartTs.toString()

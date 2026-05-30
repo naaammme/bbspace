@@ -22,10 +22,13 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.core.common.log.Logger
+import com.naaammme.bbspace.core.model.PlaybackProgress
+import com.naaammme.bbspace.core.model.PlaybackState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -56,8 +59,11 @@ class Media3PlayerEngine @Inject constructor(
     override val player: StateFlow<Player?> = _player.asStateFlow()
     private val _currentSource = MutableStateFlow<EngineSource?>(null)
     override val currentSource: StateFlow<EngineSource?> = _currentSource.asStateFlow()
-    private val _snapshot = MutableStateFlow(PlaybackSnapshot())
-    override val snapshot: StateFlow<PlaybackSnapshot> = _snapshot.asStateFlow()
+    private val _playbackState = MutableStateFlow(PlayerPlaybackState())
+    override val playbackState: StateFlow<PlayerPlaybackState> = _playbackState.asStateFlow()
+    private val _playbackProgress = MutableStateFlow(PlaybackProgress())
+    override val playbackProgress: StateFlow<PlaybackProgress> = _playbackProgress.asStateFlow()
+    private val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var playerConfig = PlayerConfig()
     private var videoDecoderName: String? = null
     private var audioDecoderName: String? = null
@@ -72,10 +78,10 @@ class Media3PlayerEngine @Inject constructor(
             newPosition: Player.PositionInfo,
             reason: Int
         ) {
-            updateSnapshot(
-                discontinuitySeq = _snapshot.value.discontinuitySeq + 1L,
-                discontinuityReason = reason.toEngineDiscontinuityReason()
-            )
+            if (reason.isSeekDiscontinuity()) {
+                updatePlaybackState(seekEventSeq = _playbackState.value.seekEventSeq + 1L)
+            }
+            updatePlaybackProgress()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -83,12 +89,12 @@ class Media3PlayerEngine @Inject constructor(
                 "player error code=${error.errorCodeName} msg=${error.message} " +
                         "videoDec=$videoDecoderName audioDec=$audioDecoderName"
             }
-            updateSnapshot(errorMessage = error.message)
+            updatePlaybackState(errorMessage = error.message)
         }
 
         override fun onRenderedFirstFrame() {
             firstFrameSeq += 1L
-            updateSnapshot()
+            updatePlaybackState()
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
@@ -97,9 +103,8 @@ class Media3PlayerEngine @Inject constructor(
             if (state != lastEventsPlaybackState || playing != lastEventsIsPlaying) {
                 lastEventsPlaybackState = state
                 lastEventsIsPlaying = playing
-                updateSnapshot()
+                updatePlaybackState()
                 updateProgressPolling()
-                return
             }
         }
     }
@@ -111,7 +116,7 @@ class Media3PlayerEngine @Inject constructor(
             initializationDurationMs: Long
         ) {
             videoDecoderName = decoderName
-            updateSnapshot()
+            updatePlaybackState()
         }
 
         override fun onAudioDecoderInitialized(
@@ -121,7 +126,7 @@ class Media3PlayerEngine @Inject constructor(
             initializationDurationMs: Long
         ) {
             audioDecoderName = decoderName
-            updateSnapshot()
+            updatePlaybackState()
         }
 
         override fun onVideoDecoderReleased(
@@ -130,7 +135,7 @@ class Media3PlayerEngine @Inject constructor(
         ) {
             if (videoDecoderName == decoderName) {
                 videoDecoderName = null
-                updateSnapshot()
+                updatePlaybackState()
             }
         }
 
@@ -140,7 +145,7 @@ class Media3PlayerEngine @Inject constructor(
         ) {
             if (audioDecoderName == decoderName) {
                 audioDecoderName = null
-                updateSnapshot()
+                updatePlaybackState()
             }
         }
     }
@@ -151,13 +156,16 @@ class Media3PlayerEngine @Inject constructor(
         if (next == playerConfig && exoPlayer != null) return
 
         val prev = exoPlayer
+        progressJob?.cancel()
+        progressJob = null
         playerConfig = next
         resetRuntimeState()
         _currentSource.value = null
         val nextPlayer = buildPlayer(appContext, next)
         exoPlayer = nextPlayer
         _player.value = nextPlayer
-        _snapshot.value = PlaybackSnapshot(playerInstanceId = System.identityHashCode(nextPlayer))
+        _playbackState.value = PlayerPlaybackState()
+        _playbackProgress.value = PlaybackProgress()
         prev?.release()
     }
 
@@ -177,7 +185,8 @@ class Media3PlayerEngine @Inject constructor(
         player.playWhenReady = playWhenReady
         player.prepare()
         _currentSource.value = source
-        updateSnapshot(errorMessage = null)
+        updatePlaybackState(errorMessage = null)
+        updatePlaybackProgress()
     }
 
     override fun play() {
@@ -193,12 +202,13 @@ class Media3PlayerEngine @Inject constructor(
     override fun setSpeed(speed: Float) {
         val player = ensurePlayer()
         player.playbackParameters = PlaybackParameters(speed.coerceIn(0.25f, 3f))
-        updateSnapshot()
+        updatePlaybackState()
     }
 
     override fun seekTo(positionMs: Long) {
         val player = exoPlayer ?: return
         player.seekTo(positionMs.coerceAtLeast(0L))
+        updatePlaybackProgress()
     }
 
     override fun setMediaMetadata(metadata: MediaMetadata) {
@@ -216,7 +226,8 @@ class Media3PlayerEngine @Inject constructor(
         val player = exoPlayer ?: run {
             resetRuntimeState()
             _currentSource.value = null
-            _snapshot.value = PlaybackSnapshot()
+            _playbackState.value = PlayerPlaybackState()
+            _playbackProgress.value = PlaybackProgress()
             return
         }
         resetRuntimeState()
@@ -227,7 +238,8 @@ class Media3PlayerEngine @Inject constructor(
         if (resetPosition) {
             player.seekTo(0)
         }
-        _snapshot.value = PlaybackSnapshot()
+        _playbackState.value = PlayerPlaybackState()
+        _playbackProgress.value = PlaybackProgress()
     }
 
     override fun release() {
@@ -238,7 +250,8 @@ class Media3PlayerEngine @Inject constructor(
         exoPlayer = null
         _player.value = null
         _currentSource.value = null
-        _snapshot.value = PlaybackSnapshot()
+        _playbackState.value = PlayerPlaybackState()
+        _playbackProgress.value = PlaybackProgress()
         player.release()
     }
 
@@ -285,7 +298,8 @@ class Media3PlayerEngine @Inject constructor(
         val player = buildPlayer(appContext, playerConfig)
         exoPlayer = player
         _player.value = player
-        _snapshot.value = PlaybackSnapshot(playerInstanceId = System.identityHashCode(player))
+        _playbackState.value = PlayerPlaybackState()
+        _playbackProgress.value = PlaybackProgress()
         return player
     }
 
@@ -395,33 +409,35 @@ class Media3PlayerEngine @Inject constructor(
             .build()
     }
 
-    private fun updateSnapshot(
-        playbackState: Int = exoPlayer?.playbackState ?: Player.STATE_IDLE,
+    private fun updatePlaybackState(
+        playbackState: PlaybackState = (exoPlayer?.playbackState ?: Player.STATE_IDLE).toPlaybackState(),
         isPlaying: Boolean = exoPlayer?.isPlaying ?: false,
         playWhenReady: Boolean = exoPlayer?.playWhenReady ?: false,
-        discontinuitySeq: Long = _snapshot.value.discontinuitySeq,
-        discontinuityReason: EngineDiscontinuityReason? = _snapshot.value.discontinuityReason,
-        errorMessage: String? = _snapshot.value.errorMessage
+        seekEventSeq: Long = _playbackState.value.seekEventSeq,
+        errorMessage: String? = _playbackState.value.errorMessage
     ) {
         val player = exoPlayer
-        _snapshot.value = _snapshot.value.copy(
-            playerInstanceId = player?.let(System::identityHashCode) ?: 0,
+        _playbackState.value = PlayerPlaybackState(
             isPlaying = isPlaying,
             playWhenReady = playWhenReady,
-            playbackState = playbackState.toEngineState(),
-            positionMs = player?.currentPosition?.coerceAtLeast(0L) ?: 0L,
-            bufferedPositionMs = player?.bufferedPosition?.coerceAtLeast(0L) ?: 0L,
-            totalBufferedDurationMs = player?.totalBufferedDuration?.coerceAtLeast(0L) ?: 0L,
-            durationMs = player?.duration?.takeIf { it > 0 } ?: 0L,
+            playbackState = playbackState,
             speed = player?.playbackParameters?.speed ?: 1f,
             videoWidth = player?.videoSize?.width ?: 0,
             videoHeight = player?.videoSize?.height ?: 0,
             firstFrameSeq = firstFrameSeq,
             videoDecoderName = videoDecoderName,
             audioDecoderName = audioDecoderName,
-            discontinuitySeq = discontinuitySeq,
-            discontinuityReason = discontinuityReason,
+            seekEventSeq = seekEventSeq,
             errorMessage = errorMessage
+        )
+    }
+
+    private fun updatePlaybackProgress() {
+        val player = exoPlayer
+        _playbackProgress.value = PlaybackProgress(
+            positionMs = player?.currentPosition?.coerceAtLeast(0L) ?: 0L,
+            bufferedPositionMs = player?.bufferedPosition?.coerceAtLeast(0L) ?: 0L,
+            durationMs = player?.duration?.takeIf { it > 0L } ?: 0L
         )
     }
 
@@ -432,10 +448,10 @@ class Media3PlayerEngine @Inject constructor(
             lastEventsPlaybackState == Player.STATE_READY
         if (shouldPoll) {
             if (progressJob?.isActive != true) {
-                progressJob = CoroutineScope(Dispatchers.Main).launch {
+                progressJob = runtimeScope.launch {
                     while (isActive) {
                         delay(1_000)
-                        updateSnapshot()
+                        updatePlaybackProgress()
                     }
                 }
             }
@@ -449,26 +465,22 @@ class Media3PlayerEngine @Inject constructor(
         firstFrameSeq = 0L
         videoDecoderName = null
         audioDecoderName = null
+        lastEventsPlaybackState = Player.STATE_IDLE
+        lastEventsIsPlaying = false
     }
 
-    private fun Int.toEngineState(): EnginePlaybackState {
+    private fun Int.toPlaybackState(): PlaybackState {
         return when (this) {
-            Player.STATE_BUFFERING -> EnginePlaybackState.Buffering
-            Player.STATE_READY -> EnginePlaybackState.Ready
-            Player.STATE_ENDED -> EnginePlaybackState.Ended
-            else -> EnginePlaybackState.Idle
+            Player.STATE_BUFFERING -> PlaybackState.Buffering
+            Player.STATE_READY -> PlaybackState.Ready
+            Player.STATE_ENDED -> PlaybackState.Ended
+            else -> PlaybackState.Idle
         }
     }
 
-    private fun Int.toEngineDiscontinuityReason(): EngineDiscontinuityReason {
-        return when (this) {
-            Player.DISCONTINUITY_REASON_AUTO_TRANSITION -> EngineDiscontinuityReason.AutoTransition
-            Player.DISCONTINUITY_REASON_SEEK -> EngineDiscontinuityReason.Seek
-            Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> EngineDiscontinuityReason.SeekAdjustment
-            Player.DISCONTINUITY_REASON_SKIP -> EngineDiscontinuityReason.Skip
-            Player.DISCONTINUITY_REASON_REMOVE -> EngineDiscontinuityReason.Remove
-            else -> EngineDiscontinuityReason.Internal
-        }
+    private fun Int.isSeekDiscontinuity(): Boolean {
+        return this == Player.DISCONTINUITY_REASON_SEEK ||
+            this == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
     }
 
     private companion object {

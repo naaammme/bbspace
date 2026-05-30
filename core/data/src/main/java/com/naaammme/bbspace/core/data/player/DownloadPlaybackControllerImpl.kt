@@ -7,9 +7,9 @@ import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.domain.player.DownloadPlaybackController
 import com.naaammme.bbspace.core.model.DownloadPlaybackState
 import com.naaammme.bbspace.core.model.DownloadPlaybackStatus
+import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.core.model.VideoDownloadTask
 import com.naaammme.bbspace.core.model.summaryLabel
-import com.naaammme.bbspace.infra.player.EnginePlaybackState
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerEngine
 import javax.inject.Inject
@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @Singleton
@@ -40,26 +41,28 @@ class DownloadPlaybackControllerImpl @Inject constructor(
 
     init {
         runtimeScope.launch {
-            combine(session, playerEngine.snapshot) { session, snapshot ->
-                session to snapshot
-            }.collect { (session, snapshot) ->
+            combine(session, playerEngine.playbackState, playerEngine.playbackProgress) { session, state, progress ->
+                Triple(session, state, progress)
+            }.distinctUntilChanged { old, new ->
+                old.first === new.first && old.second == new.second && old.third == new.third
+            }.collect { (session, state, progress) ->
                 val task = session.task
                 _state.value = DownloadPlaybackState(
                     taskId = task?.id,
                     title = task?.title.orEmpty(),
                     subtitle = task?.summaryLabel(),
                     isPreparing = session.isPreparing,
-                    isPlaying = snapshot.isPlaying,
-                    playWhenReady = snapshot.playWhenReady,
-                    playbackStatus = snapshot.playbackState.toModel(),
-                    positionMs = snapshot.positionMs,
-                    durationMs = if (snapshot.durationMs > 0L) {
-                        snapshot.durationMs
+                    isPlaying = state.isPlaying,
+                    playWhenReady = state.playWhenReady,
+                    playbackStatus = state.playbackState.toModel(),
+                    positionMs = progress.positionMs,
+                    durationMs = if (progress.durationMs > 0L) {
+                        progress.durationMs
                     } else {
                         task?.durationMs ?: 0L
                     },
-                    speed = snapshot.speed,
-                    seekEventId = snapshot.discontinuitySeq,
+                    speed = state.speed,
+                    seekEventId = state.seekEventSeq,
                     error = session.error
                 )
             }
@@ -138,12 +141,12 @@ class DownloadPlaybackControllerImpl @Inject constructor(
         }
     }
 
-    private fun EnginePlaybackState.toModel(): DownloadPlaybackStatus {
+    private fun PlaybackState.toModel(): DownloadPlaybackStatus {
         return when (this) {
-            EnginePlaybackState.Buffering -> DownloadPlaybackStatus.BUFFERING
-            EnginePlaybackState.Ready -> DownloadPlaybackStatus.READY
-            EnginePlaybackState.Ended -> DownloadPlaybackStatus.ENDED
-            EnginePlaybackState.Idle -> DownloadPlaybackStatus.IDLE
+            PlaybackState.Buffering -> DownloadPlaybackStatus.BUFFERING
+            PlaybackState.Ready -> DownloadPlaybackStatus.READY
+            PlaybackState.Ended -> DownloadPlaybackStatus.ENDED
+            PlaybackState.Idle -> DownloadPlaybackStatus.IDLE
         }
     }
 }

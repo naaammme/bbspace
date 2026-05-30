@@ -5,12 +5,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaMetadata
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.domain.listen.ListenRepository
-import com.naaammme.bbspace.infra.player.EnginePlaybackState
+import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,20 +37,26 @@ class ListenDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            combine(playerEngine.currentSource, playerEngine.snapshot) { source, snapshot ->
-                source to snapshot
-            }.collect { (source, snapshot) ->
+            combine(
+                playerEngine.currentSource,
+                playerEngine.playbackState,
+                playerEngine.playbackProgress
+            ) { source, state, progress ->
+                Triple(source, state, progress)
+            }.distinctUntilChanged { old, new ->
+                old.first === new.first && old.second == new.second && old.third == new.third
+            }.collect { (source, state, progress) ->
                 val audioUrl = _uiState.value.audioUrl
                 val isListenSource = audioUrl != null &&
                     (source as? EngineSource.Progressive)?.segments?.any { it.url == audioUrl } == true
                 if (!isListenSource) return@collect
                 _uiState.update {
                     it.copy(
-                        isPreparing = snapshot.playbackState == EnginePlaybackState.Buffering,
-                        positionMs = snapshot.positionMs,
-                        durationMs = if (snapshot.durationMs > 0L) snapshot.durationMs else it.durationMs,
-                        isPlaying = snapshot.isPlaying,
-                        errorMessage = snapshot.errorMessage ?: it.errorMessage
+                        isPreparing = state.playbackState == PlaybackState.Buffering,
+                        positionMs = progress.positionMs,
+                        durationMs = if (progress.durationMs > 0L) progress.durationMs else it.durationMs,
+                        isPlaying = state.isPlaying,
+                        errorMessage = state.errorMessage ?: it.errorMessage
                     )
                 }
             }

@@ -31,7 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -55,15 +55,19 @@ class PlaybackService : Service() {
             playerEngine.player.collect(::bindPlayer)
         }
         scope.launch {
-            combine(
-                playerEngine.currentSource,
-                playbackSession.sessionState,
-                playbackSession.liveState
-            ) { _, _, _ -> }.collect {
-                mediaSession?.setSessionActivity(createContentIntent())
-                updateActionMode()
-                notificationManager?.invalidate()
-            }
+            playbackSession.sessionState
+                .distinctUntilChanged { old, new ->
+                    old.target == new.target &&
+                        old.title == new.title &&
+                        old.subtitle == new.subtitle &&
+                        old.cover == new.cover &&
+                        old.isPlaying == new.isPlaying
+                }
+                .collect {
+                    mediaSession?.setSessionActivity(createContentIntent())
+                    updateActionMode()
+                    notificationManager?.invalidate()
+                }
         }
     }
 
@@ -89,7 +93,7 @@ class PlaybackService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (!playerEngine.snapshot.value.isPlaying) {
+        if (!playerEngine.playbackState.value.isPlaying) {
             stopSelf()
         }
     }
@@ -265,7 +269,7 @@ class PlaybackService : Service() {
     }
 
     private fun currentSubText(): String {
-        val isPlaying = playerEngine.snapshot.value.isPlaying
+        val isPlaying = playerEngine.playbackState.value.isPlaying
         return if (isLivePlayback()) {
             if (isPlaying) "后台直播中" else "后台待播"
         } else {

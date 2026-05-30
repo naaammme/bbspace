@@ -3,12 +3,13 @@ package com.naaammme.bbspace.core.data.player
 import android.os.SystemClock
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
+import com.naaammme.bbspace.core.model.PlaybackProgress
 import com.naaammme.bbspace.core.model.PlaybackRequest
+import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.core.model.PlayerSessionState
 import com.naaammme.bbspace.infra.crypto.BiliSessionId
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
-import com.naaammme.bbspace.infra.player.EnginePlaybackState
-import com.naaammme.bbspace.infra.player.PlaybackSnapshot
+import com.naaammme.bbspace.infra.player.PlayerPlaybackState
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
@@ -65,40 +66,52 @@ class PlaybackReporter @Inject constructor(
 
     suspend fun onPlaybackState(
         state: PlayerSessionState,
-        snapshot: PlaybackSnapshot
+        playbackState: PlayerPlaybackState,
+        progress: PlaybackProgress
     ) {
         val current = mu.withLock {
             val active = ctx ?: return@withLock null
             if (!samePlaybackSource(active.source, state.playbackSource)) return@withLock null
-            val prev = active.lastSnapshot
-            active.sync(snapshot, state)
-            active.lastSnapshot = snapshot
+            val prevPlayWhenReady = active.lastPlayWhenReady
+            val prevPlaybackState = active.lastPlaybackState
+            active.sync(progress.positionMs, state)
+            active.lastIsPlaying = playbackState.isPlaying
+            active.lastPlayWhenReady = playbackState.playWhenReady
+            active.lastPlaybackState = playbackState.playbackState
+            val firstFrame = !active.heartbeatStarted && playbackState.firstFrameSeq > 0L
+            val startPlaybackHistory = !active.playbackHistoryStarted && playbackState.firstFrameSeq > 0L
+            if (firstFrame) {
+                active.heartbeatStarted = true
+            }
+            if (firstFrame || startPlaybackHistory) {
+                active.playbackHistoryStarted = true
+            }
             SnapshotEdge(
                 ctx = active.copy(),
-                firstFrame = !active.heartbeatStarted && snapshot.firstFrameSeq > 0L,
-                paused = prev.playWhenReady &&
-                        !snapshot.playWhenReady &&
-                        snapshot.playbackState == EnginePlaybackState.Ready,
+                firstFrame = firstFrame,
+                paused = prevPlayWhenReady &&
+                        !playbackState.playWhenReady &&
+                        playbackState.playbackState == PlaybackState.Ready,
                 ended = !active.finalized &&
-                        snapshot.playbackState == EnginePlaybackState.Ended &&
-                        prev.playbackState != EnginePlaybackState.Ended,
-                startPlaybackHistory = !active.playbackHistoryStarted && snapshot.firstFrameSeq > 0L
+                        playbackState.playbackState == PlaybackState.Ended &&
+                        prevPlaybackState != PlaybackState.Ended,
+                startPlaybackHistory = startPlaybackHistory
             )
         }
         current ?: return
 
         if (current.firstFrame) {
             startHeartbeat(current.ctx)
-            startPlaybackHistory(current.ctx, snapshot)
+            startPlaybackHistory(current.ctx, progress.positionMs)
         } else if (current.startPlaybackHistory) {
-            startPlaybackHistory(current.ctx, snapshot)
+            startPlaybackHistory(current.ctx, progress.positionMs)
         }
 
         if (current.paused && current.ctx.playbackHistoryStarted) {
-            reportPlaybackHistory(current.ctx, snapshot, complete = false)
+            reportPlaybackHistory(current.ctx, progress.positionMs, completePlayback = false)
         }
         if (current.ended && current.ctx.playbackHistoryStarted) {
-            reportPlaybackHistory(current.ctx, snapshot, complete = true)
+            reportPlaybackHistory(current.ctx, progress.positionMs, completePlayback = true)
             endHeartbeat(current.ctx)
             mu.withLock {
                 ctx = ctx?.takeIf { it.sessionId != current.ctx.sessionId } ?: ctx?.copy(finalized = true)
@@ -106,19 +119,29 @@ class PlaybackReporter @Inject constructor(
         }
     }
 
-    suspend fun finishSession(snapshot: PlaybackSnapshot) {
-        val active = detachSession(snapshot) ?: return
+    suspend fun finishSession(
+        playbackState: PlayerPlaybackState,
+        progress: PlaybackProgress
+    ) {
+        val active = detachSession(
+            playbackState = playbackState.playbackState,
+            positionMs = progress.positionMs
+        ) ?: return
         finalizeSession(active)
     }
 
-    internal suspend fun detachSession(snapshot: PlaybackSnapshot): DetachedPlaybackReport? {
+    internal suspend fun detachSession(
+        playbackState: PlaybackState,
+        positionMs: Long
+    ): DetachedPlaybackReport? {
         return mu.withLock {
             val current = ctx ?: return@withLock null
-            current.sync(snapshot, null)
-            current.lastSnapshot = snapshot
+            current.sync(positionMs, null)
+            current.lastPlaybackState = playbackState
             val detached = DetachedPlaybackReport(
                 session = current.copy(),
-                snapshot = snapshot
+                playbackState = playbackState,
+                positionMs = positionMs
             )
             if (ctx?.sessionId == current.sessionId) {
                 ctx = null
@@ -131,10 +154,15 @@ class PlaybackReporter @Inject constructor(
         val active = report.session
         if (!active.playbackHistoryStarted) return
         if (!active.finalized) {
+            val completePlayback = active.isComplete(
+                positionMs = report.positionMs,
+                playbackState = report.playbackState,
+                allowEndedOnly = false
+            )
             recordAndReportPlaybackHistory(
                 active = active,
-                snapshot = report.snapshot,
-                complete = active.isComplete(report.snapshot, allowEndedOnly = false)
+                positionMs = report.positionMs,
+                completePlayback = completePlayback
             )
             if (active.heartbeatStarted && !active.heartbeatEnded) {
                 remoteReporter.endHeartbeat(active)
@@ -147,10 +175,7 @@ class PlaybackReporter @Inject constructor(
         mu.withLock {
             val current = ctx ?: return@withLock
             if (current.sessionId != active.sessionId) return@withLock
-            ctx = current.copy(
-                heartbeatStarted = true,
-                heartbeatStartTs = ts
-            )
+            ctx = current.copy(heartbeatStartTs = ts)
         }
     }
 
@@ -166,35 +191,30 @@ class PlaybackReporter @Inject constructor(
 
     private suspend fun startPlaybackHistory(
         active: PlaybackReportSession,
-        snapshot: PlaybackSnapshot
+        positionMs: Long
     ) {
-        reportPlaybackHistory(active, snapshot, complete = false)
+        reportPlaybackHistory(active, positionMs, completePlayback = false)
     }
 
     private suspend fun reportPlaybackHistory(
         active: PlaybackReportSession,
-        snapshot: PlaybackSnapshot,
-        complete: Boolean
+        positionMs: Long,
+        completePlayback: Boolean
     ) {
         recordAndReportPlaybackHistory(
             active = active,
-            snapshot = snapshot,
-            complete = complete
+            positionMs = positionMs,
+            completePlayback = completePlayback
         )
-        mu.withLock {
-            val current = ctx ?: return@withLock
-            if (current.sessionId != active.sessionId) return@withLock
-            ctx = current.copy(playbackHistoryStarted = true)
-        }
     }
 
     private suspend fun recordAndReportPlaybackHistory(
         active: PlaybackReportSession,
-        snapshot: PlaybackSnapshot,
-        complete: Boolean
+        positionMs: Long,
+        completePlayback: Boolean
     ) {
-        localHistoryRecorder.record(active, snapshot)
-        remoteReporter.reportPlaybackHistory(active, snapshot, complete)
+        localHistoryRecorder.record(active, positionMs)
+        remoteReporter.reportPlaybackHistory(active, positionMs, completePlayback)
     }
 
     private data class SnapshotEdge(
@@ -212,5 +232,6 @@ class PlaybackReporter @Inject constructor(
 
 internal data class DetachedPlaybackReport(
     val session: PlaybackReportSession,
-    val snapshot: PlaybackSnapshot
+    val playbackState: PlaybackState,
+    val positionMs: Long
 )

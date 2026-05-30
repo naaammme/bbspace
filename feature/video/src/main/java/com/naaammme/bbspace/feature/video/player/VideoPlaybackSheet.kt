@@ -44,8 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.DanmakuSettingsSection
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlayerBufferProfile
-import com.naaammme.bbspace.core.model.PlaybackViewState
 import com.naaammme.bbspace.core.model.PlayerSettingsState
+import com.naaammme.bbspace.core.model.VideoPlaybackState
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.feature.video.VideoViewModel
 import com.naaammme.bbspace.feature.video.formatDuration
@@ -67,7 +67,7 @@ private enum class PlaybackSheetSection(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun VideoPlaybackSheet(
-    state: PlaybackViewState,
+    state: VideoPlaybackState,
     viewModel: VideoViewModel,
     limitUnderPlayer: Boolean,
     onDismiss: () -> Unit
@@ -118,7 +118,7 @@ internal fun VideoPlaybackSheet(
 
 @Composable
 internal fun VideoPlaybackSidebar(
-    state: PlaybackViewState,
+    state: VideoPlaybackState,
     viewModel: VideoViewModel,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -158,7 +158,7 @@ internal fun VideoPlaybackSidebar(
 
 @Composable
 private fun VideoPlaybackPanelContent(
-    state: PlaybackViewState,
+    state: VideoPlaybackState,
     settingsState: PlayerSettingsState,
     viewModel: VideoViewModel,
     section: PlaybackSheetSection,
@@ -203,7 +203,7 @@ private fun VideoPlaybackPanelContent(
 
 @Composable
 private fun PlaybackSettingsSection(
-    state: PlaybackViewState,
+    state: VideoPlaybackState,
     settingsState: PlayerSettingsState,
     viewModel: VideoViewModel
 ) {
@@ -292,7 +292,7 @@ private fun PlaybackSettingsSection(
 }
 
 @Composable
-private fun PlayerInfoSection(state: PlaybackViewState) {
+private fun PlayerInfoSection(state: VideoPlaybackState) {
     SheetSectionTitle("视频信息")
 
     state.error?.let { err ->
@@ -324,7 +324,6 @@ private fun PlayerInfoSection(state: PlaybackViewState) {
 
     val stream = state.currentStream
     val audio = state.currentAudio
-
     SheetInfoGroup(
         title = "视频",
         rows = buildList {
