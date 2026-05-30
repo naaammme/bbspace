@@ -119,16 +119,22 @@ class StreamPlaybackSessionImpl @Inject constructor(
         }
         runtimeScope.launch {
             playerEngine.playbackProgress.collect { progress ->
-                when (_currentTarget.value) {
-                    is StreamPlaybackTarget.Video -> onVideoProgress(progress)
-                    is StreamPlaybackTarget.Live -> {}
-                    null -> {}
+                if (_currentTarget.value is StreamPlaybackTarget.Video) {
+                    danmakuSession.onProgress(progress.positionMs)
                 }
             }
         }
-        danmakuSession.bind(
-            enabledFlow = playerSettings.state.map { it.danmaku.enabled }
-        )
+        runtimeScope.launch {
+            playerSettings.state.map { it.danmaku.enabled }.collect { enabled ->
+                if (_currentTarget.value !is StreamPlaybackTarget.Video) return@collect
+                if (enabled) {
+                    danmakuSession.setSource(vodSession.value.playbackSource)
+                    danmakuSession.seekTo(currentPlaybackPositionMs())
+                } else {
+                    danmakuSession.clear()
+                }
+            }
+        }
     }
 
     // StreamPlaybackSession: lifecycle
@@ -238,6 +244,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
     override fun seekTo(positionMs: Long) {
         if (_currentTarget.value !is StreamPlaybackTarget.Video) return
         playerEngine.seekTo(positionMs)
+        danmakuSession.seekTo(positionMs)
     }
 
     override fun setSpeed(speed: Float) {
@@ -422,6 +429,10 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 cdnIndex = engineSource.second,
                 isPreparing = true
             )
+            if (playerSettings.state.first().danmaku.enabled) {
+                danmakuSession.setSource(source)
+                danmakuSession.seekTo(startMs ?: 0L)
+            }
             playerEngine.setSource(
                 source = engineSource.first,
                 startPositionMs = startMs,
@@ -450,6 +461,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
                     _currentTarget.value = null
                     vodSession.value = PlayerSessionState()
                     _videoState.value = VideoPlaybackState()
+                    danmakuSession.clear()
                     syncSessionState()
                 }
                 throw t
@@ -502,6 +514,9 @@ class StreamPlaybackSessionImpl @Inject constructor(
         nextPlayWhenReady = true
         vodSession.value = nextState ?: PlayerSessionState()
         _videoState.value = nextViewState ?: VideoPlaybackState()
+        if (nextState?.playbackSource == null) {
+            danmakuSession.clear()
+        }
         syncSessionState()
         if (hasEngineMedia) {
             when {
@@ -692,11 +707,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
         val isNewSeekEvent = state.seekEventSeq != lastDiscontinuitySeq
         lastDiscontinuitySeq = state.seekEventSeq
         refreshVideoState(isNewSeekEvent = isNewSeekEvent)
-        danmakuSession.onPlaybackState(_videoState.value, currentPlaybackPositionMs())
-    }
-
-    private suspend fun onVideoProgress(progress: PlaybackProgress) {
-        danmakuSession.onProgress(progress.positionMs)
     }
 
     // live: internals 

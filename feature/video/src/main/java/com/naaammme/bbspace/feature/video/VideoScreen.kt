@@ -82,7 +82,7 @@ fun VideoScreen(
     onStartDownload: (VideoDownloadRequest) -> Unit,
     viewModel: VideoViewModel,
     hostExpanded: Boolean = true,
-    danmakuOverlayState: DanmakuOverlayState? = null
+    danmakuOverlayState: DanmakuOverlayState
 ) {
     val pageState by viewModel.pageState.collectAsStateWithLifecycle()
     val videoState by viewModel.videoState.collectAsStateWithLifecycle()
@@ -100,7 +100,6 @@ fun VideoScreen(
         val height = videoState.currentStream?.height ?: return@remember false
         width in 1..<height
     }
-
     val handleBack = {
         if (fullOn) {
             isFull = false

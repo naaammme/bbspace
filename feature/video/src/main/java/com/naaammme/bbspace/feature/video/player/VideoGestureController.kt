@@ -7,12 +7,17 @@ import android.media.AudioManager
 import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -94,8 +99,10 @@ private const val DOUBLE_TAP_SEEK_MS = 10_000L
 private const val DRAG_SENSITIVITY = 0.6f
 private const val SIDE_GESTURE_ZONE = 0.2f
 private const val RIGHT_GESTURE_ZONE_START = 1f - SIDE_GESTURE_ZONE
+private val FullscreenVerticalDragBlockExtra = 8.dp
 private val SpeedBadgeTopPadding = 20.dp
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun Modifier.videoGestures(
     state: VideoGestureState,
@@ -124,11 +131,20 @@ fun Modifier.videoGestures(
     val curIsPlaying by rememberUpdatedState(isPlaying)
     val curPositionMs by rememberUpdatedState(positionMs)
     val curDurationMs by rememberUpdatedState(durationMs)
+    val visibleStatusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val hiddenStatusBarHeight = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
+        .calculateTopPadding()
+    val topVerticalDragBlockHeight = if (visibleStatusBarHeight == 0.dp) {
+        hiddenStatusBarHeight + FullscreenVerticalDragBlockExtra
+    } else {
+        0.dp
+    }
 
-    return this.pointerInput(Unit) {
+    return this.pointerInput(topVerticalDragBlockHeight) {
         val slop = viewConfiguration.touchSlop
         val longPressTimeout = viewConfiguration.longPressTimeoutMillis
         val doubleTapTimeout = viewConfiguration.doubleTapTimeoutMillis
+        val topVerticalDragBlockPx = topVerticalDragBlockHeight.toPx()
 
         awaitPointerEventScope {
             while (true) {
@@ -221,6 +237,7 @@ fun Modifier.videoGestures(
                                 phase = Phase.Drag
                                 val dragType = when {
                                     isHorizontal -> DragType.Seek
+                                    downPos.y <= topVerticalDragBlockPx -> DragType.None
                                     zoneX < SIDE_GESTURE_ZONE -> DragType.Brightness
                                     zoneX > RIGHT_GESTURE_ZONE_START -> DragType.Volume
                                     else -> DragType.None

@@ -12,10 +12,5 @@ data class DanmakuWindow(
 data class DanmakuSessionState(
     val sourceKey: String? = null,
     val window: DanmakuWindow? = null,
-    val lastError: String? = null,
-    val positionMs: Long = 0L,
-    val isPlaying: Boolean = false,
-    val speed: Float = 1f,
-    val seekEventId: Long = 0L,
-    val hasSource: Boolean = false
+    val lastError: String? = null
 )

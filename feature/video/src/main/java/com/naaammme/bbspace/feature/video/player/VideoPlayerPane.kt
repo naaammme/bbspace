@@ -58,7 +58,6 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
-import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlayerSettingsState
@@ -96,7 +95,7 @@ internal fun VideoPlayerPane(
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit,
     onGoHome: () -> Unit,
-    danmakuOverlayState: DanmakuOverlayState? = null
+    danmakuOverlayState: DanmakuOverlayState
 ) {
     val context = LocalContext.current
     val timeFmt = remember { android.text.format.DateFormat.getTimeFormat(context) }
@@ -173,13 +172,19 @@ internal fun VideoPlayerPane(
                 modifier = Modifier.fillMaxSize()
             )
 
+            VideoDanmakuLayer(
+                viewModel = viewModel,
+                state = state,
+                settingsState = settingsState,
+                danmakuOverlayState = danmakuOverlayState,
+                playerView = playerView
+            )
+
             VideoPlayerOverlay(
                 viewModel = viewModel,
                 state = state,
                 player = player,
                 settingsState = settingsState,
-                danmakuOverlayState = danmakuOverlayState,
-                playerView = playerView,
                 isFull = isFull,
                 showCtrl = showCtrl,
                 showA = showA,
@@ -362,13 +367,35 @@ internal fun VideoPlayerPane(
 }
 
 @Composable
+private fun VideoDanmakuLayer(
+    viewModel: VideoViewModel,
+    state: VideoPlaybackState,
+    settingsState: PlayerSettingsState,
+    danmakuOverlayState: DanmakuOverlayState,
+    playerView: PlayerView
+) {
+    val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
+
+    DanmakuLayer(
+        playerView = playerView,
+        overlayState = danmakuOverlayState,
+        danmakuState = danmakuState,
+        danmakuConfig = settingsState.danmaku,
+        positionMs = viewModel.playbackProgress.value.positionMs,
+        isPlaying = state.isPlaying,
+        speed = state.speed,
+        seekEventId = state.seekEventId,
+        hasSource = state.playbackSource != null,
+        manageLifecycle = false
+    )
+}
+
+@Composable
 private fun VideoPlayerOverlay(
     viewModel: VideoViewModel,
     state: VideoPlaybackState,
     player: Player?,
     settingsState: PlayerSettingsState,
-    danmakuOverlayState: DanmakuOverlayState?,
-    playerView: PlayerView,
     isFull: Boolean,
     showCtrl: Boolean,
     showA: Boolean,
@@ -382,7 +409,6 @@ private fun VideoPlayerOverlay(
     onToggleFull: () -> Unit
 ) {
     val context = LocalContext.current
-    val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
     val gestureState = remember { VideoGestureState() }
     var dragMs by remember { mutableStateOf<Long?>(null) }
     var dragStartBrightness by remember { mutableFloatStateOf(0.5f) }
@@ -392,17 +418,6 @@ private fun VideoPlayerOverlay(
     var lastGestureVolumeFrac by remember { mutableFloatStateOf(Float.NaN) }
     val audioManager = remember(context) { context.getSystemService(AudioManager::class.java) }
     val act = remember(context) { context.findActivity() }
-    val localOverlayState = if (settingsState.danmaku.enabled && danmakuOverlayState == null) {
-        rememberDanmakuOverlayState(
-            initialConfig = settingsState.danmaku,
-            initialPositionMs = danmakuState.positionMs,
-            initialIsPlaying = danmakuState.isPlaying,
-            initialSpeed = danmakuState.speed
-        )
-    } else {
-        null
-    }
-    val activeOverlayState = danmakuOverlayState ?: localOverlayState
 
     LaunchedEffect(
         showCtrl,
@@ -432,21 +447,6 @@ private fun VideoPlayerOverlay(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (activeOverlayState != null) {
-            DanmakuLayer(
-                playerView = playerView,
-                overlayState = activeOverlayState,
-                danmakuState = danmakuState,
-                danmakuConfig = settingsState.danmaku,
-                positionMs = danmakuState.positionMs,
-                isPlaying = danmakuState.isPlaying,
-                speed = danmakuState.speed,
-                seekEventId = danmakuState.seekEventId,
-                hasSource = danmakuState.hasSource,
-                manageLifecycle = danmakuOverlayState == null
-            )
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -508,21 +508,23 @@ private fun VideoPlayerOverlay(
                     },
                     isPlaying = { state.isPlaying },
                     positionMs = {
+                        val progress = viewModel.playbackProgress.value
                         dragMs
                             ?: gestureState.dragSeekPosMs
-                            ?: viewModel.playbackProgress.value.positionMs
+                            ?: progress.positionMs
                     },
                     durationMs = {
+                        val progress = viewModel.playbackProgress.value
                         player?.duration
                             ?.takeIf { it > 0L }
-                            ?: viewModel.playbackProgress.value.durationMs.takeIf { it > 0L }
+                            ?: progress.durationMs.takeIf { it > 0L }
                             ?: state.playbackSource?.durationMs?.coerceAtLeast(0L)
                             ?: 0L
                     }
                 )
-        ) {
-            VideoGestureFeedback(gestureState)
-        }
+        )
+
+        VideoGestureFeedback(gestureState)
 
         if (showCtrl) {
             PlayerCtrlBarHost(
