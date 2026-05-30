@@ -2,15 +2,6 @@ package com.naaammme.bbspace.core.model
 
 import androidx.compose.runtime.Immutable
 
-enum class LiveRoomSessionStatus {
-    Idle,
-    Connecting,
-    Authorizing,
-    Running,
-    Reconnecting,
-    Closed
-}
-
 @Immutable
 data class LiveRoomUser(
     val uid: Long,
@@ -67,14 +58,8 @@ fun LiveRoomPanelState.merge(
 @Immutable
 data class LiveRoomSessionState(
     val roomId: Long = 0L,
-    val status: LiveRoomSessionStatus = LiveRoomSessionStatus.Idle,
     val popularCount: Long = 0L,
     val panel: LiveRoomPanelState = LiveRoomPanelState(),
     val messages: List<LiveRoomMessage> = emptyList(),
-    val latestMessage: LiveRoomMessage? = null,
-    val queueId: String? = null,
-    val retryCount: Int = 0,
-    val lastHeartbeatAtMs: Long = 0L,
-    val lastConnectAtMs: Long = 0L,
     val lastError: String? = null
 )

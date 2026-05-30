@@ -38,7 +38,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowWidthSizeClass
-import com.naaammme.bbspace.core.model.LiveRoomPanelState
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.feature.live.component.LivePlaybackBody
 import com.naaammme.bbspace.feature.live.player.LivePlayerPane
@@ -52,7 +51,7 @@ fun LiveScreen(
 ) {
     val route by viewModel.route.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-    val roomPanel by viewModel.roomPanel.collectAsStateWithLifecycle()
+    val roomSession by viewModel.roomSession.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
     val owner = LocalLifecycleOwner.current
@@ -159,8 +158,10 @@ fun LiveScreen(
                 TopAppBar(
                     title = {
                         TopBarPanel(
-                            popularCount = roomPanel.popularCount,
-                            panel = roomPanel.panel
+                            popularCount = roomSession.popularCount,
+                            watchedText = roomSession.panel.watchedText,
+                            onlineRankText = roomSession.panel.onlineRankText,
+                            rankChangedText = roomSession.panel.rankChangedText
                         )
                     },
                     navigationIcon = {
@@ -199,13 +200,15 @@ fun LiveScreen(
 @Composable
 private fun TopBarPanel(
     popularCount: Long,
-    panel: LiveRoomPanelState
+    watchedText: String?,
+    onlineRankText: String?,
+    rankChangedText: String?
 ) {
     val parts = listOfNotNull(
         popularCount.takeIf { it > 0L }?.let { "人气 $it" },
-        panel.watchedText?.takeIf(String::isNotBlank),
-        panel.onlineRankText?.takeIf(String::isNotBlank),
-        panel.rankChangedText?.takeIf(String::isNotBlank)
+        watchedText?.takeIf(String::isNotBlank),
+        onlineRankText?.takeIf(String::isNotBlank),
+        rankChangedText?.takeIf(String::isNotBlank)
     )
     if (parts.isEmpty()) return
     Text(

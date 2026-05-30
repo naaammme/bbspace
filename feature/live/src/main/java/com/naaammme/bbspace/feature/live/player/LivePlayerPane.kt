@@ -305,7 +305,7 @@ private fun LiveDanmakuEffect(
     danmakuOn: Boolean
 ) {
     val roomSession by roomSessionState.collectAsStateWithLifecycle()
-    val latestMessage = roomSession.latestMessage
+    val latestMessage = roomSession.messages.lastOrNull()
     var lastHandledMessageId by remember(playbackRoomId) {
         mutableLongStateOf(0L)
     }

@@ -9,7 +9,6 @@ import com.naaammme.bbspace.core.model.LiveRoomMedal
 import com.naaammme.bbspace.core.model.LiveRoomMessage
 import com.naaammme.bbspace.core.model.LiveRoomPanelState
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
-import com.naaammme.bbspace.core.model.LiveRoomSessionStatus
 import com.naaammme.bbspace.core.model.LiveRoomUser
 import com.naaammme.bbspace.core.model.merge
 import com.naaammme.bbspace.infra.crypto.DeviceIdentity
@@ -65,7 +64,6 @@ class LiveRoomMessageRepoImpl @Inject constructor(
             emit(
                 LiveRoomSessionState(
                     roomId = roomId,
-                    status = LiveRoomSessionStatus.Closed,
                     lastError = "直播间 roomId 无效"
                 )
             )
@@ -88,29 +86,13 @@ class LiveRoomMessageRepoImpl @Inject constructor(
             suspend fun runLoop(scope: CoroutineScope) {
                 while (scope.isActive) {
                     val danmuInfo = try {
-                        pushState {
-                            it.copy(
-                                status = if (retryCount == 0) {
-                                    LiveRoomSessionStatus.Connecting
-                                } else {
-                                    LiveRoomSessionStatus.Reconnecting
-                                },
-                                retryCount = retryCount,
-                                lastError = null
-                            )
-                        }
+                        pushState { it.copy(lastError = null) }
                         fetchDanmuInfo(roomId)
                     } catch (t: Throwable) {
                         if (t is CancellationException) throw t
                         val msg = t.message ?: "获取直播弹幕配置失败"
                         Logger.e(TAG, t) { "fetch danmu info failed roomId=$roomId msg=$msg" }
-                        pushState {
-                            it.copy(
-                                status = LiveRoomSessionStatus.Reconnecting,
-                                retryCount = retryCount,
-                                lastError = msg
-                            )
-                        }
+                        pushState { it.copy(lastError = msg) }
                         retryCount += 1
                         delay(nextRetryDelayMs(retryCount))
                         continue
@@ -130,13 +112,7 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                         if (t is CancellationException) throw t
                         val msg = t.message ?: "直播消息连接断开"
                         Logger.w(TAG) { "live room session break roomId=$roomId msg=$msg retry=$retryCount" }
-                        pushState {
-                            it.copy(
-                                status = LiveRoomSessionStatus.Reconnecting,
-                                retryCount = retryCount,
-                                lastError = msg
-                            )
-                        }
+                        pushState { it.copy(lastError = msg) }
                         retryCount += 1
                         delay(nextRetryDelayMs(retryCount))
                     }
@@ -191,21 +167,13 @@ class LiveRoomMessageRepoImpl @Inject constructor(
             val writeLock = Any()
             try {
                 ackDeduper.clear()
-                emitState {
-                    it.copy(
-                        status = LiveRoomSessionStatus.Connecting,
-                        queueId = queueId,
-                        lastConnectAtMs = System.currentTimeMillis(),
-                        lastError = null
-                    )
-                }
+                emitState { it.copy(lastError = null) }
                 socket.tcpNoDelay = true
                 socket.keepAlive = true
                 socket.connect(InetSocketAddress(host.host, host.port), CONNECT_TIMEOUT_MS)
                 socket.soTimeout = AUTH_TIMEOUT_MS
                 socket.getOutputStream().use { output ->
                     DataInputStream(socket.getInputStream()).use { input ->
-                        emitState { it.copy(status = LiveRoomSessionStatus.Authorizing) }
                         sendPacket(
                             output = output,
                             writeLock = writeLock,
@@ -269,19 +237,10 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                                 while (isActive) {
                                     delay(HEARTBEAT_INTERVAL_MS)
                                     sendPacket(output, writeLock, OP_HEARTBEAT, EMPTY_BYTES)
-                                    emitState {
-                                        it.copy(lastHeartbeatAtMs = System.currentTimeMillis())
-                                    }
                                 }
                             }
                         }
-                        emitState {
-                            it.copy(
-                                status = LiveRoomSessionStatus.Running,
-                                queueId = queueId,
-                                lastError = null
-                            )
-                        }
+                        emitState { it.copy(lastError = null) }
                     },
                     onHeartbeat = { popular ->
                         emitState { it.copy(popularCount = popular) }
@@ -289,7 +248,7 @@ class LiveRoomMessageRepoImpl @Inject constructor(
                     onMessage = { msg ->
                         emitState {
                             val next = appendMessage(it.messages, msg)
-                            it.copy(messages = next, latestMessage = msg)
+                            it.copy(messages = next)
                         }
                     }
                 )

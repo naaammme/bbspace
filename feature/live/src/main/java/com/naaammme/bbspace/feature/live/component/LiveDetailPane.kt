@@ -30,7 +30,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoomMessage
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
-import com.naaammme.bbspace.core.model.LiveRoomSessionStatus
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.feature.live.toUiMessage
 import java.text.DateFormat
@@ -108,13 +107,11 @@ internal fun LiveDetailPane(
             LiveMetaSection(
                 route = route,
                 playbackState = playbackState,
-                status = roomSession.status,
-                queueId = roomSession.queueId,
                 lastError = roomSession.lastError
             )
         }
 
-        if (messages.isEmpty() && roomSession.status == LiveRoomSessionStatus.Running) {
+        if (messages.isEmpty() && playbackState.playbackSource != null && playbackState.error == null) {
             item("empty_msg") {
                 EmptyMessageCard()
             }
@@ -149,8 +146,6 @@ private const val AUTO_SCROLL_COALESCE_MS = 80L
 private fun LiveMetaSection(
     route: LiveRoute?,
     playbackState: LivePlaybackViewState,
-    status: LiveRoomSessionStatus,
-    queueId: String?,
     lastError: String?
 ) {
     val tags = remember(route?.roomId, route?.onlineText) {
@@ -174,12 +169,6 @@ private fun LiveMetaSection(
             }
         }
 
-        SessionInfoCard(
-            status = status,
-            queueId = queueId,
-            lastError = lastError
-        )
-
         playbackState.error?.let { error ->
             Text(
                 text = error.toUiMessage(),
@@ -191,6 +180,14 @@ private fun LiveMetaSection(
         playbackState.playerError?.let { error ->
             Text(
                 text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        lastError?.takeIf(String::isNotBlank)?.let { err ->
+            Text(
+                text = err,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error
             )
@@ -211,49 +208,6 @@ private fun EmptyMessageCard() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
         )
-    }
-}
-
-@Composable
-private fun SessionInfoCard(
-    status: LiveRoomSessionStatus,
-    queueId: String?,
-    lastError: String?
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.medium
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = "消息会话",
-                style = MaterialTheme.typography.titleSmall
-            )
-            Text(
-                text = "状态: ${roomSessionStatusText(status)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            queueId?.takeIf(String::isNotBlank)?.let { value ->
-                Text(
-                    text = "队列: $value",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            lastError?.takeIf(String::isNotBlank)?.let { err ->
-                Text(
-                    text = err,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
     }
 }
 
@@ -331,16 +285,5 @@ private fun MetaTag(text: String) {
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )
-    }
-}
-
-private fun roomSessionStatusText(status: LiveRoomSessionStatus): String {
-    return when (status) {
-        LiveRoomSessionStatus.Idle -> "未启动"
-        LiveRoomSessionStatus.Connecting -> "连接中"
-        LiveRoomSessionStatus.Authorizing -> "认证中"
-        LiveRoomSessionStatus.Running -> "已连接"
-        LiveRoomSessionStatus.Reconnecting -> "重连中"
-        LiveRoomSessionStatus.Closed -> "已关闭"
     }
 }
