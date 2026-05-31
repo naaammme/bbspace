@@ -42,9 +42,11 @@ import com.naaammme.bbspace.core.domain.live.LiveRecommendRepository
 import com.naaammme.bbspace.core.domain.live.LiveRoomMessageRepository
 import com.naaammme.bbspace.core.domain.live.LiveRepository
 import com.naaammme.bbspace.core.domain.player.DownloadPlaybackController
+import com.naaammme.bbspace.core.domain.player.LivePlaybackController
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
 
+import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
 import com.naaammme.bbspace.core.domain.search.SearchRepository
 import com.naaammme.bbspace.core.domain.space.SpaceRepository
@@ -138,6 +140,14 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindStreamPlaybackSession(impl: StreamPlaybackSessionImpl): StreamPlaybackSession
+
+    @Binds
+    @Singleton
+    abstract fun bindVideoPlaybackController(impl: StreamPlaybackSessionImpl): VideoPlaybackController
+
+    @Binds
+    @Singleton
+    abstract fun bindLivePlaybackController(impl: StreamPlaybackSessionImpl): LivePlaybackController
 
 
     @Binds

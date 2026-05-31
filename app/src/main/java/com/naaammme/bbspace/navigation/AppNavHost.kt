@@ -148,6 +148,7 @@ fun AppNavHost(
         videoViewModel.openRoot(target)
     }
     val openLive: (LiveRoute) -> Unit = { route ->
+        liveViewModel.openRoute(route)
         playbackHostViewModel.openLive(route)
         playbackHostViewModel.expand()
     }
@@ -348,11 +349,6 @@ fun AppNavHost(
             backgroundPlaybackEnabled = backgroundPlaybackEnabled,
             onExpand = {
                 playbackHostViewModel.expand()
-                when (val playbackTarget = target) {
-                    is StreamPlaybackTarget.Video -> videoViewModel.syncToPlayback(playbackTarget.target)
-                    is StreamPlaybackTarget.Live -> Unit
-                    null -> Unit
-                }
             },
             onTogglePlay = playbackHostViewModel::togglePlayPause,
             onPauseInBackground = playbackHostViewModel::pause,

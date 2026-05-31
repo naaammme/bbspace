@@ -168,7 +168,13 @@ class PlaybackService : Service() {
 
         override fun getCurrentContentText(player: Player): CharSequence? {
             if (isLivePlayback()) {
-                return playbackSession.liveState.value.playbackSource?.currentDescription
+                val subtitle = playbackSession.sessionState.value.subtitle
+                subtitle?.takeIf(String::isNotBlank)?.let { return it }
+                return player.currentMediaItem
+                    ?.mediaMetadata
+                    ?.artist
+                    ?.toString()
+                    ?.takeIf(String::isNotBlank)
             }
             val subtitle = playbackSession.sessionState.value.subtitle
             subtitle?.takeIf(String::isNotBlank)?.let { return it }

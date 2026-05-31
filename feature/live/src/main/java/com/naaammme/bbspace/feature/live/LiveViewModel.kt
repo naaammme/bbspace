@@ -3,13 +3,12 @@ package com.naaammme.bbspace.feature.live
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.domain.live.LiveRoomMessageRepository
+import com.naaammme.bbspace.core.domain.player.LivePlaybackController
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
-import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
-import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -25,19 +24,19 @@ import kotlinx.coroutines.launch
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LiveViewModel @Inject constructor(
-    private val playbackSession: StreamPlaybackSession,
+    private val playbackController: LivePlaybackController,
     liveRoomMessageRepository: LiveRoomMessageRepository,
     private val playerSettings: PlayerSettings
 ) : ViewModel() {
-    val player = playbackSession.player
-    val route: StateFlow<LiveRoute?> = playbackSession.currentTarget
-        .map { target -> (target as? StreamPlaybackTarget.Live)?.route }
+    val player = playbackController.player
+    private val _route = MutableStateFlow<LiveRoute?>(null)
+    val route: StateFlow<LiveRoute?> = _route
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
             initialValue = null
         )
-    val playbackState: StateFlow<LivePlaybackViewState> = playbackSession.liveState
+    val playbackState: StateFlow<LivePlaybackViewState> = playbackController.liveState
     val settingsState = playerSettings.state
     private val emptyRoomSession = MutableStateFlow(LiveRoomSessionState())
     val roomSession: StateFlow<LiveRoomSessionState> = route
@@ -60,6 +59,10 @@ class LiveViewModel @Inject constructor(
 
     private var startJob: Job? = null
 
+    fun openRoute(route: LiveRoute) {
+        _route.value = route
+    }
+
     fun ensureStarted() {
         val target = route.value ?: return
         val state = playbackState.value
@@ -71,7 +74,7 @@ class LiveViewModel @Inject constructor(
         }
         if (startJob?.isActive == true) return
         startJob = viewModelScope.launch {
-            playbackSession.openLive(
+            playbackController.openLive(
                 route = target,
                 preferredQuality = state.playbackSource?.currentQn ?: 0
             )
@@ -80,14 +83,14 @@ class LiveViewModel @Inject constructor(
 
     fun togglePlayPause() {
         if (playbackState.value.isPlaying) {
-            playbackSession.pause()
+            playbackController.pause()
         } else {
-            playbackSession.play()
+            playbackController.play()
         }
     }
 
     fun switchQuality(qn: Int) {
-        playbackSession.switchLiveQuality(qn)
+        playbackController.switchLiveQuality(qn)
     }
 
     private var danmakuUpdateJob: Job? = null
@@ -105,7 +108,7 @@ class LiveViewModel @Inject constructor(
         val target = route.value ?: return
         startJob?.cancel()
         startJob = viewModelScope.launch {
-            playbackSession.openLive(
+            playbackController.openLive(
                 route = target,
                 preferredQuality = playbackState.value.playbackSource?.currentQn ?: 0,
                 reportEntry = false

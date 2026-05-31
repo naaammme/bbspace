@@ -8,8 +8,10 @@ import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.domain.danmaku.VodDanmakuRepository
 import com.naaammme.bbspace.core.domain.history.PlaybackHistoryRepository
 import com.naaammme.bbspace.core.domain.live.LiveRepository
+import com.naaammme.bbspace.core.domain.player.LivePlaybackController
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
+import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.player.VideoPlayerRepository
 import com.naaammme.bbspace.core.model.DanmakuSessionState
 import com.naaammme.bbspace.core.model.LivePlaybackError
@@ -29,7 +31,6 @@ import com.naaammme.bbspace.core.model.PlayerSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.VideoPlaybackState
-import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.buildPlaybackCdns
 import com.naaammme.bbspace.core.model.isSameEntry
@@ -70,7 +71,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private val playbackHistoryRepo: PlaybackHistoryRepository,
     private val liveRepository: LiveRepository,
     private val playerEngine: PlayerEngine
-) : StreamPlaybackSession {
+) : StreamPlaybackSession, VideoPlaybackController, LivePlaybackController {
 
     //  engine
     override val player: StateFlow<Player?> = playerEngine.player
@@ -292,49 +293,12 @@ class StreamPlaybackSessionImpl @Inject constructor(
         refreshVideoState()
     }
 
-    override fun switchVideoPage(cid: Long) {
-        if (_currentTarget.value !is StreamPlaybackTarget.Video) return
-        val target = (_currentTarget.value as? StreamPlaybackTarget.Video)?.target as? VideoTarget.Ugc ?: return
-        if (target.cid == cid) return
-        val videoId = vodSession.value.playbackSource?.videoId
-        val nextTarget = target.copy(
-            aid = videoId?.aid?.takeIf { it > 0L } ?: target.aid,
-            cid = cid,
-            bvid = videoId?.bvid?.takeIf(String::isNotBlank) ?: target.bvid
-        )
-        val preferredQuality = vodSession.value.currentStream?.quality
-        runtimeScope.launch {
-            openVideoInternal(target = nextTarget, preferredQuality = preferredQuality)
-        }
-    }
-
     override fun switchLiveQuality(quality: Int) {
         val route = (_currentTarget.value as? StreamPlaybackTarget.Live)?.route ?: return
         if (_liveState.value.playbackSource?.currentQn == quality) return
         runtimeScope.launch {
             openLive(route = route, preferredQuality = quality, reportEntry = false)
         }
-    }
-
-    override fun updateVideoInfo(detail: VideoDetail?) {
-        if (_currentTarget.value !is StreamPlaybackTarget.Video) return
-        val cid = vodSession.value.playbackSource?.videoId?.cid
-            ?: ((_currentTarget.value as? StreamPlaybackTarget.Video)?.target as? VideoTarget.Ugc)?.cid
-        val idx = cid?.let { targetCid -> detail?.pages?.indexOfFirst { it.cid == targetCid } } ?: -1
-        val part = detail?.pages?.getOrNull(idx)
-        playerEngine.setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(detail?.title?.takeIf(String::isNotBlank))
-                .setArtist(
-                    listOfNotNull(
-                        detail?.owner?.name?.takeIf(String::isNotBlank),
-                        part?.part?.takeIf(String::isNotBlank)
-                    ).joinToString(" · ").takeIf(String::isNotBlank)
-                )
-                .setArtworkUri(detail?.cover?.takeIf(String::isNotBlank)?.let(android.net.Uri::parse))
-                .build()
-        )
-        syncSessionState()
     }
 
     // vod: open & state

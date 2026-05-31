@@ -5,15 +5,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import com.naaammme.bbspace.core.domain.player.PlayerSettings
 import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
+import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
 import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.DanmakuConfig
-import com.naaammme.bbspace.core.model.PlayerBufferProfile
-import com.naaammme.bbspace.core.model.PlaybackProgress
-import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackError
+import com.naaammme.bbspace.core.model.PlaybackProgress
+import com.naaammme.bbspace.core.model.PlayerBufferProfile
+import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadMeta
@@ -28,7 +29,6 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class VideoViewModel @Inject constructor(
+    private val playbackController: VideoPlaybackController,
     private val streamPlaybackSession: StreamPlaybackSession,
     private val playerSettings: PlayerSettings,
     private val detailRepo: VideoDetailRepository
@@ -47,9 +48,9 @@ class VideoViewModel @Inject constructor(
     private val _detailLoading = MutableStateFlow(false)
     private val _detailError = MutableStateFlow<String?>(null)
 
-    val player: StateFlow<Player?> = streamPlaybackSession.player
-    val videoState: StateFlow<VideoPlaybackState> = streamPlaybackSession.videoState
-    val playbackProgress: StateFlow<PlaybackProgress> = streamPlaybackSession.playbackProgress
+    val player: StateFlow<Player?> = playbackController.player
+    val videoState: StateFlow<VideoPlaybackState> = playbackController.videoState
+    val playbackProgress: StateFlow<PlaybackProgress> = playbackController.playbackProgress
     private val currentTarget = streamPlaybackSession.currentTarget
         .map { (it as? StreamPlaybackTarget.Video)?.target }
         .stateIn(
@@ -118,18 +119,16 @@ class VideoViewModel @Inject constructor(
             return CommentSubjectTool.video(aid, src)
         }
 
-    internal val danmakuState = streamPlaybackSession.danmakuState
+    internal val danmakuState = playbackController.danmakuState
 
     init {
-        bindVideoInfo()
         bindPgcDetail()
-        syncWithPlaybackTarget()
     }
 
     fun openRoot(target: VideoTarget) {
         _targetStack.value = listOf(target)
         loadTargetDetail(target)
-        streamPlaybackSession.openVideo(target)
+        playbackController.openVideo(target)
     }
 
     fun openTarget(target: VideoTarget) {
@@ -141,20 +140,7 @@ class VideoViewModel @Inject constructor(
             else -> _targetStack.value + target
         }
         loadTargetDetail(target)
-        streamPlaybackSession.openVideo(target)
-    }
-
-    fun syncToPlayback(target: VideoTarget) {
-        val current = currentPageTarget.value
-        if (current == null) {
-            _targetStack.value = listOf(target)
-            loadTargetDetail(target)
-            return
-        }
-        if (!current.isSameEntry(target) || current != target) {
-            _targetStack.value = _targetStack.value.dropLast(1) + target
-            loadTargetDetail(target)
-        }
+        playbackController.openVideo(target)
     }
 
     fun popPage(): Boolean {
@@ -164,42 +150,42 @@ class VideoViewModel @Inject constructor(
         val nextTarget = nextStack.last()
         _targetStack.value = nextStack
         loadTargetDetail(nextTarget)
-        streamPlaybackSession.openVideo(nextTarget)
+        playbackController.openVideo(nextTarget)
         return true
     }
 
     fun ensureStarted() {
         val pageTarget = currentPageTarget.value ?: return
         if (hasActivePageSession(pageTarget)) return
-        streamPlaybackSession.openVideo(pageTarget)
+        playbackController.openVideo(pageTarget)
     }
 
     fun togglePlayPause() {
         if (videoState.value.isPlaying) {
-            streamPlaybackSession.pause()
+            playbackController.pause()
         } else {
-            streamPlaybackSession.play()
+            playbackController.play()
         }
     }
 
     fun switchQuality(quality: Int) {
-        streamPlaybackSession.switchVideoQuality(quality)
+        playbackController.switchVideoQuality(quality)
     }
 
     fun switchAudio(audioId: Int) {
-        streamPlaybackSession.switchVideoAudio(audioId)
+        playbackController.switchVideoAudio(audioId)
     }
 
     fun switchCdn(cdnIndex: Int) {
-        streamPlaybackSession.switchVideoCdn(cdnIndex)
+        playbackController.switchVideoCdn(cdnIndex)
     }
 
     fun seekTo(positionMs: Long) {
-        streamPlaybackSession.seekTo(positionMs)
+        playbackController.seekTo(positionMs)
     }
 
     fun setSpeed(speed: Float) {
-        streamPlaybackSession.setSpeed(speed)
+        playbackController.setSpeed(speed)
     }
 
     fun updateBackgroundPlayback(enabled: Boolean) {
@@ -258,16 +244,10 @@ class VideoViewModel @Inject constructor(
 
     fun switchPage(cid: Long) {
         val pageTarget = currentPageTarget.value as? VideoTarget.Ugc ?: return
-        val activeTarget = pageSessionTarget(pageTarget) as? VideoTarget.Ugc
-        if (activeTarget != null) {
-            if (activeTarget.cid == cid) return
-            streamPlaybackSession.switchVideoPage(cid)
-            return
-        }
         if (pageTarget.cid == cid) return
         val nextTarget = pageTarget.copy(cid = cid)
         _targetStack.value = _targetStack.value.dropLast(1) + nextTarget
-        streamPlaybackSession.openVideo(nextTarget)
+        playbackController.openVideo(nextTarget)
     }
 
     fun currentDownloadRequest(
@@ -314,29 +294,6 @@ class VideoViewModel @Inject constructor(
                 audioQuality = audioQuality,
                 meta = meta
             )
-        }
-    }
-
-    private fun syncWithPlaybackTarget() {
-        viewModelScope.launch {
-            currentTarget.collect { target ->
-                if (target == null) return@collect
-                val pageTarget = currentPageTarget.value ?: return@collect
-                if (!target.isSameEntry(pageTarget)) return@collect
-                if (pageTarget != target) {
-                    _targetStack.value = _targetStack.value.dropLast(1) + target
-                }
-            }
-        }
-    }
-
-    private fun bindVideoInfo() {
-        viewModelScope.launch {
-            combine(_detail, activeCid) { detail, cid -> detail to cid }
-                .distinctUntilChanged()
-                .collect { (detail, _) ->
-                    streamPlaybackSession.updateVideoInfo(detail)
-                }
         }
     }
 
