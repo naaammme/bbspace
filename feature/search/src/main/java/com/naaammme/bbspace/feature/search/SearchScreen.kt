@@ -42,6 +42,7 @@ import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
 import com.naaammme.bbspace.core.model.SearchFilter
 import com.naaammme.bbspace.core.model.SearchTime
+import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.search.filter.SearchFiltersSheet
 import com.naaammme.bbspace.feature.search.history.SearchHistoryPanel
@@ -51,6 +52,7 @@ import com.naaammme.bbspace.feature.search.result.SearchCard
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
@@ -108,6 +110,10 @@ fun SearchScreen(
                 onSearch = {
                     hideKeyboard()
                     viewModel.submitSearch()
+                },
+                onOpenSpace = { uid ->
+                    hideKeyboard()
+                    onOpenSpace(SpaceRoute(mid = uid))
                 },
                 scrollBehavior = scrollBehavior
             )

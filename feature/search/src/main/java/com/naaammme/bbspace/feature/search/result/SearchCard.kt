@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.feature.search.result
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -19,7 +21,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,12 +67,14 @@ fun SearchCard(
                     .aspectRatio(16f / 10f)
             ) {
                 Text(
+                    text = video.viewText,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White
+                )
+                Text(
                     text = video.duration,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .background(Color.Black.copy(alpha = 0.56f), MaterialTheme.shapes.extraSmall)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White
                 )
@@ -100,7 +103,7 @@ fun SearchCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${video.viewText} 播放 · ${video.danmakuText} 弹幕",
+                        text = listOfNotNull("${video.danmakuText} 弹幕", video.publishTimeText).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -137,7 +140,12 @@ fun SearchCard(
 private fun SearchFeedbackMenu(feedbacks: List<SearchFeedbackSec>) {
     var show by remember { mutableStateOf(false) }
 
-    IconButton(onClick = { show = true }) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .clickable { show = true },
+        contentAlignment = Alignment.Center
+    ) {
         Icon(
             imageVector = Icons.Default.MoreVert,
             contentDescription = "反馈"

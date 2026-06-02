@@ -259,6 +259,7 @@ fun AppNavHost(
             settingsScreen(rootNavController)
             searchScreen(
                 onBack = { rootNavController.popBackStack() },
+                onOpenSpace = rootNavController::navigateToSpace,
                 onOpenVideo = openVideo
             )
             historyScreen(

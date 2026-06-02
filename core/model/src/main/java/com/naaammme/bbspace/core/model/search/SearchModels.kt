@@ -36,6 +36,7 @@ data class SearchVideo(
     val duration: String,
     val viewText: String,
     val danmakuText: String,
+    val publishTimeText: String?,
     val reason: String?,
     val feedbacks: List<SearchFeedbackSec>
 )

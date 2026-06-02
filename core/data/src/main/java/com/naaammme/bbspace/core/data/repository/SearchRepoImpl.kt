@@ -146,6 +146,7 @@ class SearchRepoImpl @Inject constructor(
             duration = av.duration,
             viewText = av.viewContent.ifBlank { av.play.toLong().formatCount() },
             danmakuText = av.danmaku.toLong().formatCount(),
+            publishTimeText = av.showCardDesc2.removePrefix("· ").takeIf(String::isNotBlank),
             reason = av.takeIf { it.hasRcmdReason() }?.rcmdReason?.content?.takeIf(String::isNotBlank),
             feedbacks = av.feedback.sectionsList.mapNotNull(::mapFeedbackSec)
         )

@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,11 +41,13 @@ internal fun SearchTopBar(
     onTextChange: (String) -> Unit,
     onBack: () -> Unit,
     onSearch: () -> Unit,
+    onOpenSpace: (Long) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
+    val spaceUid = text.trim().toLongOrNull()?.takeIf { it > 0L }
 
     val imeVisible = WindowInsets.isImeVisible
 
@@ -94,6 +97,20 @@ internal fun SearchTopBar(
                         }
                     )
                 )
+                if (spaceUid != null) {
+                    IconButton(
+                        onClick = {
+                            focusManager.clearFocus(force = true)
+                            keyboard?.hide()
+                            onOpenSpace(spaceUid)
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "进入用户空间"
+                        )
+                    }
+                }
                 IconButton(onClick = onSearch) {
                     Icon(
                         imageVector = Icons.Default.Search,
