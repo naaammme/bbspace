@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.core.net.toUri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +37,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialog as CoreAppUpdateDialog
@@ -56,7 +56,7 @@ fun AboutScreen(
     val updateState by vm.updateState.collectAsStateWithLifecycle()
     val autoCheckUpdate by vm.autoCheckUpdate.collectAsStateWithLifecycle()
     val updateDialog by vm.updateDialog.collectAsStateWithLifecycle()
-    val showSupportDevDialog = remember { mutableStateOf(false) }
+    var showSupportDevDialog by remember { mutableStateOf(false) }
 
     CollapsingTopBarScaffold(
         topBar = { scrollBehavior ->
@@ -160,9 +160,9 @@ fun AboutScreen(
 
             item {
                 LinkCard(
-                    title = "打赏支持开发",
-                    subtitle = "点击查看赞赏码",
-                    onClick = { showSupportDevDialog.value = true }
+                    title = "支持开发",
+                    subtitle = "赞赏作者，点击查看赞赏码",
+                    onClick = { showSupportDevDialog = true }
                 )
             }
 
@@ -216,8 +216,8 @@ fun AboutScreen(
         )
     }
 
-    if (showSupportDevDialog.value) {
-        SupportDevDialog(onDismiss = { showSupportDevDialog.value = false })
+    if (showSupportDevDialog) {
+        SupportDevDialog(onDismiss = { showSupportDevDialog = false })
     }
 }
 

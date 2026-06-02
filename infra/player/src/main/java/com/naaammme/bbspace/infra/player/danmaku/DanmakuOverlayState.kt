@@ -135,7 +135,6 @@ class DanmakuOverlayState internal constructor(
             danmakuView.visibility = View.INVISIBLE
             session.hide()
             session.pause()
-            danmakuCtrl.clearDanmakusOnScreen()
             pendingSeek = true
             return
         }
@@ -188,8 +187,6 @@ class DanmakuOverlayState internal constructor(
         appliedWindowId = null
         appliedWindowSignature = null
         session.clearSegments()
-        danmakuCtrl.clearDanmakusOnScreen()
-        danmakuCtrl.forceRender()
     }
 
     fun appendDanmaku(item: DanmakuItem) {
@@ -217,13 +214,8 @@ class DanmakuOverlayState internal constructor(
         val nextState = DanmakuCfgState(config)
         if (lastCfgState == nextState) return
 
-        val hadConfig = lastCfgState != null
         danmakuContext.applyConfig(config)
         lastCfgState = nextState
-        if (hadConfig) {
-            danmakuCtrl.clearDanmakusOnScreen()
-        }
-        danmakuCtrl.forceRender()
     }
 
     private fun syncWindow(

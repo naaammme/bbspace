@@ -34,7 +34,7 @@ fun rememberDanmakuOverlayState(
             // 绘制缓存 内存换cpu占用
             enableDanmakuDrawingCache(true)
             showFPS(false)
-            setDrawingThreadType(IDanmakuView.THREAD_TYPE_NORMAL_PRIORITY)
+            setDrawingThreadType(IDanmakuView.THREAD_TYPE_LOW_PRIORITY)
             setZOrderMediaOverlay(true)
             isClickable = false
             isFocusable = false

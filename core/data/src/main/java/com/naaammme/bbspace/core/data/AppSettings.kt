@@ -206,6 +206,7 @@ class AppSettings @Inject constructor(
     val enableWebPlayback: Flow<Boolean> = context.appSettingsDataStore.data.map { it[enableWebPlaybackKey] ?: false }
     // 播放偏好和外观 推荐等设置一样都属于持久偏好，不在这里做会话态缓存
     override val state: Flow<PlayerSettingsState> = context.appSettingsDataStore.data.map { prefs ->
+        val defDanmaku = DanmakuConfig()
         PlayerSettingsState(
             buffer = PlayerBufferSettings(
                 profile = prefs[playerBufferProfileKey].toPlayerBufferProfile()
@@ -220,17 +221,17 @@ class AppSettings @Inject constructor(
                 gestureSpeed = (prefs[gestureSpeedKey] ?: 2f).coerceIn(0.25f, 3f)
             ),
             danmaku = DanmakuConfig(
-                enabled = prefs[danmakuEnabledKey] ?: true,
-                areaPercent = prefs[danmakuAreaPercentKey] ?: 100,
-                opacity = prefs[danmakuOpacityKey] ?: 1f,
-                textScale = prefs[danmakuTextScaleKey] ?: 1f,
-                speed = prefs[danmakuSpeedKey] ?: 1f,
-                densityLevel = prefs[danmakuDensityKey] ?: 1,
-                weightFilterLevel = (prefs[danmakuWeightFilterLevelKey] ?: 2).coerceIn(0, 10),
-                mergeDuplicates = prefs[danmakuMergeDuplicatesKey] ?: false,
-                showTop = prefs[danmakuShowTopKey] ?: true,
-                showBottom = prefs[danmakuShowBottomKey] ?: true,
-                showScrollRl = prefs[danmakuShowScrollRlKey] ?: true
+                enabled = prefs[danmakuEnabledKey] ?: defDanmaku.enabled,
+                areaPercent = prefs[danmakuAreaPercentKey] ?: defDanmaku.areaPercent,
+                opacity = prefs[danmakuOpacityKey] ?: defDanmaku.opacity,
+                textScale = prefs[danmakuTextScaleKey] ?: defDanmaku.textScale,
+                speed = prefs[danmakuSpeedKey] ?: defDanmaku.speed,
+                densityLevel = prefs[danmakuDensityKey] ?: defDanmaku.densityLevel,
+                weightFilterLevel = (prefs[danmakuWeightFilterLevelKey] ?: defDanmaku.weightFilterLevel).coerceIn(0, 10),
+                mergeDuplicates = prefs[danmakuMergeDuplicatesKey] ?: defDanmaku.mergeDuplicates,
+                showTop = prefs[danmakuShowTopKey] ?: defDanmaku.showTop,
+                showBottom = prefs[danmakuShowBottomKey] ?: defDanmaku.showBottom,
+                showScrollRl = prefs[danmakuShowScrollRlKey] ?: defDanmaku.showScrollRl
             )
         )
     }.distinctUntilChanged()
