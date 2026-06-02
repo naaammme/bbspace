@@ -35,7 +35,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import okhttp3.Dns
 import okhttp3.OkHttpClient
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,9 +49,7 @@ class Media3PlayerEngine @Inject constructor(
 ) : PlayerEngine {
 
     private val appContext = context.applicationContext
-    private val videoOkHttpClient = okHttpClient.newBuilder()
-        .dns(Dns.SYSTEM)
-        .build()
+    private val videoOkHttpClient = okHttpClient
     private val webRequestHeaders = mapOf("Referer" to "https://www.bilibili.com")
 
     private val _player = MutableStateFlow<Player?>(null)

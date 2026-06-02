@@ -15,7 +15,7 @@ import java.util.concurrent.Executors
  *   腾讯 HTTPDNS → 阿里 HTTPDNS → 系统 DNS
  *
  * 视频 CDN 域名
- *   阿里 HTTPDNS → 系统 DNS（视频 CDN 只用阿里）
+ *   系统 DNS
  */
 class BiliDns : Dns {
     companion object {
@@ -35,7 +35,7 @@ class BiliDns : Dns {
             "s1.hdslb.com",
         )
 
-        /// 视频 CDN 域名后缀只走阿里(
+        /// 视频 CDN 域名后缀走系统 DNS(
         private val VIDEO_CDN_SUFFIXES = listOf(
             ".bilivideo.com",
             ".bilivideo.cn",
@@ -117,20 +117,10 @@ class BiliDns : Dns {
         return Dns.SYSTEM.lookup(hostname)
     }
     /**
-     * 视频 CDN 域名：只走阿里 → 系统 DNS
-     * 取第一个 IP 即可（阿里已按最优排序）
+     * 视频 CDN 域名：系统 DNS
      */
     private fun lookupVideoCdn(hostname: String): List<InetAddress> {
-        cachedOrNull(hostname)?.let { return it } // 缓存
-
-        AlibabaHttpDns.resolve(hostname)?.let { result ->
-            val addresses = preferIpv4(result.addresses)
-            Logger.d(TAG) { "Alibaba resolved video CDN $hostname: $addresses (ttl=${result.ttlSeconds}s)" }
-            cacheResult(hostname, addresses, result.ttlSeconds)
-            return addresses
-        }
-
-        Logger.d(TAG) { "Falling back to system DNS for video CDN $hostname" }
+        Logger.d(TAG) { "Using system DNS for video CDN $hostname" }
         return preferIpv4(Dns.SYSTEM.lookup(hostname))
     }
 
@@ -160,9 +150,7 @@ class BiliDns : Dns {
                 val result = when (classifyDomain(hostname)) {
                     DomainType.API -> TencentHttpDns.resolve(hostname)
                         ?: AlibabaHttpDns.resolve(hostname)
-                    DomainType.VIDEO_CDN -> AlibabaHttpDns.resolve(hostname)?.let { dns ->
-                        dns.copy(addresses = preferIpv4(dns.addresses))
-                    }
+                    DomainType.VIDEO_CDN -> null
                     DomainType.OTHER -> null
                 }
                 if (result != null) {

@@ -4,25 +4,43 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialog as CoreAppUpdateDialog
+import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.feature.settings.components.SettingSwitch
 import com.naaammme.bbspace.feature.settings.R
 
@@ -38,6 +56,7 @@ fun AboutScreen(
     val updateState by vm.updateState.collectAsStateWithLifecycle()
     val autoCheckUpdate by vm.autoCheckUpdate.collectAsStateWithLifecycle()
     val updateDialog by vm.updateDialog.collectAsStateWithLifecycle()
+    val showSupportDevDialog = remember { mutableStateOf(false) }
 
     CollapsingTopBarScaffold(
         topBar = { scrollBehavior ->
@@ -141,6 +160,14 @@ fun AboutScreen(
 
             item {
                 LinkCard(
+                    title = "打赏支持开发",
+                    subtitle = "点击查看赞赏码",
+                    onClick = { showSupportDevDialog.value = true }
+                )
+            }
+
+            item {
+                LinkCard(
                     title = "加入 QQ 群",
                     subtitle = "924787418",
                     onClick = {
@@ -152,7 +179,7 @@ fun AboutScreen(
                             context.startActivity(
                                 Intent(
                                     Intent.ACTION_VIEW,
-                                    Uri.parse("mqqapi://card/show_pslcard?src_type=internal&version=1&uin=$qqGroupNumber&card_type=group&source=qrcode")
+                                    "mqqapi://card/show_pslcard?src_type=internal&version=1&uin=$qqGroupNumber&card_type=group&source=qrcode".toUri()
                                 )
                             )
                         }
@@ -184,9 +211,13 @@ fun AboutScreen(
             onDismiss = vm::dismissUpdateDialog,
             onOpenUrl = {
                 vm.dismissUpdateDialog()
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+                context.startActivity(Intent(Intent.ACTION_VIEW, it.toUri()))
             }
         )
+    }
+
+    if (showSupportDevDialog.value) {
+        SupportDevDialog(onDismiss = { showSupportDevDialog.value = false })
     }
 }
 
@@ -201,7 +232,7 @@ private fun LinkCard(
     val enabled = onClick != null || url != null
     val resolvedOnClick: () -> Unit = onClick ?: {
         if (url != null) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
         }
     }
     Card(
@@ -220,6 +251,28 @@ private fun LinkCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun SupportDevDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier.padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onDismiss
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.support_tip_code),
+                    contentDescription = "打赏赞赏码",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
     }
 }
