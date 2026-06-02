@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -76,84 +77,86 @@ private fun ProfileCard(state: SpaceHeaderUiState) {
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+        SelectionContainer {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                AvatarImage(
-                    url = profile.face,
-                    contentDescription = profile.name,
-                    modifier = Modifier.size(72.dp),
-                    fallbackContent = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AvatarImage(
+                        url = profile.face,
+                        contentDescription = profile.name,
+                        modifier = Modifier.size(72.dp),
+                        fallbackContent = {
+                            Text(
+                                text = profile.name.take(1),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
-                            text = profile.name.take(1),
+                            text = profile.name,
                             style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "UID ${profile.mid}",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Text(
+                            text = "Lv${profile.level}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                }
+
+                if (profile.sign.isNotBlank()) {
                     Text(
-                        text = profile.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "UID ${profile.mid}",
+                        text = profile.sign,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = "Lv${profile.level}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                 }
-            }
 
-            if (profile.sign.isNotBlank()) {
-                Text(
-                    text = profile.sign,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SpaceStatChip("粉丝", formatCount(profile.fansCount))
-                SpaceStatChip("关注", formatCount(profile.followingCount))
-                if (profile.likeCount > 0L) {
-                    SpaceStatChip("获赞", formatCount(profile.likeCount))
-                }
-                SpaceStatChip("视频", profile.videoCount.toString())
-                if (profile.articleCount > 0) {
-                    SpaceStatChip("图文", profile.articleCount.toString())
-                }
-                if (profile.seasonCount > 0) {
-                    SpaceStatChip("合集", profile.seasonCount.toString())
-                }
-                if (profile.seriesCount > 0) {
-                    SpaceStatChip("系列", profile.seriesCount.toString())
-                }
-            }
-
-            if (profile.tags.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    profile.tags.forEach { tag ->
-                        TagChip(text = tag)
+                    SpaceStatChip("粉丝", formatCount(profile.fansCount))
+                    SpaceStatChip("关注", formatCount(profile.followingCount))
+                    if (profile.likeCount > 0L) {
+                        SpaceStatChip("获赞", formatCount(profile.likeCount))
+                    }
+                    SpaceStatChip("视频", profile.videoCount.toString())
+                    if (profile.articleCount > 0) {
+                        SpaceStatChip("图文", profile.articleCount.toString())
+                    }
+                    if (profile.seasonCount > 0) {
+                        SpaceStatChip("合集", profile.seasonCount.toString())
+                    }
+                    if (profile.seriesCount > 0) {
+                        SpaceStatChip("系列", profile.seriesCount.toString())
+                    }
+                }
+
+                if (profile.tags.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        profile.tags.forEach { tag ->
+                            TagChip(text = tag)
+                        }
                     }
                 }
             }

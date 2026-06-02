@@ -10,7 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -74,13 +73,11 @@ class MainActivity : ComponentActivity() {
                 applyFrameRate(themeConfig.preferredFrameRate)
             }
             BiliTheme(config = themeConfig) {
-                SelectionContainer {
-                    AppNavHost(
-                        themeConfig = themeConfig,
-                        appLink = pendingAppLink,
-                        onAppLinkConsumed = { pendingAppLink = null }
-                    )
-                }
+                AppNavHost(
+                    themeConfig = themeConfig,
+                    appLink = pendingAppLink,
+                    onAppLinkConsumed = { pendingAppLink = null }
+                )
                 updateDialog?.let { release ->
                     AppUpdateDialog(
                         state = release,

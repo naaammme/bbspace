@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
@@ -495,10 +496,12 @@ private fun InfoCapsule(
     modifier: Modifier = Modifier
 ) {
     CapsuleCard(modifier = modifier) {
-        Text(
-            text = detail.title,
-            style = MaterialTheme.typography.titleLarge
-        )
+        SelectionContainer {
+            Text(
+                text = detail.title,
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
 
         FlowRow(
             modifier = Modifier
@@ -517,7 +520,11 @@ private fun InfoCapsule(
             detail.stat?.let { stat ->
                 SoftChip("${stat.view} 播放")
                 SoftChip("${stat.danmaku} 弹幕")
-                SoftChip("${stat.reply} 评论", onClick = onOpenComments)
+                SoftChip(
+                    text = "${stat.reply} 评论",
+                    onClick = onOpenComments,
+                    selectable = false
+                )
             }
         }
 
@@ -543,11 +550,13 @@ private fun InfoCapsule(
         }
 
         if (descOn && detail.desc.isNotBlank()) {
-            Text(
-                text = detail.desc,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 12.dp)
-            )
+            SelectionContainer {
+                Text(
+                    text = detail.desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
         }
 
         if (tagOn && detail.tags.isNotEmpty()) {
@@ -634,18 +643,29 @@ private fun CapsuleCard(
 @Composable
 private fun SoftChip(
     text: String,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    selectable: Boolean = onClick == null
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         shape = MaterialTheme.shapes.extraLarge,
         modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-        )
+        if (selectable) {
+            SelectionContainer {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+        } else {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            )
+        }
     }
 }
 
@@ -1122,16 +1142,18 @@ private fun StateCard(
     isError: Boolean = false
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isError) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.padding(16.dp)
-        )
+        SelectionContainer {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.padding(16.dp)
+            )
+        }
     }
 }
 
