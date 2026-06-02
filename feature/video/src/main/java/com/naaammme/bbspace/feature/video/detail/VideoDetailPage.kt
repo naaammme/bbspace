@@ -59,6 +59,7 @@ import com.naaammme.bbspace.core.designsystem.component.VideoDetailInfoSkeleton
 import com.naaammme.bbspace.core.designsystem.component.VideoRelateCardSkeleton
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.QualityOption
+import com.naaammme.bbspace.core.model.ResolvedVideoIds
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.SpaceRouteTool
 import com.naaammme.bbspace.core.model.VideoDetail
@@ -69,7 +70,6 @@ import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoSeason
 import com.naaammme.bbspace.core.model.VideoSeasonEpisode
 import com.naaammme.bbspace.core.model.VideoStat
-import com.naaammme.bbspace.core.model.VideoPlaybackState
 import com.naaammme.bbspace.feature.comment.CommentPanel
 import com.naaammme.bbspace.feature.video.formatDuration
 import kotlinx.coroutines.launch
@@ -77,7 +77,10 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun VideoDetailPage(
-    state: VideoPlaybackState,
+    detail: VideoDetail?,
+    ids: ResolvedVideoIds,
+    detailLoading: Boolean,
+    detailError: String?,
     commentSubject: CommentSubject?,
     isExpanded: Boolean,
     playerSpaceWidth: Dp,
@@ -88,9 +91,8 @@ internal fun VideoDetailPage(
     onOpenEpisode: (VideoTarget.Ugc) -> Unit,
     onSwitchPage: (Long) -> Unit
 ) {
-    val detail = state.detail
-    val aidKey = state.ids.aid.takeIf { it > 0L }
-    val curCid = state.ids.cid.takeIf { it > 0L }
+    val aidKey = ids.aid.takeIf { it > 0L }
+    val curCid = ids.cid.takeIf { it > 0L }
     var descOn by rememberSaveable(aidKey) { mutableStateOf(false) }
     var tagOn by rememberSaveable(aidKey) { mutableStateOf(false) }
     var sheetTp by rememberSaveable(aidKey) { mutableStateOf<String?>(null) }
@@ -116,7 +118,10 @@ internal fun VideoDetailPage(
             DetailPager(
                 modifier = Modifier
                     .weight(1f),
-                state = state,
+                detail = detail,
+                ids = ids,
+                detailLoading = detailLoading,
+                detailError = detailError,
                 commentSubject = commentSubject,
                 horizontalPad = 0.dp,
                 infoTopPad = 0.dp,
@@ -137,7 +142,10 @@ internal fun VideoDetailPage(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(top = playerSpaceHeight),
-            state = state,
+            detail = detail,
+            ids = ids,
+            detailLoading = detailLoading,
+            detailError = detailError,
             commentSubject = commentSubject,
             horizontalPad = 16.dp,
             infoTopPad = 16.dp,
@@ -182,7 +190,10 @@ internal fun VideoDetailPage(
 @Composable
 private fun DetailPager(
     modifier: Modifier,
-    state: VideoPlaybackState,
+    detail: VideoDetail?,
+    ids: ResolvedVideoIds,
+    detailLoading: Boolean,
+    detailError: String?,
     commentSubject: CommentSubject?,
     horizontalPad: Dp,
     infoTopPad: Dp,
@@ -221,7 +232,10 @@ private fun DetailPager(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 detailItems(
-                    state = state,
+                    detail = detail,
+                    ids = ids,
+                    detailLoading = detailLoading,
+                    detailError = detailError,
                     itemMod = itemMod,
                     descOn = descOn,
                     tagOn = tagOn,
@@ -252,7 +266,10 @@ private fun DetailPager(
 }
 
 private fun LazyListScope.detailItems(
-    state: VideoPlaybackState,
+    detail: VideoDetail?,
+    ids: ResolvedVideoIds,
+    detailLoading: Boolean,
+    detailError: String?,
     itemMod: Modifier,
     descOn: Boolean,
     tagOn: Boolean,
@@ -265,11 +282,9 @@ private fun LazyListScope.detailItems(
     onDownloadClick: () -> Unit,
     onOpenComments: () -> Unit
 ) {
-    val curCid = state.ids.cid.takeIf { it > 0L }
-    val detailError = state.detailError
-    val detail = state.detail
+    val curCid = ids.cid.takeIf { it > 0L }
     when {
-        state.detailLoading -> {
+        detailLoading -> {
             item(
                 key = "detail_loading_summary",
                 contentType = "skeleton"
@@ -305,7 +320,7 @@ private fun LazyListScope.detailItems(
             ) {
                 VideoSummarySection(
                     detail = detail,
-                    ids = state.ids,
+                    ids = ids,
                     descOn = descOn,
                     tagOn = tagOn,
                     onToggleDesc = onToggleDesc,
@@ -378,7 +393,7 @@ private fun LazyListScope.detailItems(
 @Composable
 private fun VideoSummarySection(
     detail: VideoDetail,
-    ids: com.naaammme.bbspace.core.model.ResolvedVideoIds,
+    ids: ResolvedVideoIds,
     modifier: Modifier = Modifier,
     descOn: Boolean,
     tagOn: Boolean,
@@ -471,7 +486,7 @@ private fun OwnerCapsule(
 @Composable
 private fun InfoCapsule(
     detail: VideoDetail,
-    ids: com.naaammme.bbspace.core.model.ResolvedVideoIds,
+    ids: ResolvedVideoIds,
     descOn: Boolean,
     tagOn: Boolean,
     onToggleDesc: () -> Unit,

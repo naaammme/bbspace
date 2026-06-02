@@ -57,13 +57,13 @@ import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadOption
 import com.naaammme.bbspace.core.model.VideoDownloadOptions
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.feature.video.detail.VideoDetailPage
 import com.naaammme.bbspace.feature.video.player.VideoPlayerPane
-import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
 import java.util.Locale
 
 internal val speedOps = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
@@ -78,8 +78,7 @@ fun VideoScreen(
     onOpenDownloadCache: () -> Unit,
     onStartDownload: (VideoDownloadRequest) -> Unit,
     viewModel: VideoViewModel,
-    hostExpanded: Boolean = true,
-    danmakuOverlayState: DanmakuOverlayState
+    hostExpanded: Boolean = true
 ) {
     val videoState by viewModel.videoState.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
@@ -95,6 +94,9 @@ fun VideoScreen(
         val height = videoState.currentStream?.height ?: return@remember false
         width in 1..<height
     }
+    val openTarget = remember(viewModel) { viewModel::openTarget }
+    val switchPage = remember(viewModel) { viewModel::switchPage }
+    val downloadClick = remember { { downloadSheetOn = true } }
     val handleBack = {
         if (fullOn) {
             isFull = false
@@ -175,16 +177,19 @@ fun VideoScreen(
 
         if (hostExpanded && !fullOn) {
             VideoDetailPage(
-                state = videoState,
+                detail = videoState.detail,
+                ids = videoState.ids,
+                detailLoading = videoState.detailLoading,
+                detailError = videoState.detailError,
                 commentSubject = viewModel.commentSubject,
                 isExpanded = isExpanded,
                 playerSpaceWidth = expandedPlayerW,
                 playerSpaceHeight = if (isExpanded) expandedPlayerH else compactPlayerSpaceH,
-                onOpenVideo = viewModel::openTarget,
+                onOpenVideo = openTarget,
                 onOpenSpace = onOpenSpace,
-                onDownloadClick = { downloadSheetOn = true },
-                onOpenEpisode = viewModel::openTarget,
-                onSwitchPage = viewModel::switchPage
+                onDownloadClick = downloadClick,
+                onOpenEpisode = openTarget,
+                onSwitchPage = switchPage
             )
         }
 
@@ -220,8 +225,7 @@ fun VideoScreen(
                 isFull = fullOn,
                 onToggleFull = { isFull = !isFull },
                 onBackClick = handleBack,
-                onGoHome = onGoHome,
-                danmakuOverlayState = danmakuOverlayState
+                onGoHome = onGoHome
             )
         }
     }

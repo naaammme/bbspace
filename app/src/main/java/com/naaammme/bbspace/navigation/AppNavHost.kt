@@ -93,11 +93,6 @@ fun AppNavHost(
     val playbackHostViewModel: PlaybackHostViewModel = hiltViewModel()
     val videoViewModel: VideoViewModel = hiltViewModel()
     val liveViewModel: LiveViewModel = hiltViewModel()
-    val player by playbackHostViewModel.player.collectAsStateWithLifecycle()
-    val target by playbackHostViewModel.currentTarget.collectAsStateWithLifecycle()
-    val sessionState by playbackHostViewModel.sessionState.collectAsStateWithLifecycle()
-    val backgroundPlaybackEnabled by playbackHostViewModel.backgroundPlaybackEnabled.collectAsStateWithLifecycle()
-    val miniPlayerAvailable by playbackHostViewModel.miniPlayerAvailable.collectAsStateWithLifecycle()
     val hostMode = playbackHostViewModel.hostMode
     var forcedDismissMode by remember { mutableStateOf<PlaybackHostMode?>(null) }
     val playbackMode = when {
@@ -109,10 +104,10 @@ fun AppNavHost(
         playbackHostViewModel.close()
     }
     val dismissPlaybackHost: () -> Unit = {
-        if (miniPlayerAvailable) {
+        if (playbackHostViewModel.miniPlayerAvailable.value) {
             playbackHostViewModel.minimize()
         } else {
-            when (target) {
+            when (playbackHostViewModel.currentTarget.value) {
                 is StreamPlaybackTarget.Video -> closeVideoHost()
                 is StreamPlaybackTarget.Live, null -> playbackHostViewModel.close()
             }
@@ -120,7 +115,10 @@ fun AppNavHost(
     }
     val collapseExpandedPlayback = {
         if (hostMode == PlaybackHostMode.Expanded) {
-            forcedDismissMode = if (miniPlayerAvailable && target != null) {
+            forcedDismissMode = if (
+                playbackHostViewModel.miniPlayerAvailable.value &&
+                playbackHostViewModel.currentTarget.value != null
+            ) {
                 PlaybackHostMode.Mini
             } else {
                 PlaybackHostMode.Hidden
@@ -342,18 +340,14 @@ fun AppNavHost(
 
         PlaybackHost(
             mode = playbackMode,
-            target = target,
-            player = player,
-            sessionState = sessionState,
-            miniPlayerAvailable = miniPlayerAvailable,
-            backgroundPlaybackEnabled = backgroundPlaybackEnabled,
+            playbackHostViewModel = playbackHostViewModel,
             onExpand = {
                 playbackHostViewModel.expand()
             },
             onTogglePlay = playbackHostViewModel::togglePlayPause,
             onPauseInBackground = playbackHostViewModel::pause,
             onClose = {
-                when (target) {
+                when (playbackHostViewModel.currentTarget.value) {
                     is StreamPlaybackTarget.Video -> closeVideoHost()
                     is StreamPlaybackTarget.Live -> playbackHostViewModel.close()
                     null -> Unit

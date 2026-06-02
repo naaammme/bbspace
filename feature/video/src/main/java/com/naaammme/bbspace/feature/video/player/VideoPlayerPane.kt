@@ -58,6 +58,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
+import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlayerSettingsState
@@ -94,8 +95,7 @@ internal fun VideoPlayerPane(
     isFull: Boolean,
     onToggleFull: () -> Unit,
     onBackClick: () -> Unit,
-    onGoHome: () -> Unit,
-    danmakuOverlayState: DanmakuOverlayState
+    onGoHome: () -> Unit
 ) {
     val context = LocalContext.current
     val timeFmt = remember { android.text.format.DateFormat.getTimeFormat(context) }
@@ -116,6 +116,12 @@ internal fun VideoPlayerPane(
         }
     }
     val danmakuOn = settingsState.danmaku.enabled
+    val danmakuOverlayState = rememberDanmakuOverlayState(
+        initialConfig = settingsState.danmaku,
+        initialPositionMs = viewModel.playbackProgress.value.positionMs,
+        initialIsPlaying = state.isPlaying,
+        initialSpeed = state.speed
+    )
     val videoAspect = remember(state.currentStream) {
         val width = state.currentStream?.width?.takeIf { it > 0 } ?: return@remember null
         val height = state.currentStream?.height?.takeIf { it > 0 } ?: return@remember null
@@ -385,8 +391,7 @@ private fun VideoDanmakuLayer(
         isPlaying = state.isPlaying,
         speed = state.speed,
         seekEventId = state.seekEventId,
-        hasSource = state.playbackSource != null,
-        manageLifecycle = false
+        hasSource = state.playbackSource != null
     )
 }
 
