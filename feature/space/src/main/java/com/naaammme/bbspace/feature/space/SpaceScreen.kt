@@ -29,6 +29,7 @@ import com.naaammme.bbspace.feature.space.archive.spaceArchiveSection
 import com.naaammme.bbspace.feature.space.component.SpaceError
 import com.naaammme.bbspace.feature.space.component.SpaceLoading
 import com.naaammme.bbspace.feature.space.header.spaceHeaderSection
+import com.naaammme.bbspace.feature.space.note.spaceNoteSection
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -132,6 +133,11 @@ fun SpaceScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     spaceHeaderSection(header)
+                    spaceNoteSection(
+                        uid = header.profile.mid,
+                        name = header.profile.name,
+                        face = header.profile.face
+                    )
                     spaceArchiveSection(
                         state = state.archive,
                         onOpenVideo = onOpenVideo,
