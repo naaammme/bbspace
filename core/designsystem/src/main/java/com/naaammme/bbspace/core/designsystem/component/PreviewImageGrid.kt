@@ -8,14 +8,14 @@ import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
@@ -51,9 +51,8 @@ data class PreviewImage(
     val height: Float = 0f
 )
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PreviewImageRow(
+fun PreviewImageGrid(
     images: List<PreviewImage>,
     modifier: Modifier = Modifier,
     onSaveImage: ((PreviewImage) -> Unit)? = null
@@ -61,33 +60,36 @@ fun PreviewImageRow(
     if (images.isEmpty()) return
 
     var previewIdx by remember { mutableIntStateOf(-1) }
+    val columns = remember(images.size) { previewGridColumns(images.size) }
+    val rows = remember(images, columns) { images.withIndex().chunked(columns) }
 
-    LazyRow(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        itemsIndexed(
-            items = images,
-            key = { index, image -> "${image.url}_$index" }
-        ) { index, image ->
-            val ratio = remember(image.width, image.height) {
-                if (image.width > 0f && image.height > 0f) {
-                    (image.width / image.height).coerceIn(0.75f, 2f)
-                } else {
-                    4f / 3f
+        rows.forEach { rowImages ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowImages.forEach { item ->
+                    PreviewGridItem(
+                        image = item.value,
+                        single = images.size == 1,
+                        onClick = { previewIdx = item.index },
+                        modifier = if (images.size == 1) {
+                            Modifier.fillMaxWidth(0.72f)
+                        } else {
+                            Modifier.weight(1f)
+                        }
+                    )
+                }
+                if (images.size > 1) {
+                    repeat(columns - rowImages.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
-            BiliAsyncImage(
-                url = image.url,
-                contentDescription = "图片",
-                modifier = Modifier
-                    .width(168.dp)
-                    .aspectRatio(ratio)
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable { previewIdx = index },
-                contentScale = ContentScale.Crop,
-                variant = BiliImageVariant.PreviewThumb
-            )
         }
     }
 
@@ -99,6 +101,32 @@ fun PreviewImageRow(
             onSaveImage = onSaveImage
         )
     }
+}
+
+@Composable
+private fun PreviewGridItem(
+    image: PreviewImage,
+    single: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val ratio = remember(image.width, image.height, single) {
+        if (single) {
+            previewSingleImageRatio(image)
+        } else {
+            1f
+        }
+    }
+    BiliAsyncImage(
+        url = image.url,
+        contentDescription = "图片",
+        modifier = modifier
+            .aspectRatio(ratio)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick),
+        contentScale = ContentScale.Crop,
+        variant = BiliImageVariant.PreviewThumb
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -244,7 +272,7 @@ private fun PreviewImagePage(
                     canPan = { scale > 1f }
                 ),
             contentScale = ContentScale.Fit,
-            variant = BiliImageVariant.Original
+            variant = BiliImageVariant.PreviewThumb
         )
     }
 }
@@ -258,4 +286,20 @@ private fun clampOffset(
         x = offset.x.coerceIn(-maxX, maxX),
         y = offset.y.coerceIn(-maxY, maxY)
     )
+}
+
+private fun previewGridColumns(count: Int): Int {
+    return when (count) {
+        1 -> 1
+        2, 4 -> 2
+        else -> 3
+    }
+}
+
+private fun previewSingleImageRatio(image: PreviewImage): Float {
+    return if (image.width > 0f && image.height > 0f) {
+        (image.width / image.height).coerceIn(0.75f, 1.8f)
+    } else {
+        4f / 3f
+    }
 }

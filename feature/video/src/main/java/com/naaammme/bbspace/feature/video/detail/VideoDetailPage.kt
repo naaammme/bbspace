@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
@@ -58,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.VideoDetailInfoSkeleton
 import com.naaammme.bbspace.core.designsystem.component.VideoRelateCardSkeleton
+import com.naaammme.bbspace.core.designsystem.component.copyTextOnLongPress
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.ResolvedVideoIds
@@ -496,12 +496,11 @@ private fun InfoCapsule(
     modifier: Modifier = Modifier
 ) {
     CapsuleCard(modifier = modifier) {
-        SelectionContainer {
-            Text(
-                text = detail.title,
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
+        Text(
+            text = detail.title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.copyTextOnLongPress(detail.title, "标题")
+        )
 
         FlowRow(
             modifier = Modifier
@@ -510,10 +509,8 @@ private fun InfoCapsule(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ids.aid.takeIf { it > 0L }?.let { SoftChip("AV$it") }
-            ids.bvid?.takeIf(String::isNotBlank)?.let { bvid ->
-                SoftChip(bvid)
-            }
+            ids.aid.takeIf { it > 0L }?.let { SoftChip("AV$it", onLongPressLabel = "AV号") }
+            ids.bvid?.takeIf(String::isNotBlank)?.let { SoftChip(it, onLongPressLabel = "BV号") }
             detail.pubTs?.let { ts ->
                 SoftChip(formatPubTime(ts))
             }
@@ -522,8 +519,7 @@ private fun InfoCapsule(
                 SoftChip("${stat.danmaku} 弹幕")
                 SoftChip(
                     text = "${stat.reply} 评论",
-                    onClick = onOpenComments,
-                    selectable = false
+                    onClick = onOpenComments
                 )
             }
         }
@@ -550,13 +546,13 @@ private fun InfoCapsule(
         }
 
         if (descOn && detail.desc.isNotBlank()) {
-            SelectionContainer {
-                Text(
-                    text = detail.desc,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 12.dp)
-                )
-            }
+            Text(
+                text = detail.desc,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .copyTextOnLongPress(detail.desc, "简介")
+            )
         }
 
         if (tagOn && detail.tags.isNotEmpty()) {
@@ -644,28 +640,23 @@ private fun CapsuleCard(
 private fun SoftChip(
     text: String,
     onClick: (() -> Unit)? = null,
-    selectable: Boolean = onClick == null
+    onLongPressLabel: String? = null
 ) {
+    val modifier = when {
+        onLongPressLabel != null -> Modifier.copyTextOnLongPress(text, onLongPressLabel)
+        onClick != null -> Modifier.clickable(onClick = onClick)
+        else -> Modifier
+    }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         shape = MaterialTheme.shapes.extraLarge,
-        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+        modifier = modifier
     ) {
-        if (selectable) {
-            SelectionContainer {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
-            }
-        } else {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-            )
-        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+        )
     }
 }
 
@@ -1142,18 +1133,16 @@ private fun StateCard(
     isError: Boolean = false
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
-        SelectionContainer {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isError) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.padding(16.dp)
-            )
-        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isError) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.padding(16.dp)
+        )
     }
 }
 

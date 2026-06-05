@@ -39,7 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
-import com.naaammme.bbspace.core.designsystem.component.PreviewImageRow
+import com.naaammme.bbspace.core.designsystem.component.PreviewImageGrid
 import com.naaammme.bbspace.core.model.CommentReply
 import com.naaammme.bbspace.core.model.CommentUser
 
@@ -213,7 +213,7 @@ private fun ReplyBody(
             ReplyMessage(reply)
 
             if (previewImages.isNotEmpty()) {
-                PreviewImageRow(
+                PreviewImageGrid(
                     images = previewImages,
                     onSaveImage = { onAction(CommentReplyAction.SaveImage(it)) }
                 )

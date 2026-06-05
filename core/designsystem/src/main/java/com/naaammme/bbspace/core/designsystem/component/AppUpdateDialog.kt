@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
+import com.naaammme.bbspace.core.designsystem.component.SelectableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +35,7 @@ fun AppUpdateDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            SelectionContainer {
-                Text(state.title)
-            }
+            SelectableText(state.title)
         },
         text = {
             Column(
@@ -47,13 +45,11 @@ fun AppUpdateDialog(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SelectionContainer {
-                    Text(
-                        text = state.desc,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                SelectableText(
+                    text = state.desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         confirmButton = {

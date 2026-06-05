@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.BiliImageVariant
+import com.naaammme.bbspace.core.designsystem.component.copyTextOnLongPress
 import com.naaammme.bbspace.core.model.CommentEmote
 
 private val COMMENT_EMOTE_REGEX = Regex("(\\[[^]]+])")
@@ -45,7 +46,7 @@ internal fun CommentRichText(
         Text(
             text = text,
             style = style,
-            modifier = modifier
+            modifier = modifier.copyTextOnLongPress(text, "评论")
         )
         return
     }
@@ -74,7 +75,7 @@ internal fun CommentRichText(
         text = parsed.text,
         inlineContent = inlineContent,
         style = style,
-        modifier = modifier
+        modifier = modifier.copyTextOnLongPress(text, "评论")
     )
 }
 

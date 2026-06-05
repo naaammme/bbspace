@@ -39,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
+import com.naaammme.bbspace.core.designsystem.component.SelectableText
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.DynamicDetail
 import com.naaammme.bbspace.core.model.DynamicDetailAuthor
@@ -242,7 +243,7 @@ private fun DynamicDetailParagraphItem(paragraph: DynamicDetailParagraph) {
     when (paragraph.type) {
         DynamicDetailParagraph.TYPE_TEXT -> {
             paragraph.text?.let { text ->
-                Text(
+                SelectableText(
                     text = text,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,

@@ -49,6 +49,7 @@ import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.BiliImageVariant
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
+import com.naaammme.bbspace.core.designsystem.component.copyTextOnLongPress
 import com.naaammme.bbspace.core.model.ImMessage
 import com.naaammme.bbspace.core.model.ImMsgType
 import java.time.Instant
@@ -260,6 +261,10 @@ private fun MessageContent(
                         ) {
                             Text(
                                 text = message.noticeTitle ?: message.content.ifBlank { "通知" },
+                                modifier = Modifier.copyTextOnLongPress(
+                                    message.noticeTitle ?: message.content.ifBlank { "通知" },
+                                    "消息"
+                                ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 2,
@@ -268,6 +273,7 @@ private fun MessageContent(
                             message.noticeText?.takeIf(String::isNotBlank)?.let { notice ->
                                 Text(
                                     text = notice,
+                                    modifier = Modifier.copyTextOnLongPress(notice, "消息"),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 2,
@@ -277,6 +283,7 @@ private fun MessageContent(
                             message.noticeDetailText?.takeIf(String::isNotBlank)?.let { detail ->
                                 Text(
                                     text = detail,
+                                    modifier = Modifier.copyTextOnLongPress(detail, "消息"),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 3,
@@ -334,11 +341,15 @@ private fun MessageContent(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                            text = message.content.ifBlank { "视频卡片" },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = bodyColor,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                                text = message.content.ifBlank { "视频卡片" },
+                                modifier = Modifier.copyTextOnLongPress(
+                                    message.content.ifBlank { "视频卡片" },
+                                    "消息"
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = bodyColor,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "${message.shareViewCount.formatCount()} 播放",
@@ -412,9 +423,11 @@ private fun MessageContent(
                     }
                     Text(
                         text = text,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = bodyColor
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .copyTextOnLongPress(item.displayText, "消息"),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = bodyColor
                     )
                 }
                 RecallFlag(message.isRecalled)
@@ -452,7 +465,9 @@ private fun SystemNoticeContent(item: ConversationMessageItem) {
     ) {
         Text(
             text = message.noticeText ?: message.content,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+                .copyTextOnLongPress(message.noticeText ?: message.content, "消息"),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

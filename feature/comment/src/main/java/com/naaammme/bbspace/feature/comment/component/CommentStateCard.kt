@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +22,6 @@ internal fun StateCard(text: String) {
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
-        SelectionContainer {
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
@@ -33,7 +31,6 @@ internal fun StateCard(text: String) {
                     .padding(16.dp),
                 textAlign = TextAlign.Center
             )
-        }
     }
 }
 
@@ -52,13 +49,11 @@ internal fun RetryCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SelectionContainer {
                 Text(
                     text = text,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
-            }
             TextButton(onClick = onRetry) {
                 Text(button)
             }
