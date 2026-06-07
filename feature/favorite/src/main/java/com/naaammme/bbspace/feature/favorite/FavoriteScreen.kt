@@ -40,6 +40,7 @@ import com.naaammme.bbspace.feature.favorite.item.FavoriteContentList
 fun FavoriteScreen(
     onBack: () -> Unit,
     onOpenContent: (FavoriteContentTarget) -> Unit,
+    onOpenFolder: (Long) -> Unit,
     viewModel: FavoriteViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -84,6 +85,7 @@ fun FavoriteScreen(
                     contentListState = contentListState,
                     folderListState = folderListState,
                     onOpenContent = onOpenContent,
+                    onOpenFolder = onOpenFolder,
                     onRetry = viewModel::refresh,
                     onLoadMore = viewModel::loadMore
                 )
@@ -98,6 +100,7 @@ private fun FavoriteBody(
     contentListState: LazyListState,
     folderListState: LazyListState,
     onOpenContent: (FavoriteContentTarget) -> Unit,
+    onOpenFolder: (Long) -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit
 ) {
@@ -152,14 +155,15 @@ private fun FavoriteBody(
         state.tab == FavoriteTab.FOLDER -> {
             FavoriteFolderList(
                 folders = folder.folders,
-                listState = folderListState
+                listState = folderListState,
+                onOpenFolder = onOpenFolder
             )
         }
     }
 }
 
 @Composable
-private fun FavoriteLoading(modifier: Modifier = Modifier) {
+fun FavoriteLoading(modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
@@ -204,7 +208,7 @@ fun FavoriteErrorState(
 }
 
 @Composable
-private fun FavoriteEmptyState(
+fun FavoriteEmptyState(
     text: String,
     modifier: Modifier = Modifier
 ) {

@@ -9,7 +9,6 @@ data class FavoritePage(
 
 @Immutable
 data class FavoriteFolder(
-    val id: Long,
     val fid: Long,
     val title: String,
     val cover: String?,
@@ -31,6 +30,14 @@ data class FavoriteContentPage(
     val items: List<FavoriteContentItem>,
     val cursor: FavoriteContentCursor,
     val hasMore: Boolean
+)
+
+@Immutable
+data class FavoriteFolderContentPage(
+    val items: List<FavoriteContentItem>,
+    val hasMore: Boolean,
+    val totalCount: Int,
+    val hasInvalid: Boolean
 )
 
 @Immutable

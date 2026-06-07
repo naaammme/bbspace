@@ -8,6 +8,7 @@ import com.naaammme.bbspace.core.model.FavoriteContentItem
 import com.naaammme.bbspace.core.model.FavoriteContentPage
 import com.naaammme.bbspace.core.model.FavoriteContentTarget
 import com.naaammme.bbspace.core.model.FavoriteFolder
+import com.naaammme.bbspace.core.model.FavoriteFolderContentPage
 import com.naaammme.bbspace.core.model.FavoritePage
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoTargetTool
@@ -67,12 +68,10 @@ class FavoriteRepoImpl @Inject constructor(
         return withContext(Dispatchers.Default) {
             val data = json.getJSONObject("data")
             FavoriteContentPage(
-                items = buildList {
-                    val list = data.optJSONArray("list") ?: return@buildList
-                    for (i in 0 until list.length()) {
-                        mapContentItem(list.optJSONObject(i), cursor.startScore, i)?.let(::add)
-                    }
-                },
+                items = mapContentItems(
+                    data = data,
+                    pageKey = cursor.startScore.toString()
+                ),
                 cursor = FavoriteContentCursor(
                     startOid = data.optLong("next_oid"),
                     startOtype = data.optInt("next_otype"),
@@ -83,13 +82,42 @@ class FavoriteRepoImpl @Inject constructor(
         }
     }
 
+    override suspend fun fetchFavoriteFolderContents(
+        fid: Long,
+        page: Int
+    ): FavoriteFolderContentPage {
+        check(fid > 0L) { "收藏夹不存在" }
+        check(page > 0) { "分页参数无效" }
+        val accessToken = authStore.accessToken
+        check(accessToken.isNotBlank()) { "请先登录" }
+        val ts = System.currentTimeMillis() / 1000
+        val json = restClient.getSigned(
+            url = "${BiliConstants.BASE_URL_API}$FAV_FOLDER_RESOURCES_ENDPOINT",
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, accessToken) + mapOf(
+                "media_id" to fid.toString(),
+                "pn" to page.toString()
+            ),
+            profile = BiliRestProfile.APP
+        )
+        return withContext(Dispatchers.Default) {
+            val data = json.getJSONObject("data")
+            FavoriteFolderContentPage(
+                items = mapContentItems(
+                    data = data,
+                    pageKey = "$fid:$page"
+                ),
+                hasMore = data.optBoolean("has_more"),
+                totalCount = data.optInt("total"),
+                hasInvalid = data.optBoolean("has_invalid")
+            )
+        }
+    }
+
     private fun mapFolder(item: JSONObject?): FavoriteFolder? {
         item ?: return null
         val fid = item.optLong("fid")
-        val id = item.optLong("id")
         val title = item.optString("title").blankToNull() ?: return null
         return FavoriteFolder(
-            id = id,
             fid = fid,
             title = title,
             cover = item.optString("cover").toHttps(),
@@ -100,9 +128,21 @@ class FavoriteRepoImpl @Inject constructor(
         )
     }
 
+    private fun mapContentItems(
+        data: JSONObject,
+        pageKey: String
+    ): List<FavoriteContentItem> {
+        return buildList {
+            val list = data.optJSONArray("list") ?: return@buildList
+            for (i in 0 until list.length()) {
+                mapContentItem(list.optJSONObject(i), pageKey, i)?.let(::add)
+            }
+        }
+    }
+
     private fun mapContentItem(
         item: JSONObject?,
-        pageScore: Long,
+        pageKey: String,
         index: Int
     ): FavoriteContentItem? {
         item ?: return null
@@ -112,7 +152,7 @@ class FavoriteRepoImpl @Inject constructor(
         val upper = item.optJSONObject("upper")
         val cntInfo = item.optJSONObject("cnt_info")
         return FavoriteContentItem(
-            key = "$otype:$oid:$pageScore:$index",
+            key = "$otype:$oid:$pageKey:$index",
             oid = oid,
             otype = otype,
             title = title,
@@ -183,6 +223,7 @@ class FavoriteRepoImpl @Inject constructor(
     private companion object {
         const val MY_FAV_ENDPOINT = "/x/v3/fav/tab/my_fav"
         const val FAV_CONTENT_ENDPOINT = "/x/v3/fav/tab/fav"
+        const val FAV_FOLDER_RESOURCES_ENDPOINT = "/x/v3/fav/folder/resources"
         const val ALL_FAVORITE_TAB_ID = 101
         const val PAGE_TYPE = 1
         const val TYPE_UGC = 2

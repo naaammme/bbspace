@@ -51,6 +51,7 @@ import com.naaammme.bbspace.feature.download.navigation.downloadScreen
 import com.naaammme.bbspace.feature.download.navigation.navigateToDownload
 import com.naaammme.bbspace.feature.favorite.navigation.favoriteScreen
 import com.naaammme.bbspace.feature.favorite.navigation.navigateToFavorite
+import com.naaammme.bbspace.feature.favorite.navigation.navigateToFavoriteFolder
 import com.naaammme.bbspace.feature.history.navigation.historyScreen
 import com.naaammme.bbspace.feature.history.navigation.navigateToHistory
 import com.naaammme.bbspace.feature.history.navigation.navigateToWatchLater
@@ -281,6 +282,9 @@ fun AppNavHost(
                             rootNavController.navigateToDynamicDetail(target.opusId)
                         }
                     }
+                },
+                onOpenFolder = { fid ->
+                    rootNavController.navigateToFavoriteFolder(fid)
                 }
             )
             composable(HOME_INTEREST_ROUTE) {
