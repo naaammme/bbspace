@@ -105,25 +105,25 @@ fun <T> buildNavTransitions(style: TransitionStyle, speed: AnimationSpeed): NavT
             enter = {
                 scaleIn(
                     animationSpec = tween(dur, easing = Emphasized),
-                    initialScale = 0.98f
+                    initialScale = 0.94f
                 ) + fadeIn(tween(shortDur, easing = Standard))
             },
             exit = {
                 scaleOut(
                     animationSpec = tween(dur, easing = Emphasized),
-                    targetScale = 1.02f
+                    targetScale = 1.03f
                 ) + fadeOut(tween(shortDur, easing = Standard))
             },
             popEnter = {
                 scaleIn(
                     animationSpec = tween(dur, easing = Emphasized),
-                    initialScale = 1.02f
+                    initialScale = 1.03f
                 ) + fadeIn(tween(shortDur, easing = Standard))
             },
             popExit = {
                 scaleOut(
                     animationSpec = tween(dur, easing = Emphasized),
-                    targetScale = 0.98f
+                    targetScale = 0.94f
                 ) + fadeOut(tween(shortDur, easing = Standard))
             }
         )

@@ -1,13 +1,12 @@
-﻿package com.naaammme.bbspace.feature.settings
+package com.naaammme.bbspace.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -33,8 +32,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.naaammme.bbspace.core.designsystem.component.CapsuleGroup
+import com.naaammme.bbspace.core.designsystem.component.CapsuleListItem
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleField
 import com.naaammme.bbspace.feature.settings.components.SettingCategory
@@ -59,6 +61,7 @@ fun SettingsScreen(
 ) {
     var query by remember { mutableStateOf("") }
     var showResetDialog by remember { mutableStateOf(false) }
+    val shapes = MaterialTheme.shapes
 
     val routeNav = mapOf(
         APPEARANCE_ROUTE to onNavigateToAppearance,
@@ -67,7 +70,6 @@ fun SettingsScreen(
         PLAYBACK_ROUTE to onNavigateToPlayback,
         PRIVACY_ROUTE to onNavigateToPrivacy,
     )
-
     val filtered = remember(query) {
         if (query.isBlank()) {
             emptyList()
@@ -77,6 +79,60 @@ fun SettingsScreen(
                     it.subtitle.contains(query, ignoreCase = true)
             }
         }
+    }
+    val homeItems = remember(
+        onNavigateToAppearance,
+        onNavigateToPerformance,
+        onNavigateToFeed,
+        onNavigateToPlayback,
+        onNavigateToPrivacy,
+        onNavigateToErrorLog,
+        onNavigateToAbout
+    ) {
+        listOf(
+            SettingsHomeItem(
+                icon = Icons.Default.Edit,
+                title = "外观设置",
+                subtitle = "主题 颜色 字体",
+                onClick = onNavigateToAppearance
+            ),
+            SettingsHomeItem(
+                icon = Icons.Default.Settings,
+                title = "性能设置",
+                subtitle = "刷新率和渲染策略",
+                onClick = onNavigateToPerformance
+            ),
+            SettingsHomeItem(
+                icon = Icons.Default.PlayArrow,
+                title = "音视频设置",
+                subtitle = "画质 音质 和编码格式",
+                onClick = onNavigateToPlayback
+            ),
+            SettingsHomeItem(
+                icon = Icons.Default.Settings,
+                title = "推荐设置",
+                subtitle = "HD 推荐模式",
+                onClick = onNavigateToFeed
+            ),
+            SettingsHomeItem(
+                icon = Icons.Default.Lock,
+                title = "隐私安全",
+                subtitle = "历史记录和缓存管理",
+                onClick = onNavigateToPrivacy
+            ),
+            SettingsHomeItem(
+                icon = Icons.Default.Info,
+                title = "关于",
+                subtitle = "版本信息和开源许可",
+                onClick = onNavigateToAbout
+            ),
+            SettingsHomeItem(
+                icon = Icons.Default.Warning,
+                title = "错误日志",
+                subtitle = "查看和导出应用错误记录",
+                onClick = onNavigateToErrorLog
+            )
+        )
     }
 
     CollapsingTopBarScaffold(
@@ -92,12 +148,12 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        androidx.compose.foundation.lazy.LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 SearchCapsuleField(
@@ -121,104 +177,29 @@ fun SettingsScreen(
                         }
                     }
                 } else {
-                    items(filtered) { entry ->
-                        Card(
-                            onClick = { routeNav[entry.route]?.invoke() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            ) {
-                                Box(modifier = Modifier.align(Alignment.CenterStart)) {
-                                    androidx.compose.foundation.layout.Column {
-                                        Text(entry.title, style = MaterialTheme.typography.titleMedium)
-                                        Text(
-                                            entry.subtitle,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.align(Alignment.CenterEnd)
-                                )
-                            }
-                        }
+                    item {
+                        SearchResultGroup(
+                            entries = filtered,
+                            onEntryClick = { entry -> routeNav[entry.route]?.invoke() }
+                        )
                     }
                 }
             } else {
                 item {
-                    SettingCategory(
-                        icon = Icons.Default.Edit,
-                        title = "外观设置",
-                        subtitle = "主题 颜色 字体",
-                        onClick = onNavigateToAppearance
-                    )
-                }
-                item {
-                    SettingCategory(
-                        icon = Icons.Default.Settings,
-                        title = "性能设置",
-                        subtitle = "刷新率和渲染策略",
-                        onClick = onNavigateToPerformance
-                    )
-                }
-                item {
-                    SettingCategory(
-                        icon = Icons.Default.PlayArrow,
-                        title = "音视频设置",
-                        subtitle = "画质 音质 和编码格式",
-                        onClick = onNavigateToPlayback
-                    )
-                }
-                item {
-                    SettingCategory(
-                        icon = Icons.Default.Settings,
-                        title = "推荐设置",
-                        subtitle = "HD 推荐模式",
-                        onClick = onNavigateToFeed
-                    )
-                }
-                item {
-                    SettingCategory(
-                        icon = Icons.Default.Lock,
-                        title = "隐私安全",
-                        subtitle = "历史记录和缓存管理",
-                        onClick = onNavigateToPrivacy
-                    )
-                }
-                item {
-                    SettingCategory(
-                        icon = Icons.Default.Info,
-                        title = "关于",
-                        subtitle = "版本信息和开源许可",
-                        onClick = onNavigateToAbout
-                    )
-                }
-                item {
-                    SettingCategory(
-                        icon = Icons.Default.Warning,
-                        title = "错误日志",
-                        subtitle = "查看和导出应用错误记录",
-                        onClick = onNavigateToErrorLog
-                    )
+                    SettingsHomeGroup(items = homeItems)
                 }
                 item {
                     Card(
                         onClick = { showResetDialog = true },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = shapes.large
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
-                            androidx.compose.foundation.layout.Column {
+                            Column {
                                 Text(
                                     text = "恢复默认设置",
                                     style = MaterialTheme.typography.titleMedium,
@@ -226,7 +207,7 @@ fun SettingsScreen(
                                 )
                                 Text(
                                     text = "一键重置外观 音视频 推荐和隐私等设置",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -235,14 +216,13 @@ fun SettingsScreen(
                 }
             }
         }
+
         if (showResetDialog) {
             AlertDialog(
                 onDismissRequest = { showResetDialog = false },
                 title = { Text("恢复默认设置") },
                 text = {
-                    Text(
-                        "这会把当前各项设置恢复到默认值 不会退出登录"
-                    )
+                    Text("这会把当前各项设置恢复到默认值 不会退出登录")
                 },
                 confirmButton = {
                     TextButton(
@@ -261,5 +241,55 @@ fun SettingsScreen(
                 }
             )
         }
+    }
+}
+
+private data class SettingsHomeItem(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun SettingsHomeGroup(
+    items: List<SettingsHomeItem>
+) {
+    CapsuleGroup(
+        items = items,
+        modifier = Modifier.fillMaxWidth()
+    ) { item, _, shape ->
+        SettingCategory(
+            icon = item.icon,
+            title = item.title,
+            subtitle = item.subtitle,
+            shape = shape,
+            onClick = item.onClick
+        )
+    }
+}
+
+@Composable
+private fun SearchResultGroup(
+    entries: List<SettingEntry>,
+    onEntryClick: (SettingEntry) -> Unit
+) {
+    CapsuleGroup(
+        items = entries,
+        modifier = Modifier.fillMaxWidth()
+    ) { entry, _, shape ->
+        CapsuleListItem(
+            title = entry.title,
+            subtitle = entry.subtitle,
+            shape = shape,
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = { onEntryClick(entry) }
+        )
     }
 }
