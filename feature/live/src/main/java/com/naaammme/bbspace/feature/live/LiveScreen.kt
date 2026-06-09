@@ -183,6 +183,7 @@ fun LiveScreen(
                     onToggleDanmaku = viewModel::setDanmakuEnabled,
                     onRetry = viewModel::retry,
                     onSwitchQuality = viewModel::switchQuality,
+                    onSendDanmaku = viewModel::sendDanmaku,
                     settingsState = settingsState,
                     modifier = Modifier
                         .fillMaxWidth()

@@ -39,6 +39,7 @@ internal fun LivePlaybackBody(
     onToggleDanmaku: (Boolean) -> Unit,
     onRetry: () -> Unit,
     onSwitchQuality: (Int) -> Unit,
+    onSendDanmaku: suspend (String) -> Unit,
     settingsState: PlayerSettingsState,
     modifier: Modifier = Modifier
 ) {
@@ -74,6 +75,7 @@ internal fun LivePlaybackBody(
                 route = route,
                 playbackState = playbackState,
                 roomSessionState = roomSessionState,
+                onSendDanmaku = onSendDanmaku,
                 showHeader = true,
                 horizontalPad = 0.dp,
                 modifier = Modifier
@@ -104,6 +106,7 @@ internal fun LivePlaybackBody(
                 route = route,
                 playbackState = playbackState,
                 roomSessionState = roomSessionState,
+                onSendDanmaku = onSendDanmaku,
                 showHeader = true,
                 modifier = Modifier
                     .fillMaxWidth()

@@ -9,6 +9,7 @@ import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoomPanelState
 import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.LiveRouteTool
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -27,7 +28,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class LiveViewModel @Inject constructor(
     private val playbackController: LivePlaybackController,
-    liveRoomMessageRepository: LiveRoomMessageRepository,
+    private val liveRoomMessageRepository: LiveRoomMessageRepository,
     private val playerSettings: PlayerSettings
 ) : ViewModel() {
     val player = playbackController.player
@@ -138,6 +139,17 @@ class LiveViewModel @Inject constructor(
                 reportEntry = false
             )
         }
+    }
+
+    suspend fun sendDanmaku(content: String) {
+        val curRoute = route.value
+        val roomId = curRoute?.roomId ?: 0L
+        val jumpFrom = curRoute?.jumpFrom ?: LiveRouteTool.JUMP_FROM_UNKNOWN
+        liveRoomMessageRepository.sendDanmaku(
+            roomId = roomId,
+            content = content,
+            jumpFrom = jumpFrom
+        )
     }
 
     override fun onCleared() {

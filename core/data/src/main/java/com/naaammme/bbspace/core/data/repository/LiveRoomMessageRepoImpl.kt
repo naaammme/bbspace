@@ -128,6 +128,64 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         }
     }
 
+    override suspend fun sendDanmaku(
+        roomId: Long,
+        content: String,
+        jumpFrom: Int
+    ) {
+        require(roomId > 0L) { "直播间 roomId 无效" }
+        val msg = content.trim()
+        require(msg.isNotEmpty()) { "弹幕内容不能为空" }
+        val accessToken = authProvider.accessToken.takeIf(String::isNotBlank)
+            ?: throw IllegalStateException("请先登录后再发送弹幕")
+        val mid = authProvider.mid.takeIf { it > 0L }
+            ?: throw IllegalStateException("当前账号信息无效")
+        val ts = System.currentTimeMillis() / 1000L
+        val dataExtend = buildBasicDataExtend()
+        val liveStatistics = buildBasicLiveStatistics(
+            roomId = roomId,
+            jumpFrom = jumpFrom,
+            dataExtend = dataExtend
+        )
+        restClient.postSigned(
+            url = "${BiliConstants.BASE_URL_LIVE_API}$SEND_DANMAKU_ENDPOINT",
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, accessToken) + buildMap {
+                put("actionKey", "appkey")
+                put("av_id", UNKNOWN_EXT_VALUE)
+                put("bubble", "0")
+                put("bussiness_extend", DEFAULT_BUSSINESS_EXTEND)
+                put("cid", roomId.toString())
+                put("color", DEFAULT_DANMAKU_COLOR.toString())
+                put("data_extend", dataExtend)
+                put("device", BiliConstants.PLATFORM)
+                put("dm_type", "0")
+                put("flow_extend", DEFAULT_FLOW_EXTEND)
+                put("fontsize", DEFAULT_DANMAKU_FONT_SIZE.toString())
+                put("jumpfrom", jumpFrom.toString())
+                put("jumpfrom_extend", UNKNOWN_EXT_VALUE)
+                put("launch_id", DEFAULT_LAUNCH_ID)
+                put("live_statistics", liveStatistics)
+                put("live_status", DEFAULT_LIVE_STATUS)
+                put("mid", mid.toString())
+                put("mode", DEFAULT_DANMAKU_MODE.toString())
+                put("msg", msg)
+                put("msg_type", "0")
+                put("playTime", DEFAULT_PLAY_TIME)
+                put("pool", "0")
+                put("reply_attr", "0")
+                put("reply_mid", "0")
+                put("reply_type", "0")
+                put("reply_uname", "")
+                put("rnd", randomDanmakuSeed())
+                put("room_type", "0")
+                put("screen_status", DEFAULT_SCREEN_STATUS)
+                put("session_id", UNKNOWN_EXT_VALUE)
+                put("type", "json")
+            },
+            profile = BiliRestProfile.APP
+        )
+    }
+
     private suspend fun fetchDanmuInfo(roomId: Long): DanmuInfo {
         val ts = System.currentTimeMillis() / 1000L
         val json = restClient.getSigned(
@@ -636,6 +694,53 @@ class LiveRoomMessageRepoImpl @Inject constructor(
         return RETRY_BASE_DELAY_MS * step
     }
 
+    private fun buildBasicDataExtend(): String {
+        return JSONObject().apply {
+            put("from_launch_id", DEFAULT_LAUNCH_ID)
+            put("from_session_id", UNKNOWN_EXT_VALUE)
+            put("live_key", UNKNOWN_EXT_VALUE)
+            put("sub_session_key", UNKNOWN_EXT_VALUE)
+        }.toString()
+    }
+
+    private fun buildBasicLiveStatistics(
+        roomId: Long,
+        jumpFrom: Int,
+        dataExtend: String
+    ): String {
+        return JSONObject().apply {
+            put("buvid", deviceIdentity.buvid.ifBlank { UNKNOWN_EXT_VALUE })
+            put("session_id", UNKNOWN_EXT_VALUE)
+            put("launch_id", DEFAULT_LAUNCH_ID)
+            put("jumpfrom", jumpFrom.toString())
+            put("jumpfrom_extend", UNKNOWN_EXT_VALUE)
+            put("screen_status", DEFAULT_SCREEN_STATUS)
+            put("live_status", DEFAULT_LIVE_STATUS)
+            put("av_id", UNKNOWN_EXT_VALUE)
+            put("flow_extend", DEFAULT_FLOW_EXTEND)
+            put("bussiness_extend", DEFAULT_BUSSINESS_EXTEND)
+            put("data_extend", dataExtend)
+            put("spm_id", UNKNOWN_EXT_VALUE)
+            put("up_id", UNKNOWN_EXT_VALUE)
+            put("room_id", roomId.toString())
+            put("parent_area_id", UNKNOWN_EXT_VALUE)
+            put("area_id", UNKNOWN_EXT_VALUE)
+            put("simple_id", UNKNOWN_EXT_VALUE)
+            put("room_category", "0")
+            put("official_channel", UNKNOWN_EXT_VALUE)
+            put("if_dual_screen", "0")
+            put("subscreen_scale", "0")
+            put("dual_screen_model", "0")
+            put("gift_method", UNKNOWN_EXT_VALUE)
+            put("gift_position", UNKNOWN_EXT_VALUE)
+            put("gift_subname", UNKNOWN_EXT_VALUE)
+        }.toString()
+    }
+
+    private fun randomDanmakuSeed(): String {
+        return (UUID.randomUUID().mostSignificantBits.toInt()).toString()
+    }
+
     private fun AckDeduper.shouldDrop(json: JSONObject): Boolean {
         val msgType = json.optInt("p_msg_type")
         if (msgType != ACK_DEDUP_MSG_TYPE) return false
@@ -725,6 +830,17 @@ class LiveRoomMessageRepoImpl @Inject constructor(
     private companion object {
         const val TAG = "LiveRoomMsg"
         const val DANMU_INFO_ENDPOINT = "/xlive/app-room/v1/index/getDanmuInfo"
+        const val SEND_DANMAKU_ENDPOINT = "/xlive/app-room/v1/dM/sendmsg"
+        const val DEFAULT_DANMAKU_MODE = 1
+        const val DEFAULT_DANMAKU_FONT_SIZE = 25
+        const val DEFAULT_DANMAKU_COLOR = 0xFFFFFF
+        const val DEFAULT_LAUNCH_ID = "-99998"
+        const val DEFAULT_LIVE_STATUS = "live"
+        const val DEFAULT_PLAY_TIME = "0.0"
+        const val DEFAULT_SCREEN_STATUS = "2"
+        const val UNKNOWN_EXT_VALUE = "-99998"
+        const val DEFAULT_FLOW_EXTEND = """{"position":"1","s_position":"1","slide_direction":"-99998"}"""
+        const val DEFAULT_BUSSINESS_EXTEND = """{"broadcast_type":"1","stream_scale":"1","watch_ui_type":"3"}"""
         const val HEADER_SIZE = 16
         // 先把单包和解压后的包体做限制,避免恶意数据导致 OOM,后续如果发现合理的包体大小可以再调整
         const val MAX_PACKET_SIZE = 2 * 1024 * 1024

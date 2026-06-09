@@ -20,6 +20,7 @@ fun SearchCapsuleField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    showClearAction: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
@@ -31,7 +32,7 @@ fun SearchCapsuleField(
         shape = MaterialTheme.shapes.large,
         placeholder = { Text(placeholder) },
         trailingIcon = {
-            if (value.isNotEmpty()) {
+            if (showClearAction && value.isNotEmpty()) {
                 IconButton(onClick = { onValueChange("") }) {
                     Icon(
                         imageVector = Icons.Default.Close,
