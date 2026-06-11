@@ -21,6 +21,7 @@ fun SearchCapsuleField(
     placeholder: String,
     modifier: Modifier = Modifier,
     showClearAction: Boolean = true,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
@@ -46,10 +47,10 @@ fun SearchCapsuleField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Color.Transparent,
             unfocusedBorderColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            errorContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            focusedContainerColor = containerColor,
+            unfocusedContainerColor = containerColor,
+            disabledContainerColor = containerColor,
+            errorContainerColor = containerColor
         )
     )
 }

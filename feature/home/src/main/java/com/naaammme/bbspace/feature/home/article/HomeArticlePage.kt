@@ -208,20 +208,20 @@ private fun ArticleAuthorRow(
             fallbackText = item.authorName?.take(1)
         )
         Spacer(modifier = Modifier.size(6.dp))
-        Text(
-            text = item.authorName ?: "专栏作者",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = if (route == null) {
-                Modifier.weight(1f)
-            } else {
-                Modifier
-                    .weight(1f)
-                    .clickable { onOpenSpace(route) }
-            }
-        )
+        Box(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.authorName ?: "专栏作者",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = if (route == null) {
+                    Modifier
+                } else {
+                    Modifier.clickable { onOpenSpace(route) }
+                }
+            )
+        }
         item.publishTimeText?.let { time ->
             Spacer(modifier = Modifier.size(6.dp))
             Text(

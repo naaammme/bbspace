@@ -2,11 +2,9 @@ package com.naaammme.bbspace.feature.space.archive
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
@@ -24,7 +22,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
-import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
 import com.naaammme.bbspace.core.model.SpaceVideo
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.SpaceArchiveUiState
@@ -61,13 +58,14 @@ internal fun LazyListScope.spaceArchiveSection(
         }
     }
 
-    if (!state.message.isNullOrBlank()) {
+    val message = state.message
+    if (!message.isNullOrBlank()) {
         item(
             key = "archive_error",
             contentType = "state"
         ) {
             RetryCard(
-                text = state.message.orEmpty(),
+                text = message,
                 button = "重试",
                 onRetry = onRetry
             )
@@ -75,17 +73,7 @@ internal fun LazyListScope.spaceArchiveSection(
     }
 
     when {
-        state.isRefreshing && state.videos.isEmpty() -> {
-            items(
-                count = INIT_SKELETON_COUNT,
-                key = { index -> "archive_skeleton_$index" },
-                contentType = { "video_skeleton" }
-            ) {
-                VideoListCardSkeleton()
-            }
-        }
-
-        state.showEmpty -> {
+        state.showEmpty && !state.isRefreshing -> {
             item(
                 key = "archive_empty",
                 contentType = "state"
@@ -108,24 +96,15 @@ internal fun LazyListScope.spaceArchiveSection(
         }
     }
 
+    val loadMoreError = state.loadMoreError
     when {
-        state.isLoadingMore -> {
-            items(
-                count = LOAD_MORE_SKELETON_COUNT,
-                key = { index -> "archive_loading_more_$index" },
-                contentType = { "video_skeleton" }
-            ) {
-                VideoListCardSkeleton()
-            }
-        }
-
-        !state.loadMoreError.isNullOrBlank() -> {
+        !loadMoreError.isNullOrBlank() -> {
             item(
                 key = "archive_load_more_error",
                 contentType = "state"
             ) {
                 RetryCard(
-                    text = state.loadMoreError.orEmpty(),
+                    text = loadMoreError,
                     button = "重试",
                     onRetry = onLoadMore
                 )
@@ -161,7 +140,7 @@ private fun SpaceVideoCard(
     val stats = remember(video.viewText, video.danmakuText, durationText) {
         listOfNotNull(
             video.viewText.takeIf(String::isNotBlank)?.let { "$it 播放" },
-            video.danmakuText?.let { "$it 弹幕" },
+            video.danmakuText?.takeIf(String::isNotBlank)?.let { "$it 弹幕" },
             durationText
         ).joinToString(" · ")
     }
@@ -246,6 +225,3 @@ private fun formatDuration(durationSec: Long): String {
         String.format(Locale.ROOT, "%d:%02d", minute, second)
     }
 }
-
-private const val INIT_SKELETON_COUNT = 4
-private const val LOAD_MORE_SKELETON_COUNT = 2

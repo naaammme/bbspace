@@ -27,7 +27,6 @@ import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.archive.spaceArchiveSection
 import com.naaammme.bbspace.feature.space.component.SpaceError
-import com.naaammme.bbspace.feature.space.component.SpaceLoading
 import com.naaammme.bbspace.feature.space.header.spaceHeaderSection
 import com.naaammme.bbspace.feature.space.note.spaceNoteSection
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -109,7 +108,7 @@ fun SpaceScreen(
     ) { padding ->
         when {
             state.isPageLoading && state.header == null -> {
-                SpaceLoading(modifier = Modifier.padding(padding))
+                Unit
             }
 
             state.header == null -> {

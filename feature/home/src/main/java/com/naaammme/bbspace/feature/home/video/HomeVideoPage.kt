@@ -202,22 +202,20 @@ private fun FeedCard(
                 ) {
                     val upName = item.descButton?.text ?: item.args?.upName ?: ""
                     if (upName.isNotEmpty()) {
-                        Text(
-                            text = upName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f)
-                                .then(
-                                    if (spaceRoute == null || isDisliked) {
-                                        Modifier
-                                    } else {
-                                        Modifier.clickable { onOpenSpace(spaceRoute) }
-                                    }
-                                )
-                        )
+                        Box(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = upName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = if (spaceRoute == null || isDisliked) {
+                                    Modifier
+                                } else {
+                                    Modifier.clickable { onOpenSpace(spaceRoute) }
+                                }
+                            )
+                        }
                     }
 
                     val threePoint = item.threePointV2

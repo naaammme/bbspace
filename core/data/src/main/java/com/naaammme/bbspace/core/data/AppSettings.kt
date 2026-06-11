@@ -62,7 +62,7 @@ class AppSettings @Inject constructor(
             pullRefreshDistanceDp = (prefs[pullRefreshDistanceKey] ?: DEFAULT_PULL_REFRESH_DISTANCE_DP)
                 .coerceIn(MIN_PULL_REFRESH_DISTANCE_DP, MAX_PULL_REFRESH_DISTANCE_DP),
             animationSpeed = prefs[animationSpeedKey]?.let { AnimationSpeed.valueOf(it) } ?: AnimationSpeed.NORMAL,
-            transitionStyle = prefs[transitionStyleKey]?.let { TransitionStyle.valueOf(it) } ?: TransitionStyle.FADE_THROUGH,
+            transitionStyle = prefs[transitionStyleKey]?.let { TransitionStyle.valueOf(it) } ?: TransitionStyle.SHARED_AXIS_Z,
             isPureBlack = prefs[isPureBlackKey] ?: false,
             preferredFrameRate = prefs[frameRateModeKey]?.let { FrameRateMode.valueOf(it) } ?: FrameRateMode.AUTO,
             cornerStyle = prefs[cornerStyleKey]?.let { CornerStyle.valueOf(it) } ?: CornerStyle.STANDARD
