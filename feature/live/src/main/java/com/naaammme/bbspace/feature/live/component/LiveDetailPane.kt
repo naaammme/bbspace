@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.background
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -383,52 +384,52 @@ private fun LiveDanmakuInputBar(
         }
     }
 
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = MaterialTheme.shapes.medium
+            )
+            .padding(horizontal = 10.dp, vertical = 0.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 0.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            SearchCapsuleField(
+                value = input,
+                onValueChange = {
+                    input = it
+                    if (error != null) {
+                        error = null
+                    }
+                },
+                placeholder = "发个弹幕",
+                modifier = Modifier.weight(1f),
+                showClearAction = false,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { send() })
+            )
+            TextButton(
+                onClick = ::send,
+                enabled = enabled && !sending && input.isNotBlank(),
+                modifier = Modifier.width(52.dp)
             ) {
-                SearchCapsuleField(
-                    value = input,
-                    onValueChange = {
-                        input = it
-                        if (error != null) {
-                            error = null
-                        }
-                    },
-                    placeholder = "发个弹幕",
-                    modifier = Modifier.weight(1f),
-                    showClearAction = false,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { send() })
-                )
-                TextButton(
-                    onClick = ::send,
-                    enabled = enabled && !sending && input.isNotBlank(),
-                    modifier = Modifier.width(52.dp)
-                ) {
-                    Text(
-                        text = if (sending) "发送中" else "发送",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-
-            error?.takeIf(String::isNotBlank)?.let { err ->
                 Text(
-                    text = err,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                    text = if (sending) "发送中" else "发送",
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
+        }
+
+        error?.takeIf(String::isNotBlank)?.let { err ->
+            Text(
+                text = err,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 }
