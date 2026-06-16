@@ -18,7 +18,7 @@ const val APPEARANCE_ROUTE = "settings/appearance"
 const val PERFORMANCE_ROUTE = "settings/performance"
 const val PRIVACY_ROUTE = "settings/privacy"
 const val FEED_SETTINGS_ROUTE = "settings/feed"
-const val PLAYBACK_ROUTE = "settings/playback"
+const val AUDIO_VIDEO_ROUTE = "settings/audio_video"
 const val ERROR_LOG_ROUTE = "settings/error_log"
 const val ABOUT_ROUTE = "settings/about"
 const val HOME_INTEREST_ROUTE = "home/interest"
@@ -32,7 +32,7 @@ fun NavGraphBuilder.settingsScreen(
             onNavigateToAppearance = { navController.navigate(APPEARANCE_ROUTE) },
             onNavigateToPerformance = { navController.navigate(PERFORMANCE_ROUTE) },
             onNavigateToFeed = { navController.navigate(FEED_SETTINGS_ROUTE) },
-            onNavigateToPlayback = { navController.navigate(PLAYBACK_ROUTE) },
+            onNavigateToAudioVideo = { navController.navigate(AUDIO_VIDEO_ROUTE) },
             onNavigateToPrivacy = { navController.navigate(PRIVACY_ROUTE) },
             onNavigateToErrorLog = { navController.navigate(ERROR_LOG_ROUTE) },
             onNavigateToAbout = { navController.navigate(ABOUT_ROUTE) }
@@ -47,7 +47,7 @@ fun NavGraphBuilder.settingsScreen(
         PerformanceSettingsScreen(onBack = { navController.popBackStack() })
     }
 
-    composable(PLAYBACK_ROUTE) {
+    composable(AUDIO_VIDEO_ROUTE) {
         AudioVideoSettingsScreen(onBack = { navController.popBackStack() })
     }
 

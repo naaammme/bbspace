@@ -3,7 +3,7 @@
 import com.naaammme.bbspace.feature.settings.navigation.APPEARANCE_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.FEED_SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PERFORMANCE_ROUTE
-import com.naaammme.bbspace.feature.settings.navigation.PLAYBACK_ROUTE
+import com.naaammme.bbspace.feature.settings.navigation.AUDIO_VIDEO_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PRIVACY_ROUTE
 
 data class SettingEntry(val title: String, val subtitle: String, val route: String)
@@ -24,10 +24,10 @@ val performanceEntries = listOf(
     SettingEntry("屏幕刷新率", "设置应用渲染帧率上限", PERFORMANCE_ROUTE),
 )
 
-val playbackEntries = listOf(
-    SettingEntry("默认画质", "设置默认视频和音频质量", PLAYBACK_ROUTE),
-    SettingEntry("编码格式", "选择优先的编码格式", PLAYBACK_ROUTE),
-    SettingEntry("强制 HTTPS", "使用 HTTPS 播放地址", PLAYBACK_ROUTE),
+val audioVideoEntries = listOf(
+    SettingEntry("默认画质", "设置默认视频和音频质量", AUDIO_VIDEO_ROUTE),
+    SettingEntry("编码格式", "选择优先的编码格式", AUDIO_VIDEO_ROUTE),
+    SettingEntry("强制 HTTPS", "使用 HTTPS 播放地址", AUDIO_VIDEO_ROUTE),
 )
 
 val feedEntries = listOf(
@@ -42,4 +42,4 @@ val privacyEntries = listOf(
 )
 
 val allSettingEntries =
-    appearanceEntries + performanceEntries + playbackEntries + feedEntries + privacyEntries
+    appearanceEntries + performanceEntries + audioVideoEntries + feedEntries + privacyEntries

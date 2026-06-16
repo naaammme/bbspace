@@ -42,8 +42,8 @@ import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleField
 import com.naaammme.bbspace.feature.settings.components.SettingCategory
 import com.naaammme.bbspace.feature.settings.navigation.APPEARANCE_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.FEED_SETTINGS_ROUTE
+import com.naaammme.bbspace.feature.settings.navigation.AUDIO_VIDEO_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PERFORMANCE_ROUTE
-import com.naaammme.bbspace.feature.settings.navigation.PLAYBACK_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PRIVACY_ROUTE
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +53,7 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit,
     onNavigateToPerformance: () -> Unit,
     onNavigateToFeed: () -> Unit,
-    onNavigateToPlayback: () -> Unit,
+    onNavigateToAudioVideo: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
     onNavigateToErrorLog: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -67,7 +67,7 @@ fun SettingsScreen(
         APPEARANCE_ROUTE to onNavigateToAppearance,
         PERFORMANCE_ROUTE to onNavigateToPerformance,
         FEED_SETTINGS_ROUTE to onNavigateToFeed,
-        PLAYBACK_ROUTE to onNavigateToPlayback,
+        AUDIO_VIDEO_ROUTE to onNavigateToAudioVideo,
         PRIVACY_ROUTE to onNavigateToPrivacy,
     )
     val filtered = remember(query) {
@@ -84,7 +84,7 @@ fun SettingsScreen(
         onNavigateToAppearance,
         onNavigateToPerformance,
         onNavigateToFeed,
-        onNavigateToPlayback,
+        onNavigateToAudioVideo,
         onNavigateToPrivacy,
         onNavigateToErrorLog,
         onNavigateToAbout
@@ -106,7 +106,7 @@ fun SettingsScreen(
                 icon = Icons.Default.PlayArrow,
                 title = "音视频设置",
                 subtitle = "画质 音质 和编码格式",
-                onClick = onNavigateToPlayback
+                onClick = onNavigateToAudioVideo
             ),
             SettingsHomeItem(
                 icon = Icons.Default.Settings,

@@ -38,7 +38,6 @@ interface PlayerEngine {
     fun setSpeed(speed: Float)
     fun seekTo(positionMs: Long)
     fun setMediaMetadata(metadata: MediaMetadata)
-    fun refreshCurrent()
     fun stopForReuse(resetPosition: Boolean = true)
     fun release()
 }
