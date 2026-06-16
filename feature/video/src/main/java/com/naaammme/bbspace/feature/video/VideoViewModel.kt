@@ -11,6 +11,7 @@ import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackProgress
 import com.naaammme.bbspace.core.model.PlayerBufferProfile
+import com.naaammme.bbspace.core.model.VideoCdnMode
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadMeta
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
@@ -87,8 +88,10 @@ class VideoViewModel @Inject constructor(
         playbackController.switchVideoAudio(audioId)
     }
 
-    fun switchCdn(cdnIndex: Int) {
-        playbackController.switchVideoCdn(cdnIndex)
+    fun updateVideoCdnMode(mode: VideoCdnMode) {
+        viewModelScope.launch {
+            playerSettings.setVideoCdnMode(mode)
+        }
     }
 
     fun seekTo(positionMs: Long) {

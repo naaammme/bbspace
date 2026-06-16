@@ -1,5 +1,7 @@
 package com.naaammme.bbspace.feature.video.player
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
@@ -18,15 +20,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,7 +54,7 @@ import com.naaammme.bbspace.core.model.PlayerBufferProfile
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.ResolvedVideoIds
 import com.naaammme.bbspace.core.model.VideoPlaybackState
-import com.naaammme.bbspace.core.model.buildPlaybackCdns
+import com.naaammme.bbspace.core.model.VideoCdnMode
 import com.naaammme.bbspace.feature.video.VideoViewModel
 import com.naaammme.bbspace.feature.video.formatDuration
 import com.naaammme.bbspace.feature.video.formatSpeed
@@ -192,7 +199,6 @@ private fun VideoPlaybackPanelContent(
         when (section) {
             PlaybackSheetSection.Info -> PlayerInfoSection(state, ids)
             PlaybackSheetSection.Playback -> PlaybackSettingsSection(
-                state = state,
                 settingsState = settingsState,
                 viewModel = viewModel
             )
@@ -207,22 +213,42 @@ private fun VideoPlaybackPanelContent(
 
 @Composable
 private fun PlaybackSettingsSection(
-    state: VideoPlaybackState,
     settingsState: PlayerSettingsState,
     viewModel: VideoViewModel
 ) {
     val videoResizeModeState = LocalVideoResizeModeState.current
+    var showCdnDialog by rememberSaveable { mutableStateOf(false) }
     SheetSectionTitle("播放设置")
 
-    val cdnOps = buildCdnOps(state.currentStream, state.currentAudio)
-    if (cdnOps.size > 1) {
-        SheetChoiceCard(
-            title = "CDN 选择",
-            subtitle = "默认备用1, 点击切换",
-            currentValue = state.cdnIndex.coerceIn(0, cdnOps.lastIndex),
-            options = cdnOps.indices.toList(),
-            label = { cdnOps[it] },
-            onSelect = viewModel::switchCdn
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("CDN 偏好", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = settingsState.playback.videoCdnMode.label,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                TextButton(onClick = { showCdnDialog = true }) { Text("切换 CDN") }
+            }
+        }
+    }
+    if (showCdnDialog) {
+        VideoCdnModeDialog(
+            currentMode = settingsState.playback.videoCdnMode,
+            onDismiss = { showCdnDialog = false },
+            onSelect = {
+                showCdnDialog = false
+                viewModel.updateVideoCdnMode(it)
+            }
         )
     }
 
@@ -527,6 +553,62 @@ private fun SheetChoiceCard(
 }
 
 @Composable
+private fun VideoCdnModeDialog(
+    currentMode: VideoCdnMode,
+    onDismiss: () -> Unit,
+    onSelect: (VideoCdnMode) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择 CDN") },
+        text = {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+            ) {
+                items(VideoCdnMode.entries, key = { it.name }) { mode ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(mode) }
+                            .padding(vertical = 12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = mode.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            if (mode == currentMode) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        Text(
+                            text = mode.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
 private fun SheetInfoGroup(
     title: String,
     rows: List<Pair<String, String>>
@@ -588,9 +670,3 @@ private fun playbackErrorText(err: PlaybackError): String {
     }
 }
 
-private fun buildCdnOps(
-    stream: com.naaammme.bbspace.core.model.PlaybackStream?,
-    audio: com.naaammme.bbspace.core.model.PlaybackAudio?
-): List<String> {
-    return buildPlaybackCdns(stream, audio).map { it.label }
-}

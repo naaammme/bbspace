@@ -35,7 +35,8 @@ import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.VideoPlaybackState
 import com.naaammme.bbspace.core.model.VideoTarget
-import com.naaammme.bbspace.core.model.buildPlaybackCdns
+import com.naaammme.bbspace.core.model.VideoCdnMode
+import com.naaammme.bbspace.core.model.selectPlaybackCdn
 import com.naaammme.bbspace.core.model.toReportParams
 import com.naaammme.bbspace.core.model.toPlayableParams
 import com.naaammme.bbspace.infra.player.DecoderMode
@@ -93,6 +94,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private val openId = AtomicLong(0L)
     private var lastDiscontinuitySeq = 0L
     private var nextPlayWhenReady = true
+    private var currentVideoCdnMode = VideoCdnMode.Backup1
 
     // live state
     private val _liveState = MutableStateFlow(LivePlaybackViewState())
@@ -136,6 +138,16 @@ class StreamPlaybackSessionImpl @Inject constructor(
                     return@collect
                 }
                 syncDanmakuSource(vodSession.value)
+            }
+        }
+        runtimeScope.launch {
+            playerSettings.state.map { it.playback.videoCdnMode }.collect { mode ->
+                if (currentVideoCdnMode == mode) return@collect
+                currentVideoCdnMode = mode
+                if (_currentTarget.value !is StreamPlaybackTarget.Video) return@collect
+                val state = vodSession.value
+                if (state.playbackSource == null || state.currentStream == null) return@collect
+                applyVideoSelection(state)
             }
         }
     }
@@ -273,12 +285,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
         applyVideoSelection(state = state.copy(currentAudio = audio))
     }
 
-    override fun switchVideoCdn(index: Int) {
-        if (_currentTarget.value !is StreamPlaybackTarget.Video) return
-        val state = vodSession.value
-        applyVideoSelection(state = state.copy(cdnIndex = index))
-    }
-
     override fun switchLiveQuality(quality: Int) {
         val route = (_currentTarget.value as? StreamPlaybackTarget.Live)?.route ?: return
         if (_liveState.value.playbackSource?.currentQn == quality) return
@@ -362,7 +368,13 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 val stream = source.streams.firstOrNull { it.quality == preferredQualityValue }
                     ?: source.streams.firstOrNull()
                 val audio = selectAudio(stream, source.audios, preferredAudioId)
-                val engineSource = buildVideoEngineSource(stream, audio, DEFAULT_CDN_INDEX)
+                val cdnMode = playerSettings.state.first().playback.videoCdnMode
+                currentVideoCdnMode = cdnMode
+                val engineSource = buildVideoEngineSource(
+                    stream = stream,
+                    audio = audio,
+                    cdnMode = cdnMode
+                )
                     ?: throw NoPlayableStreamException("暂无可用播放流")
                 val startMs = resolveStartMs(request, source, localResume)
                 if (openId.get() != token) return@coroutineScope
@@ -371,12 +383,11 @@ class StreamPlaybackSessionImpl @Inject constructor(
                     playbackSource = source,
                     currentStream = stream,
                     currentAudio = audio,
-                    cdnIndex = engineSource.second,
                     error = null
                 )
                 vodSession.value = playbackState.copy(isPreparing = true)
                 playerEngine.setSource(
-                    source = engineSource.first,
+                    source = engineSource,
                     startPositionMs = startMs,
                     playWhenReady = nextPlayWhenReady
                 )
@@ -551,17 +562,17 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private fun applyVideoSelection(
         state: PlayerSessionState
     ) {
-        val engineSource = buildVideoEngineSource(
+        val source = buildVideoEngineSource(
             stream = state.currentStream,
             audio = state.currentAudio,
-            cdnIndex = state.cdnIndex
+            cdnMode = currentVideoCdnMode
         ) ?: return
         playerEngine.setSource(
-            engineSource.first,
+            source,
             currentPlaybackPositionMs(),
             currentPlayWhenReady()
         )
-        vodSession.value = state.copy(cdnIndex = engineSource.second)
+        vodSession.value = state
         refreshVideoState()
     }
 
@@ -581,17 +592,15 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private fun buildVideoEngineSource(
         stream: PlaybackStream?,
         audio: PlaybackAudio?,
-        cdnIndex: Int
-    ): Pair<EngineSource, Int>? {
+        cdnMode: VideoCdnMode
+    ): EngineSource? {
         return when (stream) {
             is PlaybackStream.Dash -> {
-                val cdns = buildPlaybackCdns(stream, audio)
-                if (cdns.isEmpty()) return null
-                val index = cdnIndex.coerceIn(0, cdns.lastIndex)
+                val cdn = selectPlaybackCdn(stream, audio, cdnMode) ?: return null
                 EngineSource.Dash(
-                    videoUrl = cdns[index].videoUrl,
-                    audioUrl = cdns[index].audioUrl
-                ) to index
+                    videoUrl = cdn.videoUrl,
+                    audioUrl = cdn.audioUrl
+                )
             }
 
             is PlaybackStream.Progressive -> {
@@ -599,7 +608,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
                     segments = stream.segments.map {
                         EngineSource.ProgressiveSegment(it.url, it.durationMs)
                     }
-                ) to 0
+                )
             }
 
             null -> null
@@ -736,7 +745,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
             playbackSource = playbackSource,
             currentStream = currentStream,
             currentAudio = currentAudio,
-            cdnIndex = cdnIndex,
             error = error,
             isPlaying = state.isPlaying,
             playWhenReady = state.playWhenReady,
@@ -852,7 +860,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private companion object {
         const val TAG = "StreamPlayback"
         const val COMPLETE_THRESHOLD_MS = 3_000L
-        const val DEFAULT_CDN_INDEX = 0
     }
 }
 

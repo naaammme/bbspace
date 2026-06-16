@@ -23,6 +23,7 @@ import com.naaammme.bbspace.core.model.PlayerBufferProfile
 import com.naaammme.bbspace.core.model.PlayerBufferSettings
 import com.naaammme.bbspace.core.model.PlayerPlaybackPrefs
 import com.naaammme.bbspace.core.model.PlayerSettingsState
+import com.naaammme.bbspace.core.model.VideoCdnMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -184,6 +185,7 @@ class AppSettings @Inject constructor(
     private val inAppMiniPlayerKey = booleanPreferencesKey("in_app_mini_player")
     private val autoRotateFullscreenKey = booleanPreferencesKey("auto_rotate_fullscreen")
     private val gestureSpeedKey = floatPreferencesKey("gesture_speed")
+    private val videoCdnModeKey = stringPreferencesKey("video_cdn_mode")
     private val reportPlaybackKey = booleanPreferencesKey("report_playback")
     private val danmakuEnabledKey = booleanPreferencesKey("danmaku_enabled")
     private val danmakuAreaPercentKey = intPreferencesKey("danmaku_area_percent")
@@ -218,7 +220,10 @@ class AppSettings @Inject constructor(
                 preferSoftwareDecode = prefs[preferSoftDecKey] ?: false,
                 decoderFallback = prefs[decFallbackKey] ?: true,
                 autoRotateFullscreen = prefs[autoRotateFullscreenKey] ?: true,
-                gestureSpeed = (prefs[gestureSpeedKey] ?: 2f).coerceIn(0.25f, 3f)
+                gestureSpeed = (prefs[gestureSpeedKey] ?: 2f).coerceIn(0.25f, 3f),
+                videoCdnMode = prefs[videoCdnModeKey]
+                    ?.let(VideoCdnMode::valueOf)
+                    ?: VideoCdnMode.Backup1
             ),
             danmaku = DanmakuConfig(
                 enabled = prefs[danmakuEnabledKey] ?: defDanmaku.enabled,
@@ -294,6 +299,10 @@ class AppSettings @Inject constructor(
 
     override suspend fun setGestureSpeed(speed: Float) {
         context.appSettingsDataStore.edit { it[gestureSpeedKey] = speed.coerceIn(0.25f, 3f) }
+    }
+
+    override suspend fun setVideoCdnMode(mode: VideoCdnMode) {
+        context.appSettingsDataStore.edit { it[videoCdnModeKey] = mode.name }
     }
 
     override suspend fun setDanmaku(config: DanmakuConfig) {

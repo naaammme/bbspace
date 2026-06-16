@@ -20,5 +20,4 @@ interface VideoPlaybackController {
     fun setSpeed(speed: Float)
     fun switchVideoQuality(quality: Int)
     fun switchVideoAudio(audioId: Int)
-    fun switchVideoCdn(index: Int)
 }

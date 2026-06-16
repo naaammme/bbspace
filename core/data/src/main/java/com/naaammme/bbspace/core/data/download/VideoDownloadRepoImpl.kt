@@ -599,9 +599,9 @@ class VideoDownloadRepoImpl @Inject constructor(
         stream: DownloadStream,
         audio: DownloadAudio?
     ): List<DownloadCdn> {
-        val videoUrls = urls(stream.videoUrl, stream.videoBackupUrls)
+        val videoUrls = mergePlaybackUrls(stream.videoUrl, stream.videoBackupUrls)
         if (videoUrls.isEmpty()) return emptyList()
-        val audioUrls = urls(audio?.url, audio?.backupUrls ?: emptyList())
+        val audioUrls = mergePlaybackUrls(audio?.url, audio?.backupUrls ?: emptyList())
         return List(maxOf(videoUrls.size, audioUrls.size)) { index ->
             DownloadCdn(
                 videoUrl = videoUrls[index.coerceAtMost(videoUrls.lastIndex)],
@@ -610,19 +610,7 @@ class VideoDownloadRepoImpl @Inject constructor(
         }
     }
 
-    private fun urls(
-        primaryUrl: String?,
-        backupUrls: List<String>
-    ): List<String> {
-        return buildList {
-            primaryUrl?.takeIf(String::isNotBlank)?.let(::add)
-            addAll(backupUrls.filter(String::isNotBlank))
-        }.distinct()
-    }
-
-    private fun DownloadAudio.urls(): List<String> {
-        return urls(url, backupUrls)
-    }
+    private fun DownloadAudio.urls(): List<String> = mergePlaybackUrls(url, backupUrls)
 
     private fun VideoDownloadEntity.toRequest(): VideoDownloadRequest {
         return VideoDownloadRequest(
@@ -817,4 +805,10 @@ class VideoDownloadRepoImpl @Inject constructor(
         const val AUDIO_FILE_NAME = "audio.m4s"
         const val AUDIO_ONLY_FILE_NAME = "audio.m4a"
     }
+}
+
+private fun mergePlaybackUrls(primaryUrl: String?, backupUrls: List<String>): List<String> {
+    return (listOfNotNull(primaryUrl) + backupUrls)
+        .filter(String::isNotBlank)
+        .distinct()
 }

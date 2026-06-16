@@ -3,6 +3,7 @@ package com.naaammme.bbspace.core.domain.player
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayerBufferProfile
 import com.naaammme.bbspace.core.model.PlayerSettingsState
+import com.naaammme.bbspace.core.model.VideoCdnMode
 import kotlinx.coroutines.flow.Flow
 
 interface PlayerSettings {
@@ -17,5 +18,6 @@ interface PlayerSettings {
     suspend fun setDecoderFallback(enabled: Boolean)
     suspend fun setAutoRotateFullscreen(enabled: Boolean)
     suspend fun setGestureSpeed(speed: Float)
+    suspend fun setVideoCdnMode(mode: VideoCdnMode)
     suspend fun setDanmaku(config: DanmakuConfig)
 }
