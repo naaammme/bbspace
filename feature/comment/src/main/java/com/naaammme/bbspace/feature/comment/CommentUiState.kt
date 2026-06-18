@@ -6,7 +6,6 @@ import com.naaammme.bbspace.core.model.CommentFilterTag
 import com.naaammme.bbspace.core.model.CommentReply
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
-import com.naaammme.bbspace.feature.comment.editor.CommentEditorState
 import com.naaammme.bbspace.feature.comment.thread.CommentThreadState
 
 @Immutable
@@ -26,7 +25,6 @@ data class CommentUiState(
     val selectedFilter: String = COMMENT_FILTER_ALL,
     val items: List<CommentReply> = emptyList(),
     val threadPane: CommentThreadState? = null,
-    val editor: CommentEditorState = CommentEditorState(),
     val replyCheckDialogText: String? = null,
     val nextOffset: String? = null,
     val endText: String? = null

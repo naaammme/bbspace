@@ -30,6 +30,8 @@ class CommentViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CommentUiState())
     val uiState = _uiState.asStateFlow()
+    private val _editorState = MutableStateFlow(CommentEditorState())
+    val editorState = _editorState.asStateFlow()
     private val _msg = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val msg = _msg.asSharedFlow()
 
@@ -39,22 +41,30 @@ class CommentViewModel @Inject constructor(
         viewModelScope.launch {
             authRepo.currentMidFlow.collectLatest { mid ->
                 _uiState.update { cur ->
-                    cur.copy(
-                        currentMid = mid,
-                        editor = if (mid > 0L) cur.editor else CommentEditorState()
-                    )
+                    cur.copy(currentMid = mid)
                 }
             }
         }
     }
 
     fun bind(subject: CommentSubject?) {
-        if (_uiState.value.subject == subject) return
-        val currentMid = _uiState.value.currentMid
+        val state = _uiState.value
+        if (state.subject == subject) return
+        val currentMid = state.currentMid
         if (subject == null) {
             reqId += 1L
             _uiState.value = CommentUiState(currentMid = currentMid)
+            _editorState.value = CommentEditorState()
             return
+        }
+        if (state.subject != null) {
+            _editorState.update {
+                it.copy(
+                    visible = false,
+                    loading = false,
+                    target = CommentEditorTarget()
+                )
+            }
         }
         refresh(
             subject = subject,
@@ -368,12 +378,10 @@ class CommentViewModel @Inject constructor(
             return
         }
         showEditor(
-            state = state,
             target = state.threadPane?.let { thread ->
                 CommentEditorTarget(
                     rootRpid = thread.root.rpid,
-                    parentRpid = thread.root.rpid,
-                    parentName = thread.root.user.name
+                    parentRpid = thread.root.rpid
                 )
             } ?: CommentEditorTarget()
         )
@@ -387,16 +395,18 @@ class CommentViewModel @Inject constructor(
             return
         }
         showEditor(
-            state = state,
             target = replyTarget(state, reply)
         )
     }
 
     fun dismissEditor() {
-        val editor = _uiState.value.editor
+        val editor = _editorState.value
         if (editor.loading || !editor.visible) return
-        _uiState.update {
-            it.copy(editor = editor.copy(visible = false))
+        _editorState.update {
+            it.copy(
+                visible = false,
+                target = CommentEditorTarget()
+            )
         }
     }
 
@@ -407,16 +417,22 @@ class CommentViewModel @Inject constructor(
         }
     }
 
-    fun submitEditor(message: String) {
+    fun updateEditorInput(value: String) {
+        _editorState.update {
+            it.copy(input = value)
+        }
+    }
+
+    fun submitEditor() {
         val state = _uiState.value
         val subject = state.subject ?: return
         if (state.currentMid <= 0L) {
             _msg.tryEmit("请先登录")
             return
         }
-        val editor = state.editor
+        val editor = _editorState.value
         if (editor.loading) return
-        val text = message.trim()
+        val text = editor.input.trim()
         if (text.isBlank()) {
             _msg.tryEmit("评论内容不能为空")
             return
@@ -427,8 +443,8 @@ class CommentViewModel @Inject constructor(
             ?.takeIf { it.root.rpid == target.rootRpid && target.rootRpid > 0L }
             ?.sort
             ?: state.sort
-        _uiState.update {
-            it.copy(editor = editor.copy(loading = true))
+        _editorState.update {
+            it.copy(loading = true)
         }
         viewModelScope.launch {
             val publishResult = runCatching {
@@ -443,23 +459,19 @@ class CommentViewModel @Inject constructor(
             if (callId != reqId || _uiState.value.subject != subject) return@launch
             publishResult.fold(
                 onSuccess = { published ->
-                    val insertedReply = if (target.isReply && published.parentName.isNullOrBlank()) {
-                        published.copy(parentName = target.parentName)
-                    } else {
-                        published
-                    }
+                    _editorState.value = CommentEditorState()
                     _uiState.update {
                         insertPublishedReply(
-                            state = it.copy(editor = CommentEditorState()),
+                            state = it,
                             target = target,
-                            reply = insertedReply
+                            reply = published
                         )
                     }
                     _msg.tryEmit(if (target.isReply) "回复已发送" else "评论已发送")
                 },
                 onFailure = { err ->
-                    _uiState.update {
-                        it.copy(editor = it.editor.copy(loading = false))
+                    _editorState.update {
+                        it.copy(loading = false)
                     }
                     _msg.tryEmit(err.message ?: "发送评论失败")
                 }
@@ -582,17 +594,12 @@ class CommentViewModel @Inject constructor(
         }
     }
 
-    private fun showEditor(
-        state: CommentUiState,
-        target: CommentEditorTarget
-    ) {
-        if (state.editor.loading) return
-        _uiState.update { cur ->
-            cur.copy(
-                editor = CommentEditorState(
-                    visible = true,
-                    target = target
-                )
+    private fun showEditor(target: CommentEditorTarget) {
+        _editorState.update {
+            if (it.loading) return@update it
+            it.copy(
+                visible = true,
+                target = target
             )
         }
     }
@@ -605,14 +612,12 @@ class CommentViewModel @Inject constructor(
         return if (thread == null || thread.root.rpid == reply.rpid) {
             CommentEditorTarget(
                 rootRpid = reply.rpid,
-                parentRpid = reply.rpid,
-                parentName = reply.user.name
+                parentRpid = reply.rpid
             )
         } else {
             CommentEditorTarget(
                 rootRpid = thread.root.rpid,
-                parentRpid = reply.rpid,
-                parentName = reply.user.name
+                parentRpid = reply.rpid
             )
         }
     }

@@ -20,10 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -58,10 +54,10 @@ internal fun CommentEditorFab(
 internal fun CommentEditorSheet(
     state: CommentEditorState,
     onDismiss: () -> Unit,
-    onSubmit: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    onSubmit: () -> Unit
 ) {
     if (!state.visible) return
-    var input by rememberSaveable { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = {
@@ -92,17 +88,10 @@ internal fun CommentEditorSheet(
                         text = if (state.target.isReply) "回复评论" else "发表评论",
                         style = MaterialTheme.typography.titleMedium
                     )
-                    state.target.parentName?.takeIf(String::isNotBlank)?.let { name ->
-                        Text(
-                            text = "回复 @$name",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
                 TextButton(
-                    onClick = { onSubmit(input) },
-                    enabled = !state.loading && input.isNotBlank()
+                    onClick = onSubmit,
+                    enabled = !state.loading && state.input.isNotBlank()
                 ) {
                     Text(
                         if (state.loading) "发送中" else "发送"
@@ -110,8 +99,8 @@ internal fun CommentEditorSheet(
                 }
             }
             OutlinedTextField(
-                value = input,
-                onValueChange = { value -> input = value },
+                value = state.input,
+                onValueChange = onValueChange,
                 enabled = !state.loading,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,

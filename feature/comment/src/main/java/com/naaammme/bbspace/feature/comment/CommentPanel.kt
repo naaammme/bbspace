@@ -13,6 +13,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -341,34 +342,16 @@ fun CommentPanel(
                 )
             }
         }
-        if (uiState.subject != null) {
-            AnimatedVisibility(
-                visible = fabVisible,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = contentPadding.calculateEndPadding(layoutDirection),
-                        bottom = contentPadding.calculateBottomPadding() + 16.dp
-                    ),
-                enter = fadeIn() + scaleIn(),
-                exit = fadeOut() + scaleOut()
-            ) {
-                CommentEditorFab(
-                    contentDescription = when {
-                        uiState.currentMid <= 0L -> "登录后发评论"
-                        replyThread != null -> "回复评论"
-                        else -> "发表评论"
-                    },
-                    onClick = viewModel::openEditor
-                )
-            }
-        }
+        CommentEditorLayer(
+            hasSubject = uiState.subject != null,
+            currentMid = uiState.currentMid,
+            isReplyThreadOpen = replyThread != null,
+            fabVisible = fabVisible,
+            fabEndPadding = contentPadding.calculateEndPadding(layoutDirection),
+            fabBottomPadding = contentPadding.calculateBottomPadding() + 16.dp,
+            viewModel = viewModel
+        )
     }
-    CommentEditorSheet(
-        state = uiState.editor,
-        onDismiss = viewModel::dismissEditor,
-        onSubmit = viewModel::submitEditor
-    )
     uiState.replyCheckDialogText?.let { text ->
         AlertDialog(
             onDismissRequest = viewModel::dismissReplyCheckDialog,
@@ -381,6 +364,49 @@ fun CommentPanel(
             }
         )
     }
+}
+
+@Composable
+private fun BoxScope.CommentEditorLayer(
+    hasSubject: Boolean,
+    currentMid: Long,
+    isReplyThreadOpen: Boolean,
+    fabVisible: Boolean,
+    fabEndPadding: androidx.compose.ui.unit.Dp,
+    fabBottomPadding: androidx.compose.ui.unit.Dp,
+    viewModel: CommentViewModel
+) {
+    val editorState by viewModel.editorState.collectAsStateWithLifecycle()
+
+    if (hasSubject) {
+        AnimatedVisibility(
+            visible = fabVisible,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(
+                    end = fabEndPadding,
+                    bottom = fabBottomPadding
+                ),
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut()
+        ) {
+            CommentEditorFab(
+                contentDescription = when {
+                    currentMid <= 0L -> "登录后发评论"
+                    isReplyThreadOpen -> "回复评论"
+                    else -> "发表评论"
+                },
+                onClick = viewModel::openEditor
+            )
+        }
+    }
+
+    CommentEditorSheet(
+        state = editorState,
+        onDismiss = viewModel::dismissEditor,
+        onValueChange = viewModel::updateEditorInput,
+        onSubmit = viewModel::submitEditor
+    )
 }
 
 @Composable

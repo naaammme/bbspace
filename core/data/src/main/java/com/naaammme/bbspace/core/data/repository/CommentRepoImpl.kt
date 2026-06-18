@@ -414,7 +414,7 @@ class CommentRepoImpl @Inject constructor(
             timeText = formatReplyTime(info.ctime),
             locationText = formatReplyLocation(info.replyControl.location),
             topLabel = topLabel ?: info.topLabel(),
-            replyEntryText = info.replyControl.subReplyTitleText.ifBlank { null },
+            replyEntryText = info.replyControl.subReplyEntryText.ifBlank { null },
             parentName = info.parentReplyMember.name.ifBlank { null },
             user = CommentUser(
                 mid = info.mid,
@@ -452,6 +452,9 @@ class CommentRepoImpl @Inject constructor(
             replyCount = reply.optLong("count"),
             timeText = formatReplyTime(reply.optLong("ctime")),
             locationText = formatReplyLocation(replyControl?.optString("location").orEmpty()),
+            parentName = reply.optJSONObject("parent_reply_member")
+                ?.optString("name")
+                ?.ifBlank { null },
             user = CommentUser(
                 mid = mid,
                 name = name,
