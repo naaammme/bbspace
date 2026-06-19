@@ -12,12 +12,6 @@ import com.naaammme.bbspace.core.designsystem.theme.AnimationSpeed
 import com.naaammme.bbspace.core.designsystem.theme.CornerStyle
 import com.naaammme.bbspace.core.designsystem.theme.DEFAULT_PULL_REFRESH_DISTANCE_DP
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
-import com.naaammme.bbspace.core.designsystem.theme.MAX_PULL_REFRESH_DISTANCE_DP
-import com.naaammme.bbspace.core.designsystem.theme.MAX_ROUND_SCREEN_SAFE_PADDING_SCALE
-import com.naaammme.bbspace.core.designsystem.theme.MAX_UI_SCALE
-import com.naaammme.bbspace.core.designsystem.theme.MIN_PULL_REFRESH_DISTANCE_DP
-import com.naaammme.bbspace.core.designsystem.theme.MIN_ROUND_SCREEN_SAFE_PADDING_SCALE
-import com.naaammme.bbspace.core.designsystem.theme.MIN_UI_SCALE
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.ThemeMode
 import com.naaammme.bbspace.core.designsystem.theme.TransitionStyle
@@ -73,16 +67,11 @@ class AppSettings @Inject constructor(
             useDynamicColor = prefs[useDynamicColorKey] ?: defaultThemeConfig.useDynamicColor,
             swapBaseColors = prefs[swapBaseColorsKey] ?: defaultThemeConfig.swapBaseColors,
             fontScale = prefs[fontScaleKey] ?: defaultThemeConfig.fontScale,
-            uiScale = (prefs[uiScaleKey] ?: defaultThemeConfig.uiScale)
-                .coerceIn(MIN_UI_SCALE, MAX_UI_SCALE),
-            roundScreenSafePaddingScale = (
-                prefs[roundScreenSafePaddingScaleKey] ?: defaultThemeConfig.roundScreenSafePaddingScale
-            )
-                .coerceIn(MIN_ROUND_SCREEN_SAFE_PADDING_SCALE, MAX_ROUND_SCREEN_SAFE_PADDING_SCALE),
-            pullRefreshDistanceDp = (
-                prefs[pullRefreshDistanceKey] ?: defaultThemeConfig.pullRefreshDistanceDp
-            )
-                .coerceIn(MIN_PULL_REFRESH_DISTANCE_DP, MAX_PULL_REFRESH_DISTANCE_DP),
+            uiScale = prefs[uiScaleKey] ?: defaultThemeConfig.uiScale,
+            roundScreenSafePaddingScale = prefs[roundScreenSafePaddingScaleKey]
+                ?: defaultThemeConfig.roundScreenSafePaddingScale,
+            pullRefreshDistanceDp = prefs[pullRefreshDistanceKey]
+                ?: defaultThemeConfig.pullRefreshDistanceDp,
             animationSpeed = prefs[animationSpeedKey]?.let { AnimationSpeed.valueOf(it) }
                 ?: defaultThemeConfig.animationSpeed,
             transitionStyle = prefs[transitionStyleKey]?.let { TransitionStyle.valueOf(it) }
@@ -116,27 +105,15 @@ class AppSettings @Inject constructor(
     }
 
     suspend fun updateUiScale(scale: Float) {
-        context.appSettingsDataStore.edit {
-            it[uiScaleKey] = scale.coerceIn(MIN_UI_SCALE, MAX_UI_SCALE)
-        }
+        context.appSettingsDataStore.edit { it[uiScaleKey] = scale }
     }
 
     suspend fun updateRoundScreenSafePaddingScale(scale: Float) {
-        context.appSettingsDataStore.edit {
-            it[roundScreenSafePaddingScaleKey] = scale.coerceIn(
-                MIN_ROUND_SCREEN_SAFE_PADDING_SCALE,
-                MAX_ROUND_SCREEN_SAFE_PADDING_SCALE
-            )
-        }
+        context.appSettingsDataStore.edit { it[roundScreenSafePaddingScaleKey] = scale }
     }
 
     suspend fun updatePullRefreshDistance(distanceDp: Float) {
-        context.appSettingsDataStore.edit {
-            it[pullRefreshDistanceKey] = distanceDp.coerceIn(
-                MIN_PULL_REFRESH_DISTANCE_DP,
-                MAX_PULL_REFRESH_DISTANCE_DP
-            )
-        }
+        context.appSettingsDataStore.edit { it[pullRefreshDistanceKey] = distanceDp }
     }
 
     suspend fun updateAnimationSpeed(speed: AnimationSpeed) {

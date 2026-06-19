@@ -238,7 +238,7 @@ internal fun VideoPlayerPane(
                                 )
                             )
                         )
-                        .padding(1.dp),
+                        .padding(horizontal = 10.dp, vertical = 1.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -381,6 +381,7 @@ internal fun VideoPlayerPane(
     }
 }
 
+@UnstableApi
 @Composable
 private fun VideoDanmakuLayer(
     viewModel: VideoViewModel,
@@ -670,8 +671,6 @@ private fun PlayerCtrlBar(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp)
-                    .heightIn(min = 24.dp)
             )
 
             Row(

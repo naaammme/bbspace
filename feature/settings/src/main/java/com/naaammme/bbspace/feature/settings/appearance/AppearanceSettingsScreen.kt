@@ -23,18 +23,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.theme.AnimationSpeed
 import com.naaammme.bbspace.core.designsystem.theme.CornerStyle
 import com.naaammme.bbspace.core.designsystem.theme.DEFAULT_PULL_REFRESH_DISTANCE_DP
-import com.naaammme.bbspace.core.designsystem.theme.MAX_PULL_REFRESH_DISTANCE_DP
-import com.naaammme.bbspace.core.designsystem.theme.MAX_ROUND_SCREEN_SAFE_PADDING_SCALE
-import com.naaammme.bbspace.core.designsystem.theme.MAX_UI_SCALE
-import com.naaammme.bbspace.core.designsystem.theme.MIN_PULL_REFRESH_DISTANCE_DP
-import com.naaammme.bbspace.core.designsystem.theme.MIN_ROUND_SCREEN_SAFE_PADDING_SCALE
-import com.naaammme.bbspace.core.designsystem.theme.MIN_UI_SCALE
-import com.naaammme.bbspace.core.designsystem.theme.PULL_REFRESH_DISTANCE_STEP_DP
 import com.naaammme.bbspace.core.designsystem.theme.PresetColors
-import com.naaammme.bbspace.core.designsystem.theme.ROUND_SCREEN_SAFE_PADDING_SCALE_STEP
 import com.naaammme.bbspace.core.designsystem.theme.ThemeMode
 import com.naaammme.bbspace.core.designsystem.theme.TransitionStyle
-import com.naaammme.bbspace.core.designsystem.theme.UI_SCALE_STEP
 import com.naaammme.bbspace.feature.settings.components.SettingSwitch
 import kotlin.math.roundToInt
 
@@ -248,23 +239,16 @@ private fun ColorItem(
     }
 }
 
-private val FONT_SCALES = listOf(0.8f, 0.85f, 0.9f, 0.95f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f)
-private val UI_SCALES = List(
-    ((MAX_UI_SCALE - MIN_UI_SCALE) / UI_SCALE_STEP).toInt() + 1
-) { index ->
-    MIN_UI_SCALE + index * UI_SCALE_STEP
-}
-private val ROUND_SCREEN_SAFE_PADDING_SCALES = List(
-    ((MAX_ROUND_SCREEN_SAFE_PADDING_SCALE - MIN_ROUND_SCREEN_SAFE_PADDING_SCALE) /
-        ROUND_SCREEN_SAFE_PADDING_SCALE_STEP).toInt() + 1
-) { index ->
-    MIN_ROUND_SCREEN_SAFE_PADDING_SCALE + index * ROUND_SCREEN_SAFE_PADDING_SCALE_STEP
-}
-private val PULL_REFRESH_DISTANCES = List(
-    ((MAX_PULL_REFRESH_DISTANCE_DP - MIN_PULL_REFRESH_DISTANCE_DP) / PULL_REFRESH_DISTANCE_STEP_DP).toInt() + 1
-) { index ->
-    MIN_PULL_REFRESH_DISTANCE_DP + index * PULL_REFRESH_DISTANCE_STEP_DP
-}
+private val FONT_SCALES = listOf(0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f)
+private val UI_SCALES = listOf(0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f)
+private val ROUND_SCREEN_SAFE_PADDING_SCALES = listOf(
+    0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f,
+    0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f
+)
+private val PULL_REFRESH_DISTANCES = listOf(
+    16f, 24f, 32f, 40f, 48f, 56f, 64f, 72f, 80f,
+    88f, 96f, 104f, 112f, 120f, 128f, 136f, 144f, 152f, 160f
+)
 
 private fun sliderIndex(value: Float, lastIndex: Int): Int {
     return value.roundToInt().coerceIn(0, lastIndex)

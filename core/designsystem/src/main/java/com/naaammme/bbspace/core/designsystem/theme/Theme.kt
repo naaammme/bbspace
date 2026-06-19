@@ -112,7 +112,7 @@ fun BiliTheme(
     val context = LocalContext.current
     val baseDensity = LocalDensity.current
     val useMonochromeScheme = config.seedColor.isPureBlack()
-    val uiScale = config.uiScale.coerceIn(MIN_UI_SCALE, MAX_UI_SCALE)
+    val uiScale = config.uiScale
 
     val colorScheme = remember(
         context,
