@@ -65,7 +65,7 @@ internal fun PlaybackReportSession.durationSec(): Int {
     return msToSec(source.durationMs).coerceAtLeast(0)
 }
 
-internal fun PlaybackReportSession.progressSec(
+internal fun progressSec(
     positionMs: Long,
     completePlayback: Boolean
 ): Int {

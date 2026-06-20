@@ -148,7 +148,7 @@ class RemotePlaybackReporter @Inject constructor(
         base["aid"] = report.aid.toString()
         base["cid"] = report.cid.toString()
         base["duration"] = active.durationSec().toString()
-        base["progress"] = active.progressSec(positionMs, completePlayback).toString()
+        base["progress"] = progressSec(positionMs, completePlayback).toString()
         base["type"] = report.type.toString()
         base["device_ts"] = now.toString()
         base["start_ts"] = active.playbackHistoryStartTs.toString()
