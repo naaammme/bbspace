@@ -33,7 +33,8 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 class TicketGenerator(
     context: Context,
-    private val deviceIdentity: DeviceIdentity
+    private val deviceIdentity: DeviceIdentity,
+    private val okHttpClient: OkHttpClient
 ) {
     companion object {
         private const val TAG = "TicketGenerator"
@@ -50,7 +51,6 @@ class TicketGenerator(
 
     private val prefs = context.getSharedPreferences("ticket_prefs", Context.MODE_PRIVATE)
     private val refreshMutex = Mutex()
-    private val client = OkHttpClient()
     private val bgScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val deviceInfoCollector = DeviceInfoCollector(context, deviceIdentity)
     private val backgroundRefreshing = AtomicBoolean(false)
@@ -200,7 +200,7 @@ class TicketGenerator(
             .build()
 
         val response = withContext(Dispatchers.IO) {
-            client.newCall(httpRequest).execute()
+            okHttpClient.newCall(httpRequest).execute()
         }
         response.use {
             if (it.code != 200) {

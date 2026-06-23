@@ -46,7 +46,7 @@ enum class VideoCdnMode(
     BaseUrl("基础 URL（不推荐）", "直接使用服务端原始 base_url"),
     Backup1("备用 URL 1", "直接使用服务端第一个备用线路"),
     Backup2("备用 URL 2", "直接使用服务端第二个备用线路"),
-    Ali("Ali", "阿里云"),
+    Ali("Ali", "阿里云 (推荐)"),
     Alib("Alib", "阿里云"),
     Alio1("Alio1", "阿里云"),
     Cos("Cos", "腾讯云"),

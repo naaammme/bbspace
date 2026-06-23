@@ -38,8 +38,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideBiliDns(): BiliDns {
-        return BiliDns()
+    fun provideBiliDns(
+        @ApplicationContext context: Context
+    ): BiliDns {
+        return BiliDns(context)
     }
 
     @Provides
@@ -65,18 +67,20 @@ object NetworkModule {
     @Singleton
     fun provideTicketGenerator(
         @ApplicationContext context: Context,
-        deviceIdentity: DeviceIdentity
+        deviceIdentity: DeviceIdentity,
+        okHttpClient: OkHttpClient
     ): TicketGenerator {
-        return TicketGenerator(context, deviceIdentity)
+        return TicketGenerator(context, deviceIdentity, okHttpClient)
     }
 
     @Provides
     @Singleton
     fun provideGuestIdGenerator(
         @ApplicationContext context: Context,
-        deviceIdentity: DeviceIdentity
+        deviceIdentity: DeviceIdentity,
+        okHttpClient: OkHttpClient
     ): GuestIdGenerator {
-        return GuestIdGenerator(context, deviceIdentity)
+        return GuestIdGenerator(context, deviceIdentity, okHttpClient)
     }
 
     @Provides

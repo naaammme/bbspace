@@ -1,11 +1,7 @@
 package com.naaammme.bbspace.infra.network.dns
 
 import com.naaammme.bbspace.core.common.log.Logger
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
 import java.net.InetAddress
-import java.net.URL
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 
@@ -22,7 +18,6 @@ object TencentHttpDns {
     private const val SERVER = "119.29.29.29"
     private const val ID = "3092"
     private const val DES_KEY = "LkgBm3xj"
-    private const val TIMEOUT_MS = 2000
 
     /**
      * 通过腾讯 HTTPDNS 解析域名
@@ -31,19 +26,8 @@ object TencentHttpDns {
     fun resolve(hostname: String): DnsResult? {
         return try {
             val encryptedDomain = desEncrypt(hostname)
-            val url = URL("http://$SERVER/d?dn=$encryptedDomain&id=$ID&ttl=1")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = TIMEOUT_MS
-                readTimeout = TIMEOUT_MS
-                requestMethod = "GET"
-            }
-
-            val responseText = try {
-                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
-            } finally {
-                conn.disconnect()
-            }
-
+            val url = "http://$SERVER/d?dn=$encryptedDomain&id=$ID&ttl=1"
+            val responseText = httpDnsGet(url)
             if (responseText.isBlank()) return null
 
             val decrypted = desDecrypt(responseText)

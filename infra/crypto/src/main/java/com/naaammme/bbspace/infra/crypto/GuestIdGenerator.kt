@@ -7,6 +7,8 @@ import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.core.common.log.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
@@ -23,7 +25,8 @@ import kotlin.random.Random
  */
 class GuestIdGenerator(
     private val context: Context,
-    private val deviceIdentity: DeviceIdentity
+    private val deviceIdentity: DeviceIdentity,
+    private val okHttpClient: OkHttpClient
 ) {
     companion object {
         private const val TAG = "GuestIdGenerator"
@@ -92,8 +95,7 @@ class GuestIdGenerator(
             )
 
             val url = "${BiliConstants.BASE_URL_PASSPORT}$GUEST_ID_ENDPOINT"
-            val client = okhttp3.OkHttpClient()
-            val request = okhttp3.Request.Builder()
+            val request = Request.Builder()
                 .url(url)
                 .post(requestBody)
                 .addHeader("fp_local", deviceIdentity.fp)
@@ -114,30 +116,31 @@ class GuestIdGenerator(
                 .build()
 
             withContext(Dispatchers.IO) {
-                val response = client.newCall(request).execute()
-                Logger.d(TAG) { "服务器响应状态: ${response.code}" }
+                okHttpClient.newCall(request).execute().use { response ->
+                    Logger.d(TAG) { "服务器响应状态: ${response.code}" }
 
-                if (response.code == 200) {
-                    val json = JSONObject(response.body?.string() ?: "")
-                    Logger.d(TAG) { "服务器响应: $json" }
+                    if (response.code == 200) {
+                        val json = JSONObject(response.body?.string() ?: "")
+                        Logger.d(TAG) { "服务器响应: $json" }
 
-                    if (json.getInt("code") == 0) {
-                        val guestId = json.getJSONObject("data").getLong("guest_id").toString()
-                        Logger.d(TAG) { "成功获取 guestid: $guestId" }
-                        guestId
+                        if (json.getInt("code") == 0) {
+                            val guestId = json.getJSONObject("data").getLong("guest_id").toString()
+                            Logger.d(TAG) { "成功获取 guestid: $guestId" }
+                            guestId
+                        } else {
+                            val code = json.optInt("code", -1)
+                            val msg = json.optString("message")
+                            Logger.e(TAG) { "API 返回错误: code=$code, message=$msg" }
+                            null
+                        }
                     } else {
-                        val code = json.optInt("code", -1)
-                        val msg = json.optString("message")
-                        Logger.e(TAG) { "API 返回错误: code=$code, message=$msg" }
+                        Logger.e(TAG) { "HTTP 错误: ${response.code}" }
+                        if (Logger.isDebug) {
+                            val bodyText = response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
+                            Logger.e(TAG) { "响应内容: $bodyText" }
+                        }
                         null
                     }
-                } else {
-                    Logger.e(TAG) { "HTTP 错误: ${response.code}" }
-                    if (Logger.isDebug) {
-                        val bodyText = response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
-                        Logger.e(TAG) { "响应内容: $bodyText" }
-                    }
-                    null
                 }
             }
         } catch (e: Exception) {
@@ -239,33 +242,33 @@ class GuestIdGenerator(
     private suspend fun getRsaKey(): Boolean {
         return try {
             val url = "${BiliConstants.BASE_URL_PASSPORT}$GET_KEY_ENDPOINT"
-            val client = okhttp3.OkHttpClient()
-            val request = okhttp3.Request.Builder()
+            val request = Request.Builder()
                 .url(url)
                 .get()
                 .build()
 
             withContext(Dispatchers.IO) {
-                val response = client.newCall(request).execute()
-                if (response.code == 200) {
-                    val json = JSONObject(response.body?.string() ?: "")
-                    if (json.getInt("code") == 0) {
-                        val data = json.getJSONObject("data")
-                        val key = data.getString("key")
-                        rsaPublicKey = key
-                            .replace("-----BEGIN PUBLIC KEY-----\n", "")
-                            .replace("\n-----END PUBLIC KEY-----\n", "")
-                            .replace("\n", "")
-                        Logger.d(TAG) { "成功获取 RSA 公钥" }
-                        true
+                okHttpClient.newCall(request).execute().use { response ->
+                    if (response.code == 200) {
+                        val json = JSONObject(response.body?.string() ?: "")
+                        if (json.getInt("code") == 0) {
+                            val data = json.getJSONObject("data")
+                            val key = data.getString("key")
+                            rsaPublicKey = key
+                                .replace("-----BEGIN PUBLIC KEY-----\n", "")
+                                .replace("\n-----END PUBLIC KEY-----\n", "")
+                                .replace("\n", "")
+                            Logger.d(TAG) { "成功获取 RSA 公钥" }
+                            true
+                        } else {
+                            val msg = json.optString("message")
+                            Logger.e(TAG) { "获取 RSA 密钥失败: $msg" }
+                            false
+                        }
                     } else {
-                        val msg = json.optString("message")
-                        Logger.e(TAG) { "获取 RSA 密钥失败: $msg" }
+                        Logger.e(TAG) { "HTTP 错误: ${response.code}" }
                         false
                     }
-                } else {
-                    Logger.e(TAG) { "HTTP 错误: ${response.code}" }
-                    false
                 }
             }
         } catch (e: Exception) {

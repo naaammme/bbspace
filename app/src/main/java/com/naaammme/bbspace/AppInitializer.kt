@@ -2,10 +2,6 @@ package com.naaammme.bbspace
 
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.data.AppSettings
 import com.naaammme.bbspace.core.data.CacheManager
@@ -60,10 +56,14 @@ class AppInitializer @Inject constructor(
     private var initialized = false
 
     fun initialize() {
-        // DNS 预取，不依赖其他初始化，立即后台执行
-        biliDns.prefetch()
+        biliDns.start {
+            if (!initialized) return@start
+            initScope.launch {
+                cacheManager.clearColdStartCache()
+                coldStartClient.getColdStartData()
+            }
+        }
         warmupImageConnections()
-        registerNetworkCallback()
         initScope.launch {
             runCatching {
                 playbackSession.prepare()
@@ -129,25 +129,6 @@ class AppInitializer @Inject constructor(
                 }
             }.forEach { it.await() }
         }
-    }
-
-    private fun registerNetworkCallback() {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        cm.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                if (!initialized) return
-                Logger.d(TAG) { "网络切换，清除缓存并重新获取" }
-                cacheManager.clearDnsCache()
-                cacheManager.clearColdStartCache()
-                biliDns.prefetch()
-                initScope.launch {
-                    coldStartClient.getColdStartData()
-                }
-            }
-        })
     }
 
     private fun observePlaybackService() {
