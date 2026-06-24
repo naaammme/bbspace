@@ -1,12 +1,21 @@
 package com.naaammme.bbspace.playback
 
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition.Companion.None as EnterNone
+import androidx.compose.animation.ExitTransition.Companion.None as ExitNone
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
@@ -61,33 +70,40 @@ fun PlaybackHost(
             lifecycle.removeObserver(obs)
         }
     }
+    var prevMode by remember { mutableStateOf(mode) }
+    LaunchedEffect(mode) { prevMode = mode }
+    val skipEnter = mode == PlaybackHostMode.Expanded && prevMode == PlaybackHostMode.Mini
+    val enterSpec = if (skipEnter) EnterNone else slideInHorizontally(
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
+    ) { fullWidth -> fullWidth }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        when (target) {
-            is StreamPlaybackTarget.Video -> {
-                if (mode == PlaybackHostMode.Expanded) {
-                    VideoScreen(
-                        onBack = onDismissExpanded,
-                        onGoHome = onGoHome,
-                        onOpenSpace = onOpenSpace,
-                        onOpenDownloadCache = onOpenDownloadCache,
-                        onStartDownload = onStartDownload,
-                        viewModel = videoViewModel,
-                        hostExpanded = true
-                    )
-                }
-            }
+        AnimatedVisibility(
+            visible = target is StreamPlaybackTarget.Video && mode == PlaybackHostMode.Expanded,
+            enter = enterSpec,
+            exit = ExitNone
+        ) {
+            VideoScreen(
+                onBack = onDismissExpanded,
+                onGoHome = onGoHome,
+                onOpenSpace = onOpenSpace,
+                onOpenDownloadCache = onOpenDownloadCache,
+                onStartDownload = onStartDownload,
+                viewModel = videoViewModel,
+                hostExpanded = true
+            )
+        }
 
-            is StreamPlaybackTarget.Live -> {
-                if (mode == PlaybackHostMode.Expanded) {
-                    LiveScreen(
-                        onBack = onDismissExpanded,
-                        viewModel = liveViewModel,
-                        hostExpanded = true
-                    )
-                }
-            }
-
-            null -> {}
+        AnimatedVisibility(
+            visible = target is StreamPlaybackTarget.Live && mode == PlaybackHostMode.Expanded,
+            enter = enterSpec,
+            exit = ExitNone
+        ) {
+            LiveScreen(
+                onBack = onDismissExpanded,
+                viewModel = liveViewModel,
+                hostExpanded = true
+            )
         }
 
         val curTarget = target
