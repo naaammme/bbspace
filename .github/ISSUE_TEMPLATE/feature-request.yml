@@ -1,0 +1,61 @@
+name: Feature Request
+description: 提出一个功能建议或产品改进想法
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        功能建议尽量描述清楚使用场景和实际收益。
+        如果只是一个点子，没有场景和约束，后续很难评估优先级。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 功能概述
+      description: 你希望增加或改进什么
+      placeholder: 例如在播放器里增加字幕开关和字幕轨选择
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景和当前痛点
+      description: 这个需求在什么场景下会用到，现在的问题是什么
+      placeholder: 例如看外语视频时没有字幕入口，只能切回官方客户端
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你期望的方案
+      description: 不需要非常技术化，但尽量说清楚交互或行为
+      placeholder: 例如播放器右上角菜单增加字幕入口，支持开关和轨道切换
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 参考资料
+      description: 譬如相关截图、其他b站客户端、接口信息或设计参考
+      placeholder: 可以贴截图、链接或简短说明
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 补充信息
+      placeholder: 其他你觉得有帮助的上下文
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已经搜索过现有 issue，确认这不是重复建议
+          required: true

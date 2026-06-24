@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Telegram
+    url: https://t.me/ourbbspace
+    about: 使用问题、交流讨论或暂时无法稳定复现的问题可以先来这里
+  - name: README
+    url: https://github.com/naaammme/bbspace#readme
+    about: 先看项目说明、下载方式和当前功能范围

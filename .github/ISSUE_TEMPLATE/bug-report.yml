@@ -1,0 +1,89 @@
+name: Bug Report
+description: 报告一个可复现的问题
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前先确认：
+        - 已查看 README 和 Releases
+        - 已搜索是否有重复 issue
+        - 尽量提供可复现步骤、截图或日志
+
+  - type: input
+    id: app_version
+    attributes:
+      label: App 版本
+      description: 填写 Release 版本号
+      placeholder: 例如 v1.2.3
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 设备型号
+      placeholder: 例如 Xiaomi 14 / Pixel 8
+    validations:
+      required: false
+
+  - type: input
+    id: android_version
+    attributes:
+      label: Android 版本
+      placeholder: 例如 Android 14
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 直接描述你遇到了什么问题
+      placeholder: 例如进入视频详情页后点击播放，界面一直转圈且没有报错提示
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开...
+        2. 点击...
+        3. 看到...
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果
+      placeholder: 例如应该正常开始播放
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      placeholder: 例如一直加载、闪退、白屏、按钮无响应
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 截图、录屏或日志
+      description: 有的话请尽量提供，能明显提高定位效率
+      placeholder: 粘贴日志，或补充截图、录屏、报错信息
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已经搜索过现有 issue，确认这不是重复问题
+          required: true
