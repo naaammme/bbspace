@@ -10,7 +10,13 @@ enum class HistoryTab(
     ARCHIVE("archive", "视频"),
     LIVE("live", "直播"),
     ARTICLE("article", "专栏"),
-    NONFINISH("nonfinish", "未看完")
+    NONFINISH("nonfinish", "未看完");
+
+    companion object {
+        fun fromBusiness(business: String): HistoryTab {
+            return entries.firstOrNull { it.business == business } ?: ALL
+        }
+    }
 }
 
 @Immutable
@@ -23,6 +29,12 @@ data class HistoryCursor(
 data class HistoryPage(
     val items: List<HistoryItem>,
     val cursor: HistoryCursor,
+    val hasMore: Boolean
+)
+
+@Immutable
+data class HistorySearchPage(
+    val items: List<HistoryItem>,
     val hasMore: Boolean
 )
 

@@ -1,6 +1,5 @@
 package com.naaammme.bbspace.core.data.repository
 
-import android.text.Html
 import com.bapis.bilibili.app.archive.middleware.v1.PlayerArgs
 import com.bapis.bilibili.app.archive.middleware.v1.QnPolicy
 import com.bapis.bilibili.pagination.Pagination
@@ -140,7 +139,7 @@ class SearchRepoImpl @Inject constructor(
             aid = aid,
             cid = cid,
             target = target,
-            title = av.title.cleanHtml(),
+            title = av.title,
             cover = av.cover.replace("http://", "https://"),
             author = av.author,
             duration = av.duration,
@@ -205,10 +204,6 @@ class SearchRepoImpl @Inject constructor(
             SearchOrder.PUBDATE -> Sort.SORT_PUBLISH_TIME
             SearchOrder.DANMAKU -> Sort.SORT_DANMAKU_COUNT
         }
-    }
-
-    private fun String.cleanHtml(): String {
-        return Html.fromHtml(this, Html.FROM_HTML_MODE_LEGACY).toString().trim()
     }
 
     private fun Long?.formatCount(): String {

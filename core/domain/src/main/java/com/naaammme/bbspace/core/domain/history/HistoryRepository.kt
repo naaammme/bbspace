@@ -2,6 +2,7 @@ package com.naaammme.bbspace.core.domain.history
 
 import com.naaammme.bbspace.core.model.HistoryCursor
 import com.naaammme.bbspace.core.model.HistoryPage
+import com.naaammme.bbspace.core.model.HistorySearchPage
 import com.naaammme.bbspace.core.model.HistoryTab
 
 interface HistoryRepository {
@@ -9,4 +10,10 @@ interface HistoryRepository {
         tab: HistoryTab,
         cursor: HistoryCursor = HistoryCursor()
     ): HistoryPage
+
+    suspend fun search(
+        keyword: String,
+        tab: HistoryTab,
+        page: Int = 1
+    ): HistorySearchPage
 }

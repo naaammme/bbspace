@@ -12,10 +12,13 @@ import com.bapis.bilibili.app.interfaces.v1.CursorItem
 import com.bapis.bilibili.app.interfaces.v1.CursorV2Reply
 import com.bapis.bilibili.app.interfaces.v1.CursorV2Req
 import com.bapis.bilibili.app.interfaces.v1.PlayerPreloadParams
+import com.bapis.bilibili.app.interfaces.v1.SearchReply
+import com.bapis.bilibili.app.interfaces.v1.SearchReq
 import com.naaammme.bbspace.core.domain.history.HistoryRepository
 import com.naaammme.bbspace.core.model.HistoryCursor
 import com.naaammme.bbspace.core.model.HistoryItem
 import com.naaammme.bbspace.core.model.HistoryPage
+import com.naaammme.bbspace.core.model.HistorySearchPage
 import com.naaammme.bbspace.core.model.HistoryTab
 import com.naaammme.bbspace.core.model.HistoryTarget
 import com.naaammme.bbspace.core.model.LiveRoute
@@ -49,6 +52,24 @@ class HistoryRepoImpl @Inject constructor(
                     max = resp.cursor.max,
                     maxTp = resp.cursor.maxTp
                 ),
+                hasMore = resp.hasMore
+            )
+        }
+    }
+
+    override suspend fun search(
+        keyword: String,
+        tab: HistoryTab,
+        page: Int
+    ): HistorySearchPage {
+        val resp = grpcClient.call(
+            endpoint = SEARCH_ENDPOINT,
+            requestBytes = buildSearchReq(keyword, tab, page).toByteArray(),
+            parser = SearchReply.parser()
+        )
+        return withContext(Dispatchers.Default) {
+            HistorySearchPage(
+                items = resp.itemsList.mapNotNull(::mapItem),
                 hasMore = resp.hasMore
             )
         }
@@ -93,6 +114,18 @@ class HistoryRepoImpl @Inject constructor(
             .setClientAttr(DEFAULT_CLIENT_ATTR)
             .putExtraContent("short_edge", SHORT_EDGE)
             .putExtraContent("long_edge", LONG_EDGE)
+            .build()
+    }
+
+    private fun buildSearchReq(
+        keyword: String,
+        tab: HistoryTab,
+        page: Int
+    ): SearchReq {
+        return SearchReq.newBuilder()
+            .setKeyword(keyword)
+            .setPn(page.toLong())
+            .setBusiness(tab.business)
             .build()
     }
 
@@ -309,6 +342,7 @@ class HistoryRepoImpl @Inject constructor(
 
     private companion object {
         const val ENDPOINT = "bilibili.app.interface.v1.History/CursorV2"
+        const val SEARCH_ENDPOINT = "bilibili.app.interface.v1.History/Search"
         const val DEFAULT_QN = 80L
         const val DEFAULT_FNVER = 0L
         const val DEFAULT_FNVAL = 272L

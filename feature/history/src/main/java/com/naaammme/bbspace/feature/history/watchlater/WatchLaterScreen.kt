@@ -28,8 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,9 +46,9 @@ import com.naaammme.bbspace.core.model.WatchLaterTab
 import com.naaammme.bbspace.feature.history.component.HistoryEmptyState
 import com.naaammme.bbspace.feature.history.component.HistoryErrorState
 import com.naaammme.bbspace.feature.history.component.HistoryListLoading
+import com.naaammme.bbspace.feature.history.component.LOAD_MORE_SKELETON_COUNT
+import com.naaammme.bbspace.feature.history.component.LoadMoreTrigger
 import com.naaammme.bbspace.feature.history.component.formatVideoDuration
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,26 +59,13 @@ fun WatchLaterScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val uiState by rememberUpdatedState(state)
-
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            val total = listState.layoutInfo.totalItemsCount
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            total to last
-        }
-            .distinctUntilChanged()
-            .filter { (total, last) ->
-                uiState.canLoadMore &&
-                        !uiState.isLoadingMore &&
-                        uiState.errorMessage == null &&
-                        total > 0 &&
-                        last >= total - LOAD_MORE_TRIGGER_OFFSET
-            }
-            .collect {
-                viewModel.loadMore()
-            }
-    }
+    LoadMoreTrigger(
+        listState = listState,
+        canLoadMore = { state.canLoadMore },
+        isLoadingMore = { state.isLoadingMore },
+        hasError = { state.errorMessage != null },
+        onLoadMore = viewModel::loadMore
+    )
 
     LaunchedEffect(state.tab, state.asc) {
         val needScrollTop = listState.firstVisibleItemIndex > 0 ||
@@ -370,6 +355,3 @@ private fun durationText(sec: Long?): String? {
     if (value <= 0L) return null
     return formatVideoDuration(value)
 }
-
-private const val LOAD_MORE_SKELETON_COUNT = 2
-private const val LOAD_MORE_TRIGGER_OFFSET = 3

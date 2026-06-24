@@ -33,6 +33,7 @@ import com.naaammme.bbspace.core.designsystem.component.roundScreenSafePadding
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
 import com.naaammme.bbspace.core.model.FavoriteContentTarget
+import com.naaammme.bbspace.core.model.HistoryTarget
 import com.naaammme.bbspace.core.model.ImSessionItem
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
@@ -58,7 +59,9 @@ import com.naaammme.bbspace.feature.favorite.navigation.favoriteScreen
 import com.naaammme.bbspace.feature.favorite.navigation.navigateToFavorite
 import com.naaammme.bbspace.feature.favorite.navigation.navigateToFavoriteFolder
 import com.naaammme.bbspace.feature.history.navigation.historyScreen
+import com.naaammme.bbspace.feature.history.navigation.historySearchScreen
 import com.naaammme.bbspace.feature.history.navigation.navigateToHistory
+import com.naaammme.bbspace.feature.history.navigation.navigateToHistorySearch
 import com.naaammme.bbspace.feature.history.navigation.navigateToWatchLater
 import com.naaammme.bbspace.feature.history.navigation.watchLaterScreen
 import com.naaammme.bbspace.feature.home.HomeScreen
@@ -158,13 +161,21 @@ fun AppNavHost(
         playbackHostViewModel.openLive(route)
         playbackHostViewModel.expand()
     }
+    val openHistoryTarget: (HistoryTarget?) -> Unit = { target ->
+        when (target) {
+            is HistoryTarget.Video -> openVideo(target.target)
+            is HistoryTarget.Live -> openLive(target.route)
+            is HistoryTarget.Article -> rootNavController.navigateToDynamicDetail(target.opusId,1)
+            null -> Unit
+        }
+    }
     val openListenDetail: (Long, Int, Long, String, String, String) -> Unit = {
-            oid,
-            itemType,
-            subId,
-            title,
-            author,
-            cover ->
+        oid,
+        itemType,
+        subId,
+        title,
+        author,
+        cover ->
         playbackHostViewModel.close()
         rootNavController.navigateToListenDetail(oid, itemType, subId, title, author, cover)
     }
@@ -275,9 +286,12 @@ fun AppNavHost(
             )
             historyScreen(
                 onBack = { rootNavController.popBackStack() },
-                onOpenVideo = openVideo,
-                onOpenLive = openLive,
-                onOpenDynamicDetail = rootNavController::navigateToDynamicDetail
+                onSearch = { tab -> rootNavController.navigateToHistorySearch(tab) },
+                onOpenHistoryTarget = openHistoryTarget
+            )
+            historySearchScreen(
+                onBack = { rootNavController.popBackStack() },
+                onOpenHistoryTarget = openHistoryTarget
             )
             watchLaterScreen(
                 onBack = { rootNavController.popBackStack() },

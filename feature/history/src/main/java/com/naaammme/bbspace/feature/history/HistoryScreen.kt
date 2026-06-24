@@ -1,91 +1,58 @@
 package com.naaammme.bbspace.feature.history
 
-import android.text.format.DateFormat
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.BiliPullToRefreshBox
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
-import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
-import com.naaammme.bbspace.core.model.HistoryItem
 import com.naaammme.bbspace.core.model.HistoryTab
 import com.naaammme.bbspace.core.model.HistoryTarget
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.history.component.HistoryEmptyState
 import com.naaammme.bbspace.feature.history.component.HistoryErrorState
+import com.naaammme.bbspace.feature.history.component.HistoryItemCard
 import com.naaammme.bbspace.feature.history.component.HistoryListLoading
-import com.naaammme.bbspace.feature.history.component.formatVideoDuration
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
+import com.naaammme.bbspace.feature.history.component.LOAD_MORE_SKELETON_COUNT
+import com.naaammme.bbspace.feature.history.component.LoadMoreTrigger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     onBack: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenDynamicDetail: (String, Int) -> Unit,
+    onSearch: (HistoryTab) -> Unit,
+    onOpenHistoryTarget: (HistoryTarget?) -> Unit,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val uiState by rememberUpdatedState(state)
-
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            val total = listState.layoutInfo.totalItemsCount
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            total to last
-        }
-            .distinctUntilChanged()
-            .filter { (total, last) ->
-                uiState.canLoadMore &&
-                        !uiState.isLoadingMore &&
-                        uiState.errorMessage == null &&
-                        total > 0 &&
-                        last >= total - LOAD_MORE_TRIGGER_OFFSET
-            }
-            .collect {
-                viewModel.loadMore()
-            }
-    }
+    LoadMoreTrigger(
+        listState = listState,
+        canLoadMore = { state.canLoadMore },
+        isLoadingMore = { state.isLoadingMore },
+        hasError = { state.errorMessage != null },
+        onLoadMore = viewModel::loadMore
+    )
 
     LaunchedEffect(state.tab) {
         val needScrollTop = listState.firstVisibleItemIndex > 0 ||
@@ -104,6 +71,14 @@ fun HistoryScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回"
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onSearch(state.tab) }) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "搜索历史记录"
                         )
                     }
                 },
@@ -166,14 +141,7 @@ fun HistoryScreen(
                             ) { item ->
                                 HistoryItemCard(
                                     item = item,
-                                    onClick = {
-                                        when (val target = item.target) {
-                                            is HistoryTarget.Video -> onOpenVideo(target.target)
-                                            is HistoryTarget.Live -> onOpenLive(target.route)
-                                            is HistoryTarget.Article -> onOpenDynamicDetail(target.opusId, 1)
-                                            null -> Unit
-                                        }
-                                    }
+                                    onClick = { onOpenHistoryTarget(item.target) }
                                 )
                             }
 
@@ -210,162 +178,3 @@ fun HistoryScreen(
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HistoryItemCard(
-    item: HistoryItem,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val content: @Composable () -> Unit = {
-        HistoryItemContent(item = item)
-    }
-
-    if (item.isOpenable) {
-        Card(
-            onClick = onClick,
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            content()
-        }
-    } else {
-        Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun HistoryItemContent(
-    item: HistoryItem,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        HistoryCover(
-            item = item,
-            modifier = Modifier.weight(0.38f)
-        )
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = buildInfoLine(item),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = buildMetaLine(item),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            progressText(item)?.let { progress ->
-                Text(
-                    text = progress,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier
-                        .background(
-                            MaterialTheme.colorScheme.secondaryContainer,
-                            MaterialTheme.shapes.extraSmall
-                        )
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-        }
-    }
-}
-
-@Composable
-private fun HistoryCover(
-    item: HistoryItem,
-    modifier: Modifier = Modifier
-) {
-    CoverImage(
-        url = item.cover,
-        contentDescription = item.title,
-        modifier = modifier.aspectRatio(16f / 10f),
-        fallbackContent = {
-            Text(
-                text = item.typeLabel,
-                modifier = Modifier.align(Alignment.Center),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    ) {
-        Text(
-            text = item.typeLabel,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(6.dp)
-                .background(Color.Black.copy(alpha = 0.56f), MaterialTheme.shapes.extraSmall)
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White
-        )
-    }
-}
-
-private fun buildInfoLine(item: HistoryItem): String {
-    return listOfNotNull(
-        item.ownerName,
-        item.badge,
-        item.subtitle
-    ).joinToString(" · ").ifBlank { item.typeLabel }
-}
-
-private fun buildMetaLine(item: HistoryItem): String {
-    return listOfNotNull(
-        item.deviceLabel,
-        DateFormat.format("MM-dd HH:mm", item.viewedAtSec * 1000).toString()
-    ).joinToString(" · ")
-}
-
-private fun progressText(item: HistoryItem): String? {
-    val progress = item.progressSec ?: return null
-    if (progress < 0L) return "已看完"
-    val duration = item.durationSec
-    if (duration == null || duration <= 0L) return null
-    return if (progress >= duration) {
-        "已看完"
-    } else {
-        "进度 ${formatVideoDuration(progress)} / ${formatVideoDuration(duration)}"
-    }
-}
-
-private const val LOAD_MORE_SKELETON_COUNT = 2
-private const val LOAD_MORE_TRIGGER_OFFSET = 3

@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
+import com.naaammme.bbspace.core.designsystem.component.rememberHighlightedTitle
 import com.naaammme.bbspace.core.model.SearchFeedbackSec
 import com.naaammme.bbspace.core.model.SearchVideo
 
@@ -44,6 +45,13 @@ fun SearchCard(
     video: SearchVideo,
     onClick: () -> Unit
 ) {
+    val titleText = rememberHighlightedTitle(
+        text = video.title,
+        highlightColor = MaterialTheme.colorScheme.primary
+    )
+    val metaText = remember(video.danmakuText, video.publishTimeText) {
+        listOfNotNull("${video.danmakuText} 弹幕", video.publishTimeText).joinToString(" · ")
+    }
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -83,12 +91,7 @@ fun SearchCard(
                 modifier = Modifier.weight(0.62f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = video.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(text = titleText, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
 
                 Text(
                     text = video.author,
@@ -103,7 +106,7 @@ fun SearchCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = listOfNotNull("${video.danmakuText} 弹幕", video.publishTimeText).joinToString(" · "),
+                        text = metaText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
