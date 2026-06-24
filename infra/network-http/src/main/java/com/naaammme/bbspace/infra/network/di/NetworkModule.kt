@@ -39,9 +39,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideBiliDns(
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        regionCodeCache: RegionCodeCache
     ): BiliDns {
-        return BiliDns(context)
+        return BiliDns(context, regionCodeCache)
     }
 
     @Provides

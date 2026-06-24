@@ -21,6 +21,7 @@ val appearanceEntries = listOf(
 )
 
 val performanceEntries = listOf(
+    SettingEntry("使用系统 DNS", "重启后生效 关闭后使用 HTTPDNS", PERFORMANCE_ROUTE),
     SettingEntry("屏幕刷新率", "设置应用渲染帧率上限", PERFORMANCE_ROUTE),
 )
 

@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
 import com.naaammme.bbspace.feature.settings.SettingsViewModel
+import com.naaammme.bbspace.feature.settings.components.SettingSwitch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +43,14 @@ fun PerformanceSettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                SettingSwitch(
+                    title = "使用系统 DNS",
+                    subtitle = "重启后生效，关闭后使用 HTTPDNS",
+                    checked = viewModel.useSystemDns.collectAsStateWithLifecycle().value,
+                    onCheckedChange = viewModel::updateUseSystemDns
+                )
+            }
             item {
                 FrameRateSelector(
                     selected = config.preferredFrameRate,

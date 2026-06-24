@@ -7,6 +7,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.telephony.TelephonyManager
 import com.naaammme.bbspace.core.common.log.Logger
+import com.naaammme.bbspace.infra.crypto.RegionCodeCache
 import okhttp3.Dns
 import java.net.Inet4Address
 import java.net.InetAddress
@@ -19,16 +20,17 @@ import java.util.concurrent.Executors
  * B站 HTTPDNS 加速
  *
  * B站业务域名
- *   B站运营商 HTTPDNS → 阿里 HTTPDNS → 腾讯 HTTPDNS → 系统 DNS
+ *   B站运营商 HTTPDNS → 腾讯 HTTPDNS → Cloudflare DoH → 系统 DNS
  *
  * 视频 CDN 域名
- *   阿里 HTTPDNS → 系统 DNS
+ *   阿里 HTTPDNS → Cloudflare DoH → 系统 DNS
  *
  * 其他域名
  *   系统 DNS
  */
 class BiliDns(
-    context: Context
+    context: Context,
+    private val regionCodeCache: RegionCodeCache
 ) : Dns {
     companion object {
         private const val TAG = "BiliDns"
@@ -95,13 +97,17 @@ class BiliDns(
     private var networkChanged: (() -> Unit)? = null
 
     @Volatile
+    private var systemDnsEnabled = true
+
+    @Volatile
     private var networkState: NetworkState? = null
 
     /**
      * 启动 DNS 预热和网络监听
      */
     @SuppressLint("MissingPermission")
-    fun start(onNetworkChanged: (() -> Unit)? = null) {
+    fun start(systemDnsEnabled: Boolean, onNetworkChanged: (() -> Unit)? = null) {
+        this.systemDnsEnabled = systemDnsEnabled
         networkChanged = onNetworkChanged
         if (started) return
         started = true
@@ -130,6 +136,7 @@ class BiliDns(
     private fun handleNetworkChanged(network: Network) {
         val newNetworkHandle = network.networkHandle
         if (newNetworkHandle == networkState?.networkHandle) return
+        val isFirstNetworkCallback = networkState == null
         // 同步切状态:立即更新 handle + 清缓存,确保切网后首批请求不命中旧缓存
         // 运营商码和 IPv6 能力先用保守值,后台异步补齐,避免在回调线程做网络 IPC
         networkState = NetworkState(newNetworkHandle, operatorCode = null, hasIpv6 = false)
@@ -141,6 +148,7 @@ class BiliDns(
         val resolved = buildNetworkState(network)
         if (networkState?.networkHandle != newNetworkHandle) return
         networkState = resolved
+        if (isFirstNetworkCallback) return
         prefetch(resolved)
         networkChanged?.invoke()
     }
@@ -164,8 +172,7 @@ class BiliDns(
             refreshExecutor.execute {
                 try {
                     if (cache.containsKey(host)) return@execute
-                    val result = queryHttpDns(host, state.operatorCode)
-                    if (result != null) {
+                    queryHttpDns(host, state.operatorCode)?.let { result ->
                         cacheResult(host, result.addresses, result.ttlSeconds, state.networkHandle)
                         Logger.d(TAG) { "Prefetched $host: ${orderAddresses(result.addresses, state.hasIpv6)}" }
                     }
@@ -185,16 +192,16 @@ class BiliDns(
     }
 
     /**
-     * B站业务域名：Bili → 阿里 → 腾讯 → 系统 DNS
+     * B站业务域名：Bili → 腾讯 → Cloudflare DoH → 系统 DNS
      */
     private fun lookupHttpDns(hostname: String): List<InetAddress> {
         val state = currentNetworkState()
         cachedOrNull(hostname, state.hasIpv6)?.let { return it }
 
         queryHttpDns(hostname, state.operatorCode)?.let { result ->
+            cacheResult(hostname, result.addresses, result.ttlSeconds, state.networkHandle)
             val ordered = orderAddresses(result.addresses, state.hasIpv6)
             Logger.d(TAG) { "HTTPDNS resolved $hostname: $ordered (ttl=${result.ttlSeconds}s)" }
-            cacheResult(hostname, result.addresses, result.ttlSeconds, state.networkHandle)
             return ordered
         }
 
@@ -203,16 +210,16 @@ class BiliDns(
     }
 
     /**
-     * 视频 CDN 域名：阿里 → 系统 DNS
+     * 视频 CDN 域名：阿里 → Cloudflare DoH → 系统 DNS
      */
     private fun lookupVideoCdn(hostname: String): List<InetAddress> {
         val state = currentNetworkState()
         cachedOrNull(hostname, state.hasIpv6)?.let { return it }
 
         queryVideoHttpDns(hostname)?.let { result ->
+            cacheResult(hostname, result.addresses, result.ttlSeconds, state.networkHandle)
             val ordered = orderAddresses(result.addresses, state.hasIpv6)
             Logger.d(TAG) { "HTTPDNS resolved video CDN $hostname: $ordered (ttl=${result.ttlSeconds}s)" }
-            cacheResult(hostname, result.addresses, result.ttlSeconds, state.networkHandle)
             return ordered
         }
 
@@ -295,13 +302,33 @@ class BiliDns(
     }
 
     private fun queryHttpDns(hostname: String, operatorCode: String?): DnsResult? {
-        return BiliHttpDns.resolve(hostname, operatorCode)
-            ?: AlibabaHttpDns.resolve(hostname)
-            ?: TencentHttpDns.resolve(hostname)
+        return if (!systemDnsEnabled && preferCloudflare()) {
+            CloudflareDoh.resolve(hostname)
+                ?: BiliHttpDns.resolve(hostname, operatorCode)
+                ?: TencentHttpDns.resolve(hostname)
+        } else if (!systemDnsEnabled) {
+            BiliHttpDns.resolve(hostname, operatorCode)
+                ?: TencentHttpDns.resolve(hostname)
+                ?: CloudflareDoh.resolve(hostname)
+        } else {
+            null
+        }
     }
 
     private fun queryVideoHttpDns(hostname: String): DnsResult? {
-        return AlibabaHttpDns.resolve(hostname)
+        return if (!systemDnsEnabled && preferCloudflare()) {
+            CloudflareDoh.resolve(hostname)
+                ?: AlibabaHttpDns.resolve(hostname)
+        } else if (!systemDnsEnabled) {
+            AlibabaHttpDns.resolve(hostname)
+                ?: CloudflareDoh.resolve(hostname)
+        } else {
+            null
+        }
+    }
+
+    private fun preferCloudflare(): Boolean {
+        return regionCodeCache.get().takeIf { it.isNotBlank() } != "CN"
     }
 
     @SuppressLint("MissingPermission")

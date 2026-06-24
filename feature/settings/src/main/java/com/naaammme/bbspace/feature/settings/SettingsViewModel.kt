@@ -104,6 +104,12 @@ class SettingsViewModel @Inject constructor(
         false
     )
 
+    val useSystemDns = appSettings.useSystemDns.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
+
     fun updateThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             appSettings.updateThemeMode(mode)
@@ -256,6 +262,12 @@ class SettingsViewModel @Inject constructor(
     fun updateEnableWebPlayback(enabled: Boolean) {
         viewModelScope.launch {
             appSettings.updateEnableWebPlayback(enabled)
+        }
+    }
+
+    fun updateUseSystemDns(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateUseSystemDns(enabled)
         }
     }
 

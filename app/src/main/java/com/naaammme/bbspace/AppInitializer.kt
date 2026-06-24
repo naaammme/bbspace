@@ -56,60 +56,62 @@ class AppInitializer @Inject constructor(
     private var initialized = false
 
     fun initialize() {
-        biliDns.start {
-            if (!initialized) return@start
-            initScope.launch {
-                cacheManager.clearColdStartCache()
-                coldStartClient.getColdStartData()
-            }
-        }
-        warmupImageConnections()
-        initScope.launch {
-            runCatching {
-                playbackSession.prepare()
-            }.onSuccess {
-                Logger.d(TAG) { "Player warmup done" }
-            }.onFailure { error ->
-                Logger.w(TAG) { "Player warmup failed: ${error.message}" }
-            }
-        }
         observePlaybackService()
 
         initScope.launch {
-            try {
-                Logger.d(TAG) { "开始初始化应用..." }
-
-                appSettings.themeConfig.first()
-                appSettings.updateNeedTrial(false)
-
-                val ticket = ticketGenerator.getOrRefresh()
-                Logger.d(TAG) { "Ticket 初始化完成: ${if (ticket.isEmpty()) "空" else "已缓存"}" }
-
-                val remoteBuvid = buvidFetcher.fetchAndUpdate()
-                Logger.d(TAG) { "远程 buvid: ${remoteBuvid ?: "获取失败，使用本地 buvid"}" }
-
-                val coldStartData = coldStartClient.getColdStartData()
-                Logger.d(TAG) { "冷启动数据获取完成: IP=${coldStartData.ipInfo?.addr}" }
-
-                val guestId = guestIdGenerator.getOrGenerateGuestId(ticket)
-                Logger.d(TAG) { "GuestId 初始化完成: $guestId" }
-
-                if (cacheManager.sessionId.isEmpty()) {
-                    val sessionId = cacheManager.generateSessionId()
-                    cacheManager.saveSession(guestId, sessionId, "")
-                    Logger.d(TAG) { "SessionId 初始化完成: $sessionId" }
+            val useSystemDns = appSettings.useSystemDns.first()
+            biliDns.start(useSystemDns) {
+                if (!initialized) return@start
+                initScope.launch {
+                    cacheManager.clearColdStartCache()
+                    coldStartClient.getColdStartData()
                 }
-
-                if (!appSettings.blockGaia.first()) {
-                    gaiaReporter.reportIfNeeded()
-                } else {
-                    Logger.d(TAG) { "Gaia 上报已被用户禁用，跳过" }
+            }
+            warmupImageConnections()
+            launch {
+                runCatching {
+                    playbackSession.prepare()
+                }.onSuccess {
+                    Logger.d(TAG) { "Player warmup done" }
+                }.onFailure { error ->
+                    Logger.w(TAG) { "Player warmup failed: ${error.message}" }
                 }
+            }
+            launch {
+                try {
+                    Logger.d(TAG) { "开始初始化应用..." }
 
-                initialized = true
-                Logger.d(TAG) { "应用初始化完成" }
-            } catch (e: Exception) {
-                Logger.e(TAG, e) { "应用初始化失败" }
+                    appSettings.themeConfig.first()
+                    appSettings.updateNeedTrial(false)
+
+                    val ticket = ticketGenerator.getOrRefresh()
+                    Logger.d(TAG) { "Ticket 初始化完成: ${if (ticket.isEmpty()) "空" else "已缓存"}" }
+
+                    val remoteBuvid = buvidFetcher.fetchAndUpdate()
+                    Logger.d(TAG) { "远程 buvid: ${remoteBuvid ?: "获取失败，使用本地 buvid"}" }
+
+                    val coldStartData = coldStartClient.getColdStartData()
+                    Logger.d(TAG) { "冷启动数据获取完成: IP=${coldStartData.ipInfo?.addr}" }
+
+                    val guestId = guestIdGenerator.getOrGenerateGuestId(ticket)
+                    Logger.d(TAG) { "GuestId 初始化完成: $guestId" }
+
+                    if (cacheManager.sessionId.isEmpty()) {
+                        val sessionId = cacheManager.generateSessionId()
+                        cacheManager.saveSession(guestId, sessionId, "")
+                        Logger.d(TAG) { "SessionId 初始化完成: $sessionId" }
+                    }
+
+                    if (!appSettings.blockGaia.first()) {
+                        gaiaReporter.reportIfNeeded()
+                    } else {
+                        Logger.d(TAG) { "Gaia 上报已被用户禁用，跳过" }
+                    }
+                    initialized = true
+                    Logger.d(TAG) { "应用初始化完成" }
+                } catch (e: Exception) {
+                    Logger.e(TAG, e) { "应用初始化失败" }
+                }
             }
         }
     }
