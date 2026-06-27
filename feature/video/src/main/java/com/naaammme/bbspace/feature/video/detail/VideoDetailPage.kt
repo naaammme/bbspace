@@ -72,7 +72,7 @@ import com.naaammme.bbspace.core.model.VideoStat
 import com.naaammme.bbspace.feature.comment.CommentPanel
 import com.naaammme.bbspace.feature.video.formatDuration
 import kotlinx.coroutines.launch
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun VideoDetailPage(
     modifier: Modifier = Modifier,
@@ -92,7 +92,8 @@ internal fun VideoDetailPage(
     val curCid = ids.cid.takeIf { it > 0L }
     var descOn by rememberSaveable(aidKey) { mutableStateOf(false) }
     var tagOn by rememberSaveable(aidKey) { mutableStateOf(false) }
-    var sheetTp by rememberSaveable(aidKey) { mutableStateOf<String?>(null) }
+    var sheet by remember(aidKey) { mutableStateOf<DetailSheet?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val detailListState = remember(aidKey) { LazyListState() }
     val commentListState = remember(aidKey) { LazyListState() }
     val commentThreadListState = remember(aidKey) { LazyListState() }
@@ -101,6 +102,16 @@ internal fun VideoDetailPage(
 
     LaunchedEffect(aidKey) {
         pagerState.scrollToPage(0)
+    }
+
+    fun closeSheet(afterClose: (() -> Unit)? = null) {
+        scope.launch {
+            if (sheetState.isVisible) {
+                sheetState.hide()
+            }
+            sheet = null
+            afterClose?.invoke()
+        }
     }
 
     HorizontalPager(
@@ -121,8 +132,12 @@ internal fun VideoDetailPage(
                 tagOn = tagOn,
                 onToggleDesc = { descOn = !descOn },
                 onToggleTag = { tagOn = !tagOn },
-                onSeasonClick = { sheetTp = SHEET_SEASON },
-                onPageClick = { sheetTp = SHEET_PAGE },
+                onSeasonClick = { sheet = detail?.season?.let { DetailSheet.Season(it, curCid) } },
+                onPageClick = {
+                    sheet = detail?.pages
+                        ?.takeIf { it.size > 1 }
+                        ?.let { DetailSheet.Page(it, curCid) }
+                },
                 onOpenComments = {
                     scope.launch {
                         pagerState.animateScrollToPage(1)
@@ -155,28 +170,37 @@ internal fun VideoDetailPage(
         }
     }
 
-    detail?.season?.takeIf { sheetTp == SHEET_SEASON }?.let { season ->
-        SeasonSheet(
-            season = season,
-            curCid = curCid,
-            onDismiss = { sheetTp = null },
-            onOpenEpisode = { route ->
-                sheetTp = null
-                onOpenEpisode(route)
-            }
-        )
-    }
+    sheet?.let { activeSheet ->
+        ModalBottomSheet(
+            onDismissRequest = { closeSheet() },
+            sheetState = sheetState
+        ) {
+            when (activeSheet) {
+                is DetailSheet.Season -> {
+                    SeasonSheetContent(
+                        season = activeSheet.season,
+                        curCid = activeSheet.curCid,
+                        onOpenEpisode = { route ->
+                            closeSheet {
+                                onOpenEpisode(route)
+                            }
+                        }
+                    )
+                }
 
-    if (sheetTp == SHEET_PAGE && detail != null && detail.pages.size > 1) {
-        PageSheet(
-            pages = detail.pages,
-            curCid = curCid,
-            onDismiss = { sheetTp = null },
-            onSwitchPage = { cid ->
-                sheetTp = null
-                onSwitchPage(cid)
+                is DetailSheet.Page -> {
+                    PageSheetContent(
+                        pages = activeSheet.pages,
+                        curCid = activeSheet.curCid,
+                        onSwitchPage = { cid ->
+                            closeSheet {
+                                onSwitchPage(cid)
+                            }
+                        }
+                    )
+                }
             }
-        )
+        }
     }
 }
 
@@ -772,137 +796,121 @@ private fun PageEntryCard(
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun SeasonSheet(
+private fun SeasonSheetContent(
     season: VideoSeason,
     curCid: Long?,
-    onDismiss: () -> Unit,
     onOpenEpisode: (VideoTarget) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val initIdx = remember(season, curCid) { seasonSheetIndex(season, curCid) }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initIdx)
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        item(
+            key = "season_title",
+            contentType = "title"
         ) {
-            item(
-                key = "season_title",
-                contentType = "title"
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = season.title,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                season.subTitle?.takeIf(String::isNotBlank)?.let { subTitle ->
                     Text(
-                        text = season.title,
-                        style = MaterialTheme.typography.titleLarge
+                        text = subTitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    season.subTitle?.takeIf(String::isNotBlank)?.let { subTitle ->
-                        Text(
-                            text = subTitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                }
+            }
+        }
+
+        season.sections.forEachIndexed { secIdx, sec ->
+            item(
+                key = "sec_$secIdx",
+                contentType = "section"
+            ) {
+                if (secIdx > 0) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                }
+                if (sec.title.isNotBlank()) {
+                    Text(
+                        text = sec.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 
-            season.sections.forEachIndexed { secIdx, sec ->
-                item(
-                    key = "sec_$secIdx",
-                    contentType = "section"
-                ) {
-                    if (secIdx > 0) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    }
-                    if (sec.title.isNotBlank()) {
-                        Text(
-                            text = sec.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-
-                items(
-                    items = sec.eps,
-                    key = { "ep_${it.cid}_${it.title}" },
-                    contentType = { "episode" }
-                ) { ep ->
-                    SeasonEpisodeRow(
-                        ep = ep,
-                        selected = ep.cid == curCid,
-                        onClick = {
-                            if (ep.cid != curCid) {
-                                onOpenEpisode(ep.target)
-                            }
+            items(
+                items = sec.eps,
+                key = { "ep_${it.cid}_${it.title}" },
+                contentType = { "episode" }
+            ) { ep ->
+                SeasonEpisodeRow(
+                    ep = ep,
+                    selected = ep.cid == curCid,
+                    onClick = {
+                        if (ep.cid != curCid) {
+                            onOpenEpisode(ep.target)
                         }
-                    )
-                }
+                    }
+                )
             }
         }
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun PageSheet(
+private fun PageSheetContent(
     pages: List<VideoPagePart>,
     curCid: Long?,
-    onDismiss: () -> Unit,
     onSwitchPage: (Long) -> Unit
 ) {
     val pageSheetUi = remember(pages) { buildPageSheetUi(pages) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val initIdx = remember(pages, curCid) { pageSheetIndex(pageSheetUi, curCid) }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initIdx)
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        item(
+            key = "page_title",
+            contentType = "title"
         ) {
-            item(
-                key = "page_title",
-                contentType = "title"
-            ) {
-                Text(
-                    text = "分P列表",
-                    style = MaterialTheme.typography.titleLarge
-                )
-            }
+            Text(
+                text = "分P列表",
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
 
-            items(
-                items = pageSheetUi.items,
-                key = { page -> "page_${page.cid}" },
-                contentType = { "page" }
-            ) { page ->
-                PageSheetRow(
-                    title = page.title,
-                    subTitle = page.subTitle,
-                    selected = page.cid == curCid,
-                    onClick = {
-                        if (page.cid != curCid) {
-                            onSwitchPage(page.cid)
-                        }
+        items(
+            items = pageSheetUi.items,
+            key = { page -> "page_${page.cid}" },
+            contentType = { "page" }
+        ) { page ->
+            PageSheetRow(
+                title = page.title,
+                subTitle = page.subTitle,
+                selected = page.cid == curCid,
+                onClick = {
+                    if (page.cid != curCid) {
+                        onSwitchPage(page.cid)
                     }
-                )
-            }
+                }
+            )
         }
     }
 }
@@ -1271,8 +1279,17 @@ private fun VideoDetail.toSpaceRouteOrNull(fromViewAid: Long?): SpaceRoute? {
 }
 
 private const val DETAIL_RELATE_SKELETON_COUNT = 2
-private const val SHEET_SEASON = "season"
-private const val SHEET_PAGE = "page"
+private sealed interface DetailSheet {
+    data class Season(
+        val season: VideoSeason,
+        val curCid: Long?
+    ) : DetailSheet
+
+    data class Page(
+        val pages: List<VideoPagePart>,
+        val curCid: Long?
+    ) : DetailSheet
+}
 
 @Immutable
 private data class PageSheetUi(
