@@ -3,7 +3,7 @@ package com.naaammme.bbspace.feature.history.search
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.history.HistoryRepository
+import com.naaammme.bbspace.core.history.HistoryRepository
 import com.naaammme.bbspace.core.model.HistoryItem
 import com.naaammme.bbspace.core.model.HistoryTab
 import dagger.hilt.android.lifecycle.HiltViewModel

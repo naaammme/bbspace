@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.search.SearchRepository
+import com.naaammme.bbspace.core.search.SearchRepository
 import com.naaammme.bbspace.core.model.SearchFilter
 import com.naaammme.bbspace.core.model.SearchHistoryOrder
 import com.naaammme.bbspace.core.model.SearchOrder

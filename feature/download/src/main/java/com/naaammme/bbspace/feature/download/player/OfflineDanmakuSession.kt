@@ -1,6 +1,6 @@
 package com.naaammme.bbspace.feature.download.player
 
-import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
+import com.naaammme.bbspace.core.download.VideoDownloadRepository
 import com.naaammme.bbspace.core.model.DanmakuItem
 import com.naaammme.bbspace.core.model.DanmakuSessionState
 import com.naaammme.bbspace.core.model.DanmakuWindow

@@ -27,11 +27,13 @@ android {
 
 dependencies {
     implementation(project(":feature:comment"))
-    implementation(project(":core:domain"))
+    implementation(project(":core:video"))
+    implementation(project(":core:playback"))
     implementation(project(":core:model"))
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
+    implementation(project(":core:settings"))
     implementation(project(":infra:player"))
 
     implementation(libs.hilt.android)

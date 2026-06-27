@@ -2,9 +2,9 @@ package com.naaammme.bbspace.feature.settings.privacy
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.data.AppSettings
-import com.naaammme.bbspace.core.data.AuthStore
-import com.naaammme.bbspace.core.data.CacheManager
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.auth.AuthStore
+import com.naaammme.bbspace.core.auth.CacheManager
 import com.naaammme.bbspace.core.model.LoginCredential
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

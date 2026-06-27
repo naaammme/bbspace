@@ -26,7 +26,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:domain"))
+    implementation(project(":core:space"))
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
 

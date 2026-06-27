@@ -3,7 +3,7 @@ package com.naaammme.bbspace.feature.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.history.HistoryRepository
+import com.naaammme.bbspace.core.history.HistoryRepository
 import com.naaammme.bbspace.core.model.HistoryCursor
 import com.naaammme.bbspace.core.model.HistoryItem
 import com.naaammme.bbspace.core.model.HistoryTab

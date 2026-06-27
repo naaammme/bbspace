@@ -26,8 +26,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:data"))
-    implementation(project(":core:domain"))
+    implementation(project(":core:auth"))
+    implementation(project(":core:settings"))
     implementation(project(":core:designsystem"))
 
     implementation(libs.hilt.android)

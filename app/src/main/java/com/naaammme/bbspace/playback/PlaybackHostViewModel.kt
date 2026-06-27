@@ -5,9 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.player.LivePlaybackController
-import com.naaammme.bbspace.core.domain.player.PlayerSettings
-import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.playback.LivePlaybackController
+import com.naaammme.bbspace.core.playback.StreamPlaybackSession
 import com.naaammme.bbspace.core.model.LiveRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.combine
@@ -22,7 +22,7 @@ import javax.inject.Inject
 class PlaybackHostViewModel @Inject constructor(
     private val playbackSession: StreamPlaybackSession,
     private val livePlaybackController: LivePlaybackController,
-    playerSettings: PlayerSettings
+    playerSettings: AppSettings
 ) : ViewModel() {
 
     val player = playbackSession.player

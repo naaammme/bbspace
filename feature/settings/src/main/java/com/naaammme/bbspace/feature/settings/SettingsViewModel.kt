@@ -2,8 +2,8 @@ package com.naaammme.bbspace.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.auth.AuthRepository
-import com.naaammme.bbspace.core.data.AppSettings
+import com.naaammme.bbspace.core.auth.AuthRepository
+import com.naaammme.bbspace.core.settings.AppSettings
 import com.naaammme.bbspace.core.designsystem.theme.AnimationSpeed
 import com.naaammme.bbspace.core.designsystem.theme.CornerStyle
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode

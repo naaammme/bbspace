@@ -2,8 +2,8 @@ package com.naaammme.bbspace.feature.comment
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.auth.AuthRepository
-import com.naaammme.bbspace.core.domain.comment.CommentRepository
+import com.naaammme.bbspace.core.auth.AuthRepository
+import com.naaammme.bbspace.core.comment.CommentRepository
 import com.naaammme.bbspace.core.model.COMMENT_FILTER_ALL
 import com.naaammme.bbspace.core.model.CommentPage
 import com.naaammme.bbspace.core.model.CommentReply

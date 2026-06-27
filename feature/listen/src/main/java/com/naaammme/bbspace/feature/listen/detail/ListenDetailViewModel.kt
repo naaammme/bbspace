@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaMetadata
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.listen.ListenRepository
+import com.naaammme.bbspace.core.listen.ListenRepository
 import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerEngine

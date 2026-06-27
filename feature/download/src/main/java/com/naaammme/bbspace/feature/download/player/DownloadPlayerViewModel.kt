@@ -3,9 +3,9 @@ package com.naaammme.bbspace.feature.download.player
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
-import com.naaammme.bbspace.core.domain.player.DownloadPlaybackController
-import com.naaammme.bbspace.core.domain.player.PlayerSettings
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.download.VideoDownloadRepository
+import com.naaammme.bbspace.core.playback.DownloadPlaybackController
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 class DownloadPlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playbackController: DownloadPlaybackController,
-    private val playerSettings: PlayerSettings,
+    private val playerSettings: AppSettings,
     downloadRepository: VideoDownloadRepository
 ) : ViewModel() {
 

@@ -2,10 +2,10 @@ package com.naaammme.bbspace.feature.settings.about
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.data.AppSettings
-import com.naaammme.bbspace.core.data.update.AppUpdateCheckResult
-import com.naaammme.bbspace.core.data.update.AppUpdateChecker
-import com.naaammme.bbspace.core.data.update.toDialogState
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.update.AppUpdateCheckResult
+import com.naaammme.bbspace.core.settings.update.AppUpdateChecker
+import com.naaammme.bbspace.core.settings.update.toDialogState
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

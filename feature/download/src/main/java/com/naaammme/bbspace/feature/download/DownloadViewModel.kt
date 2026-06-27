@@ -2,8 +2,8 @@ package com.naaammme.bbspace.feature.download
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.download.VideoDownloadRepository
-import com.naaammme.bbspace.core.domain.video.VideoDetailRepository
+import com.naaammme.bbspace.core.download.VideoDownloadRepository
+import com.naaammme.bbspace.core.video.VideoDetailRepository
 import com.naaammme.bbspace.core.model.VideoDownloadEnqueueResult
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadMeta

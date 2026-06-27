@@ -2,7 +2,7 @@ package com.naaammme.bbspace.feature.bbspace.publishedrecord
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.published.PublishedRecordRepository
+import com.naaammme.bbspace.core.published.PublishedRecordRepository
 import com.naaammme.bbspace.core.model.PublishedRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

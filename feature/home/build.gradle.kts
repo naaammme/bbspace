@@ -26,7 +26,12 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:data"))
+    implementation(project(":core:article"))
+    implementation(project(":core:feed"))
+    implementation(project(":core:listen"))
+    implementation(project(":core:live"))
+    implementation(project(":core:settings"))
+    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
 
     implementation(libs.hilt.android)

@@ -3,8 +3,8 @@ package com.naaammme.bbspace.feature.dynamic
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.auth.AuthRepository
-import com.naaammme.bbspace.core.domain.dynamic.DynamicRepository
+import com.naaammme.bbspace.core.auth.AuthRepository
+import com.naaammme.bbspace.core.dynamic.DynamicRepository
 import com.naaammme.bbspace.core.model.DynamicCursor
 import com.naaammme.bbspace.core.model.DynamicItem
 import com.naaammme.bbspace.core.model.DynamicRefresh

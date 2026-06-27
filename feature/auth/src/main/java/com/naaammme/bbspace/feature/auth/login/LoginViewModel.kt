@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.naaammme.bbspace.core.model.LoginState
-import com.naaammme.bbspace.core.domain.auth.AuthRepository
+import com.naaammme.bbspace.core.auth.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

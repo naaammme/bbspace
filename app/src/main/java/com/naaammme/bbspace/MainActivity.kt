@@ -17,10 +17,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import com.naaammme.bbspace.core.data.AppSettings
-import com.naaammme.bbspace.core.data.update.AppUpdateCheckResult
-import com.naaammme.bbspace.core.data.update.AppUpdateChecker
-import com.naaammme.bbspace.core.data.update.toDialogState
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.update.AppUpdateCheckResult
+import com.naaammme.bbspace.core.settings.update.AppUpdateChecker
+import com.naaammme.bbspace.core.settings.update.toDialogState
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialog
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
 import com.naaammme.bbspace.core.designsystem.theme.BiliTheme

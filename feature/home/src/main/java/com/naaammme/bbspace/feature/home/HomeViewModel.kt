@@ -3,10 +3,10 @@ package com.naaammme.bbspace.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.data.AppSettings
-import com.naaammme.bbspace.core.data.PageActionTracker
-import com.naaammme.bbspace.core.domain.feed.FeedDislikeRepository
-import com.naaammme.bbspace.core.domain.feed.FeedRepository
+import com.naaammme.bbspace.core.feed.FeedDislikeRepository
+import com.naaammme.bbspace.core.feed.FeedRepository
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.PageActionTracker
 import com.naaammme.bbspace.core.model.FeedItem
 import com.naaammme.bbspace.core.model.ThreePointReason
 import dagger.hilt.android.lifecycle.HiltViewModel

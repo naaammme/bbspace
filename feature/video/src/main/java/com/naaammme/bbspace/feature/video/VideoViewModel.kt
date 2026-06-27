@@ -3,8 +3,8 @@ package com.naaammme.bbspace.feature.video
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
-import com.naaammme.bbspace.core.domain.player.PlayerSettings
-import com.naaammme.bbspace.core.domain.player.VideoPlaybackController
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.playback.VideoPlaybackController
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.DanmakuConfig
@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class VideoViewModel @Inject constructor(
     private val playbackController: VideoPlaybackController,
-    private val playerSettings: PlayerSettings
+    private val playerSettings: AppSettings
 ) : ViewModel() {
 
     private val _targetStack = MutableStateFlow<List<VideoTarget>>(emptyList())

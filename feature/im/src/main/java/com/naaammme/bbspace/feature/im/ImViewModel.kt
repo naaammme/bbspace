@@ -3,8 +3,8 @@ package com.naaammme.bbspace.feature.im
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.auth.AuthRepository
-import com.naaammme.bbspace.core.domain.ImRepository
+import com.naaammme.bbspace.core.auth.AuthRepository
+import com.naaammme.bbspace.core.im.ImRepository
 import com.naaammme.bbspace.core.model.ImPaginationParams
 import com.naaammme.bbspace.core.model.ImSessionItem
 import com.naaammme.bbspace.core.model.ImSessionTab

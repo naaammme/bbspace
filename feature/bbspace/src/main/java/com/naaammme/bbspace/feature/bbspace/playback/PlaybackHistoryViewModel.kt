@@ -2,7 +2,7 @@ package com.naaammme.bbspace.feature.bbspace.playback
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.history.PlaybackHistoryRepository
+import com.naaammme.bbspace.core.history.PlaybackHistoryRepository
 import com.naaammme.bbspace.core.model.PlaybackHistory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

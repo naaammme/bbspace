@@ -3,10 +3,9 @@ package com.naaammme.bbspace
 import android.content.Context
 import android.content.Intent
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.data.AppSettings
-import com.naaammme.bbspace.core.data.CacheManager
-import com.naaammme.bbspace.core.domain.player.PlayerSettings
-import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.auth.CacheManager
+import com.naaammme.bbspace.core.playback.StreamPlaybackSession
 import com.naaammme.bbspace.infra.coldstart.ColdStartClient
 import com.naaammme.bbspace.infra.grpc.GaiaReporter
 import com.naaammme.bbspace.infra.crypto.BuvidFetcher
@@ -42,7 +41,6 @@ class AppInitializer @Inject constructor(
     private val gaiaReporter: GaiaReporter,
     private val appSettings: AppSettings,
     private val cacheManager: CacheManager,
-    private val playerSettings: PlayerSettings,
     private val playbackSession: StreamPlaybackSession,
     private val playerEngine: PlayerEngine
 ) {
@@ -137,7 +135,7 @@ class AppInitializer @Inject constructor(
         initScope.launch {
             combine(
                 playerEngine.currentSource.map { it != null },
-                playerSettings.state.map { it.playback.backgroundPlayback }
+                appSettings.state.map { it.playback.backgroundPlayback }
             ) { hasSource, backgroundPlayback ->
                 hasSource && backgroundPlayback
             }

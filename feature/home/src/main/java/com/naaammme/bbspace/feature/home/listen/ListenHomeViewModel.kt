@@ -3,7 +3,7 @@ package com.naaammme.bbspace.feature.home.listen
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.listen.ListenRepository
+import com.naaammme.bbspace.core.listen.ListenRepository
 import com.naaammme.bbspace.core.model.listen.ListenItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

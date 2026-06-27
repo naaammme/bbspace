@@ -30,8 +30,9 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:history"))
+    implementation(project(":core:published"))
     implementation(project(":core:model"))
-    implementation(project(":core:domain"))
     implementation(project(":core:designsystem"))
 
     implementation(libs.hilt.android)

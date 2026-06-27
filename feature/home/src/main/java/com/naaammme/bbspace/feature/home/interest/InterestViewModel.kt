@@ -3,7 +3,7 @@ package com.naaammme.bbspace.feature.home.interest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.feed.InterestRepository
+import com.naaammme.bbspace.core.feed.InterestRepository
 import com.naaammme.bbspace.core.model.UinterestResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

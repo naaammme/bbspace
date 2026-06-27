@@ -20,7 +20,7 @@ import coil3.toBitmap
 import com.naaammme.bbspace.MainActivity
 import com.naaammme.bbspace.R
 import com.naaammme.bbspace.core.common.media.coverThumbnailUrl
-import com.naaammme.bbspace.core.domain.player.StreamPlaybackSession
+import com.naaammme.bbspace.core.playback.StreamPlaybackSession
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerEngine

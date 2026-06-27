@@ -3,7 +3,7 @@ package com.naaammme.bbspace.feature.history.watchlater
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.history.WatchLaterRepository
+import com.naaammme.bbspace.core.history.WatchLaterRepository
 import com.naaammme.bbspace.core.model.WatchLaterCursor
 import com.naaammme.bbspace.core.model.WatchLaterItem
 import com.naaammme.bbspace.core.model.WatchLaterTab

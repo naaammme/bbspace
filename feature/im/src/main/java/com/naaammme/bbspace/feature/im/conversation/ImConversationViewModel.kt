@@ -4,7 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.domain.ImRepository
+import com.naaammme.bbspace.core.im.ImRepository
 import com.naaammme.bbspace.core.model.ImConversationPage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

@@ -2,7 +2,7 @@ package com.naaammme.bbspace.feature.auth.sms
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.auth.AuthRepository
+import com.naaammme.bbspace.core.auth.AuthRepository
 import com.naaammme.bbspace.core.model.CountryCode
 import com.naaammme.bbspace.core.model.GeetestResult
 import com.naaammme.bbspace.core.model.SmsLoginState

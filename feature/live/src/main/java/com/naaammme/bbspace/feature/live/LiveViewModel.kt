@@ -2,9 +2,9 @@ package com.naaammme.bbspace.feature.live
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.domain.live.LiveRoomMessageRepository
-import com.naaammme.bbspace.core.domain.player.LivePlaybackController
-import com.naaammme.bbspace.core.domain.player.PlayerSettings
+import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.live.LiveRoomMessageRepository
+import com.naaammme.bbspace.core.playback.LivePlaybackController
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoomPanelState
@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 class LiveViewModel @Inject constructor(
     private val playbackController: LivePlaybackController,
     private val liveRoomMessageRepository: LiveRoomMessageRepository,
-    private val playerSettings: PlayerSettings
+    private val playerSettings: AppSettings
 ) : ViewModel() {
     val player = playbackController.player
     private val _route = MutableStateFlow<LiveRoute?>(null)
