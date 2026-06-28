@@ -46,14 +46,14 @@ private object UserCollageShapes {
 private object UserCollageFrames {
     val avatar = UserCollageFrame("avatar", 0.29f, 0.34f, Alignment.TopStart, 0.04f, 0.05f, -8f)
     val name = UserCollageFrame("name", 0.41f, 0.41f, Alignment.TopEnd, -0.03f, 0.05f, 7f)
-    val dynamic = UserCollageFrame("dynamic", 0.29f, 0.29f, Alignment.CenterEnd, -0.05f, -0.11f, -9f)
-    val following = UserCollageFrame("following", 0.31f, 0.20f, Alignment.CenterStart, 0.06f, 0.03f, -12f)
-    val follower = UserCollageFrame("follower", 0.23f, 0.23f, Alignment.CenterEnd, -0.05f, 0.09f, 10f)
-    val offline = UserCollageFrame("offline", 0.31f, 0.31f, Alignment.BottomStart, 0.03f, -0.24f, -7f)
-    val history = UserCollageFrame("history", 0.31f, 0.31f, Alignment.BottomCenter, -0.02f, -0.25f, 13f)
-    val favorite = UserCollageFrame("favorite", 0.31f, 0.31f, Alignment.BottomEnd, -0.03f, -0.24f, -10f)
-    val watchLater = UserCollageFrame("watchLater", 0.35f, 0.35f, Alignment.BottomStart, 0.13f, -0.09f, 6f)
-    val bbSpace = UserCollageFrame("bbSpace", 0.46f, 0.20f, Alignment.BottomEnd, -0.04f, -0.11f, -6f)
+    val dynamic = UserCollageFrame("dynamic", 0.29f, 0.29f, Alignment.CenterEnd, -0.05f, -0.25f, -9f)
+    val following = UserCollageFrame("following", 0.31f, 0.20f, Alignment.CenterStart, 0.06f, -0.13f, -12f)
+    val follower = UserCollageFrame("follower", 0.23f, 0.23f, Alignment.CenterEnd, -0.05f, -0.09f, 10f)
+    val offline = UserCollageFrame("offline", 0.31f, 0.31f, Alignment.BottomStart, 0.03f, -0.47f, -7f)
+    val history = UserCollageFrame("history", 0.31f, 0.31f, Alignment.BottomCenter, -0.02f, -0.48f, 13f)
+    val favorite = UserCollageFrame("favorite", 0.31f, 0.31f, Alignment.BottomEnd, -0.03f, -0.47f, -10f)
+    val watchLater = UserCollageFrame("watchLater", 0.35f, 0.35f, Alignment.BottomStart, 0.11f, -0.34f, 6f)
+    val bbSpace = UserCollageFrame("bbSpace", 0.46f, 0.20f, Alignment.BottomEnd, -0.04f, -0.34f, -6f)
 }
 
 private data class UserCollageFrame(
