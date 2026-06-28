@@ -1,14 +1,17 @@
 package com.naaammme.bbspace.feature.comment
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.auth.AuthRepository
 import com.naaammme.bbspace.core.comment.CommentRepository
+import com.naaammme.bbspace.core.comment.ImageAttachmentHandler
 import com.naaammme.bbspace.core.model.COMMENT_FILTER_ALL
 import com.naaammme.bbspace.core.model.CommentPage
 import com.naaammme.bbspace.core.model.CommentReply
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
+import com.naaammme.bbspace.feature.comment.editor.COMMENT_EDITOR_MAX_IMAGE_COUNT
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorState
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorTarget
 import com.naaammme.bbspace.feature.comment.thread.CommentThreadState
@@ -21,9 +24,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 
 @HiltViewModel
 class CommentViewModel @Inject constructor(
+    private val imageHandler: ImageAttachmentHandler,
     private val repo: CommentRepository,
     authRepo: AuthRepository
 ) : ViewModel() {
@@ -424,6 +430,20 @@ class CommentViewModel @Inject constructor(
         }
     }
 
+    fun addImages(uris: List<Uri>) {
+        _editorState.update {
+            it.copy(selectedImageUris = (it.selectedImageUris + uris).distinct().take(COMMENT_EDITOR_MAX_IMAGE_COUNT))
+        }
+    }
+
+    fun removeImage(index: Int) {
+        _editorState.update {
+            it.copy(selectedImageUris = it.selectedImageUris.toMutableList().apply {
+                if (index in indices) removeAt(index)
+            })
+        }
+    }
+
     fun submitEditor() {
         val state = _uiState.value
         val subject = state.subject ?: return
@@ -432,7 +452,7 @@ class CommentViewModel @Inject constructor(
             return
         }
         val editor = _editorState.value
-        if (editor.loading) return
+        if (editor.loading || editor.uploading) return
         val text = editor.input.trim()
         if (text.isBlank()) {
             _msg.tryEmit("评论内容不能为空")
@@ -448,13 +468,45 @@ class CommentViewModel @Inject constructor(
             it.copy(loading = true)
         }
         viewModelScope.launch {
+            val picturesJson = if (editor.selectedImageUris.isNotEmpty()) {
+                _editorState.update { it.copy(uploading = true) }
+                val result = runCatching {
+                    val pics = mutableListOf<JSONObject>()
+                    editor.selectedImageUris.forEachIndexed { index, uri ->
+                        val prepared = imageHandler.prepare(uri)
+                        val resp = repo.uploadImage(prepared.bytes, index, prepared.mimeType)
+                        val data = resp.getJSONObject("data")
+                        pics.add(JSONObject().apply {
+                            put("ai_gen_pic", data.optInt("ai_gen_pic", 0))
+                            put("img_height", data.getInt("image_height"))
+                            put("img_size", data.getDouble("img_size"))
+                            put("img_src", data.getString("image_url"))
+                            put("img_width", data.getInt("image_width"))
+                        })
+                    }
+                    JSONArray(pics).toString().replace("\\/", "/")
+                }
+                _editorState.update { it.copy(uploading = false) }
+                if (callId != reqId || _uiState.value.subject != subject) return@launch
+                result.fold(
+                    onSuccess = { json -> json },
+                    onFailure = { err ->
+                        _editorState.update { it.copy(loading = false) }
+                        _msg.tryEmit(err.message ?: "图片上传失败")
+                        return@launch
+                    }
+                )
+            } else {
+                null
+            }
             val publishResult = runCatching {
                 repo.publishReply(
                     subject = subject,
                     message = text,
                     rootRpid = target.rootRpid,
                     parentRpid = target.parentRpid,
-                    sort = sort
+                    sort = sort,
+                    pictures = picturesJson
                 )
             }
             if (callId != reqId || _uiState.value.subject != subject) return@launch

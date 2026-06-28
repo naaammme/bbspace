@@ -45,6 +45,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -85,7 +87,8 @@ class CommentRepository @Inject constructor(
         message: String,
         rootRpid: Long = 0L,
         parentRpid: Long = 0L,
-        sort: CommentSort = CommentSort.HOT
+        sort: CommentSort = CommentSort.HOT,
+        pictures: String? = null
     ): CommentReply {
         val accessToken = authProvider.accessToken
         check(accessToken.isNotBlank()) { "请先登录" }
@@ -119,6 +122,9 @@ class CommentRepository @Inject constructor(
                 }
                 subject.source.trackId?.takeIf(String::isNotBlank)?.let { value ->
                     put("track_id", value)
+                }
+                if (pictures != null) {
+                    put("pictures", pictures)
                 }
             },
             profile = BiliRestProfile.APP
@@ -488,6 +494,7 @@ class CommentRepository @Inject constructor(
             rootId = reply.getLong("root"),
             parentId = reply.getLong("parent"),
             imageListJson = pictures?.takeIf { it.length() > 0 }?.toString()
+                ?.replace("\\/", "/") // JSON toString 会把 / 转义为 \/，去掉
         )
     }
 
@@ -656,6 +663,43 @@ class CommentRepository @Inject constructor(
         return replace("http://", "https://")
     }
 
+    suspend fun uploadImage(
+        imageData: ByteArray,
+        pos: Int,
+        mimeType: String
+    ): JSONObject {
+        val accessKey = authProvider.accessToken
+        check(accessKey.isNotBlank()) { "请先登录" }
+        val ext = when {
+            mimeType.contains("png", ignoreCase = true) -> "png"
+            mimeType.contains("gif", ignoreCase = true) -> "gif"
+            mimeType.contains("webp", ignoreCase = true) -> "webp"
+            else -> "jpg"
+        }
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("biz", "new_dyn")
+            .addFormDataPart("pos", pos.toString())
+            .addFormDataPart("access_key", accessKey)
+            .addFormDataPart("category", "daily")
+            .addFormDataPart("file_up", "image_$pos.$ext", imageData.toRequestBody(mimeType.toMediaType()))
+            .build()
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("${BiliConstants.BASE_URL_API}$UPLOAD_ENDPOINT")
+                .post(body)
+                .build()
+            okHttpClient.newCall(request).execute().use { resp ->
+                val json = JSONObject(resp.body?.string() ?: throw BiliApiException(-1, "Empty upload response"))
+                val code = json.optInt("code", -1)
+                if (code != 0) {
+                    throw BiliApiException(code, json.optString("message", "图片上传失败"))
+                }
+                json
+            }
+        }
+    }
+
     private companion object {
         const val MINUTE_MS = 60_000L
         const val HOUR_MS = 3_600_000L
@@ -666,6 +710,7 @@ class CommentRepository @Inject constructor(
         const val TRANSLATE_ENDPOINT = "bilibili.main.community.reply.v1.Reply/TranslateReply"
         const val ADD_ENDPOINT = "/x/v2/reply/add"
         const val DEL_ENDPOINT = "/x/v2/reply/del"
+        const val UPLOAD_ENDPOINT = "/x/dynamic/feed/draw/upload_bfs"
         const val TAG = "CommentRepo"
     }
 }
