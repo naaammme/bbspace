@@ -2,7 +2,6 @@ package com.naaammme.bbspace.feature.webview
 
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import android.os.Build
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -39,15 +38,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import com.naaammme.bbspace.core.common.UserAgentBuilder
+import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.LiveRouteTool
+import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.core.model.SpaceRouteTool
 import com.naaammme.bbspace.core.model.WebLinkParser
 import com.naaammme.bbspace.core.model.WebLinkTarget
-import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.SpaceRouteTool
-import com.naaammme.bbspace.core.model.LiveRouteTool
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,7 +92,7 @@ fun WebViewScreen(
             cookieM.setAcceptThirdPartyCookies(this, true)
             setDownloadListener { downloadUrl, _, _, _, _ ->
                 runCatching {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, downloadUrl.toUri()))
                 }
             }
         }
@@ -101,14 +100,13 @@ fun WebViewScreen(
 
     DisposableEffect(webView) {
         fun routeUrl(requestUrl: String): Boolean {
-            val scheme = Uri.parse(requestUrl).scheme.orEmpty().lowercase()
+            val scheme = requestUrl.toUri().scheme.orEmpty().lowercase()
             if (scheme.isNotEmpty() && scheme != "http" && scheme != "https") {
                 currentOnOpenExternal(requestUrl)
                 return true
             }
 
-            val target = WebLinkParser.parse(requestUrl)
-            return when (target) {
+            return when (val target = WebLinkParser.parse(requestUrl)) {
                 is WebLinkTarget.Stay -> false
                 is WebLinkTarget.ToVideo -> {
                     currentOnOpenVideo(target)

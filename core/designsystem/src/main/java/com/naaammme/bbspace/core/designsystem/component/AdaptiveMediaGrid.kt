@@ -28,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.window.core.layout.WindowWidthSizeClass
 
 @Composable
 fun rememberAdaptiveGridColumnCount(
@@ -37,10 +36,9 @@ fun rememberAdaptiveGridColumnCount(
     expanded: Int = 4
 ): Int {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    return when (windowSizeClass.windowWidthSizeClass) {
-        WindowWidthSizeClass.COMPACT -> compact
-        WindowWidthSizeClass.MEDIUM -> medium
-        WindowWidthSizeClass.EXPANDED -> expanded
+    return when {
+        windowSizeClass.isWidthAtLeastBreakpoint(840) -> expanded
+        windowSizeClass.isWidthAtLeastBreakpoint(600) -> medium
         else -> compact
     }
 }

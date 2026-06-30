@@ -49,6 +49,7 @@ internal fun ImConversationComposer(
     var isFocused by remember { mutableStateOf(false) }
     var imeWasVisible by remember { mutableStateOf(false) }
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    // TODO 改成 TextFieldState，后面和输入态清理逻辑一起收敛，避免先在这里引入额外状态同步代码
     var text by rememberSaveable { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
 

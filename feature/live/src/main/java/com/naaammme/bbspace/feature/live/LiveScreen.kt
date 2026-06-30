@@ -22,7 +22,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -34,7 +33,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.window.core.layout.WindowWidthSizeClass
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.feature.live.component.LivePlaybackBody
 import com.naaammme.bbspace.feature.live.player.LivePlayerPane
@@ -54,10 +52,10 @@ fun LiveScreen(
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
     val owner = LocalLifecycleOwner.current
     val act = LocalActivity.current
-    val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     var isFull by rememberSaveable { mutableStateOf(false) }
     val fullOn = hostExpanded && isFull
-    val isExpanded = hostExpanded && widthClass == WindowWidthSizeClass.EXPANDED && !fullOn
+    val isExpanded = hostExpanded && windowSizeClass.isWidthAtLeastBreakpoint(840) && !fullOn
 
     val toggleFull = { isFull = !isFull }
     val handleBack = {

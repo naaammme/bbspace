@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -41,8 +40,8 @@ import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleField
 import com.naaammme.bbspace.feature.settings.components.SettingCategory
 import com.naaammme.bbspace.feature.settings.navigation.APPEARANCE_ROUTE
-import com.naaammme.bbspace.feature.settings.navigation.FEED_SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.AUDIO_VIDEO_ROUTE
+import com.naaammme.bbspace.feature.settings.navigation.FEED_SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PERFORMANCE_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.PRIVACY_ROUTE
 
@@ -80,16 +79,7 @@ fun SettingsScreen(
             }
         }
     }
-    val homeItems = remember(
-        onNavigateToAppearance,
-        onNavigateToPerformance,
-        onNavigateToFeed,
-        onNavigateToAudioVideo,
-        onNavigateToPrivacy,
-        onNavigateToErrorLog,
-        onNavigateToAbout
-    ) {
-        listOf(
+    val homeItems = listOf(
             SettingsHomeItem(
                 icon = Icons.Default.Edit,
                 title = "外观设置",
@@ -133,7 +123,6 @@ fun SettingsScreen(
                 onClick = onNavigateToErrorLog
             )
         )
-    }
 
     CollapsingTopBarScaffold(
         topBar = { scrollBehavior ->
@@ -282,13 +271,6 @@ private fun SearchResultGroup(
             title = entry.title,
             subtitle = entry.subtitle,
             shape = shape,
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
             onClick = { onEntryClick(entry) }
         )
     }

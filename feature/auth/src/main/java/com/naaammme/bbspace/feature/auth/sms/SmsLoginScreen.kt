@@ -124,7 +124,8 @@ fun SmsLoginScreen(
                     if (loadingCountries) {
                         DropdownMenuItem(
                             text = { Text("加载中...") },
-                            onClick = {}
+                            onClick = {},
+                            enabled = false
                         )
                     } else {
                         countryList.forEach { country ->

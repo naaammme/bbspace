@@ -42,7 +42,7 @@ fun BiliPullToRefreshBox(
             modifier = Modifier.align(Alignment.TopCenter),
             state = state,
             isRefreshing = isRefreshing,
-            threshold = indicatorThreshold
+            maxDistance = indicatorThreshold
         )
     }
 }

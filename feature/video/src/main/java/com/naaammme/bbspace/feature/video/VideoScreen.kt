@@ -49,7 +49,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.media3.common.util.UnstableApi
-import androidx.window.core.layout.WindowWidthSizeClass
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.PlayerSettingsState
@@ -80,7 +79,8 @@ fun VideoScreen(
     val videoState by viewModel.videoState.collectAsStateWithLifecycle()
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
     val act = LocalActivity.current
-    val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val isExpandedWidth = windowSizeClass.isWidthAtLeastBreakpoint(840)
     val themeUsesDarkSystemBarIcons = MaterialTheme.colorScheme.background.luminance() > 0.5f
     var isFull by rememberSaveable { mutableStateOf(false) }
     var downloadSheetOn by rememberSaveable { mutableStateOf(false) }
@@ -126,8 +126,8 @@ fun VideoScreen(
         val ctrl = remember(win) { WindowInsetsControllerCompat(win, win.decorView) }
         val restoreLightSystemBars by rememberUpdatedState(themeUsesDarkSystemBarIcons)
 
-        LaunchedEffect(ctrl, fullOn, widthClass, themeUsesDarkSystemBarIcons) {
-            val statusBarOnDarkBg = fullOn || widthClass != WindowWidthSizeClass.EXPANDED
+        LaunchedEffect(ctrl, fullOn, isExpandedWidth, themeUsesDarkSystemBarIcons) {
+            val statusBarOnDarkBg = fullOn || !isExpandedWidth
 
             ctrl.isAppearanceLightStatusBars = !statusBarOnDarkBg && themeUsesDarkSystemBarIcons
             ctrl.isAppearanceLightNavigationBars = !fullOn && themeUsesDarkSystemBarIcons
@@ -167,7 +167,6 @@ fun VideoScreen(
         modifier = Modifier.fillMaxSize()
     ) {
         val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val isExpanded = widthClass == WindowWidthSizeClass.EXPANDED
         val playerTopPad = 16.dp
         val playerGap = 16.dp
         val compactVideoH = maxWidth * (9f / 16f)
@@ -191,7 +190,7 @@ fun VideoScreen(
                 }
             }
 
-            isExpanded -> {
+            isExpandedWidth -> {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()

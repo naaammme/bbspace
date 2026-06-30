@@ -10,14 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -161,7 +161,7 @@ fun InAppMiniPlayer(
                 ) {
                     IconButton(onClick = onTogglePlay) {
                         Icon(
-                            painter = if (sessionState.isPlaying) AppIcons.Pause else AppIcons.PlayArrow,
+                            imageVector = if (sessionState.isPlaying) AppIcons.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (sessionState.isPlaying) "暂停" else "播放",
                             tint = Color.White
                         )

@@ -6,7 +6,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import androidx.window.core.layout.WindowWidthSizeClass
+import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.feature.dynamic.detail.DynamicDetailScreen
 
@@ -37,8 +37,8 @@ fun NavGraphBuilder.dynamicDetailScreen(
             }
         )
     ) {
-        val widthClass = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass
-        val isExpanded = widthClass == WindowWidthSizeClass.EXPANDED
+        val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+        val isExpanded = windowSizeClass.isWidthAtLeastBreakpoint(840)
         DynamicDetailScreen(
             onBack = onBack,
             onOpenSpace = onOpenSpace,

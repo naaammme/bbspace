@@ -230,7 +230,7 @@ private fun PreviewImagePage(
     ) {
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
-        val tfState = rememberTransformableState { zoomChange, panChange, _ ->
+        val tfState = rememberTransformableState { _, zoomChange, panChange, _ ->
             val nextScale = (scale * zoomChange).coerceIn(1f, 5f)
             scale = nextScale
             offset = if (nextScale <= 1f) {
