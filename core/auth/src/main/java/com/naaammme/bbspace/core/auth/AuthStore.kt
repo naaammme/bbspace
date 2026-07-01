@@ -150,13 +150,16 @@ class AuthStore @Inject constructor(
     }
 
     fun importAccounts(json: String): List<LoginCredential> {
-        val arr = JSONArray(json)
+        val arr = try {
+            JSONArray(json)
+        } catch (e: JSONException) {
+            return emptyList()
+        }
         val result = mutableListOf<LoginCredential>()
         for (i in 0 until arr.length()) {
-            val credential = credentialFromJson(arr.getJSONObject(i).toString())
-            if (credential != null) {
-                saveToAccountList(credential)
-                result.add(credential)
+            credentialFromJson(arr.optJSONObject(i)?.toString())?.let {
+                saveToAccountList(it)
+                result.add(it)
             }
         }
         return result

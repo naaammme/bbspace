@@ -2,9 +2,14 @@ package com.naaammme.bbspace.feature.settings.about
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.core.net.toUri
 import androidx.compose.foundation.Image
@@ -29,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +49,9 @@ import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialog as CoreA
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.feature.settings.components.SettingSwitch
 import com.naaammme.bbspace.feature.settings.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -257,22 +266,64 @@ private fun LinkCard(
 
 @Composable
 private fun SupportDevDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier.padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onDismiss
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.support_tip_code),
                     contentDescription = "打赏赞赏码",
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = onDismiss,
+                            onLongClick = {
+                                scope.launch(Dispatchers.IO) {
+                                    saveSupportTipCode(context)
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "已保存到相册", Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                }
+                            }
+                        ),
                     contentScale = ContentScale.Fit
                 )
             }
         }
     }
+}
+
+private fun saveSupportTipCode(context: Context) {
+    val resolver = context.contentResolver
+    val values = ContentValues().apply {
+        put(
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            "support_tip_code_${System.currentTimeMillis()}.webp"
+        )
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/webp")
+        put(
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            "${Environment.DIRECTORY_PICTURES}/BBSpace"
+        )
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)!!
+    resolver.openOutputStream(uri, "w")!!.use { output ->
+        context.resources.openRawResource(R.drawable.support_tip_code).use { input ->
+            input.copyTo(output)
+        }
+    }
+    resolver.update(
+        uri,
+        ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+        null,
+        null
+    )
 }

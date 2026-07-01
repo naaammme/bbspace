@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -39,7 +38,7 @@ private object UserCollageShapes {
     val octagon = PolygonShape(sides = 8, rotationDeg = 22f, cornerScale = 0.14f)
     val hexagon = PolygonShape(sides = 6, rotationDeg = -18f, cornerScale = 0.2f)
     val statHexagon = PolygonShape(sides = 6, rotationDeg = -30f, cornerScale = 0.2f)
-    val watchLaterStar = StarShape(points = 5, innerScale = 0.62f)
+    val watchLaterStar = StarShape(points = 5, innerScale = 0.65f, cornerScale = 0.50f)
     val followerStar = StarShape(points = 6, innerScale = 0.78f, rotationDeg = -30f, cornerScale = 0.82f)
 }
 

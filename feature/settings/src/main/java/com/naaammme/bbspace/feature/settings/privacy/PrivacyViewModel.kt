@@ -77,7 +77,7 @@ class PrivacyViewModel @Inject constructor(
     fun importAccounts(json: String) {
         val result = authStore.importAccounts(json)
         _uiState.value = _uiState.value.copy(
-            importResult = if (result.isNotEmpty()) "导入 ${result.size} 个账号" else "导入失败",
+            importResult = if (result.isNotEmpty()) "导入 ${result.size} 个账号" else "导失败你写错",
             accounts = authStore.getAllAccounts()
         )
     }

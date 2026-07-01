@@ -25,7 +25,6 @@ import com.naaammme.bbspace.core.settings.AppSettings
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
-import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -163,7 +162,7 @@ class FeedRepository @Inject constructor(
         }
     }
 
-    private val adCardGotos = setOf("banner", "ad_web_s", "ad_web", "ad_web_gif", "ad", "ad_player")
+    private val adCardGotos = setOf("banner", "ad_web_s", "ad_web", "ad_web_gif", "ad_player")
 
     private fun parseItems(arr: org.json.JSONArray?, useHdProfile: Boolean): List<FeedItem> {
         if (arr == null) return emptyList()
@@ -209,10 +208,9 @@ class FeedRepository @Inject constructor(
             ?.takeIf(String::isNotEmpty)
             ?: args?.optString("up_name")?.takeIf(String::isNotEmpty)
         val isLive = isLiveCard(cardGoto, goto, uri, player)
-        val isPugv = cardGoto == "ketang" || goto == "ketang" || uri.contains("/cheese/play/")
+        val isPugv = cardGoto == "ketang" || goto == "ketang"
         val isPgc = cardGoto == "bangumi" || goto == "bangumi" ||
-            cardGoto == "ad_ogv" || goto == "ad_ogv" ||
-            uri.contains("/bangumi/play/")
+            cardGoto == "ad_ogv" || goto == "ad_ogv"
         val ugcAid = if (!isPgc && !isPugv) {
             param.toLongOrNull() ?: VideoTargetTool.aid(uri)
         } else {
@@ -276,7 +274,7 @@ class FeedRepository @Inject constructor(
             }
         }
         val liveRoute = if (isLive) {
-            resolveLiveRoomId(param, uri, player, args)?.let { roomId ->
+            resolveLiveRoomId(param, player, args)?.let { roomId ->
                 LiveRoute(
                     roomId = roomId,
                     title = title.takeIf(String::isNotBlank),
@@ -474,16 +472,11 @@ class FeedRepository @Inject constructor(
 
     private fun resolveLiveRoomId(
         param: String,
-        uri: String,
         player: JSONObject?,
         args: JSONObject?
     ): Long? {
         return player?.optLong("room_id")?.takeIf { it > 0L }
             ?: args?.optLong("room_id")?.takeIf { it > 0L }
             ?: param.toLongOrNull()
-            ?: VideoTargetTool.arg(uri, "room_id")?.toLongOrNull()
-            ?: runCatching {
-                URI(uri).path.orEmpty().trimEnd('/').substringAfterLast('/').toLongOrNull()
-            }.getOrNull()
     }
 }

@@ -39,6 +39,7 @@ fun AppearanceSettingsScreen(
     val config by viewModel.themeConfig.collectAsStateWithLifecycle()
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = { Text("外观设计") },
