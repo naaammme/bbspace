@@ -111,6 +111,12 @@ class SettingsViewModel @Inject constructor(
         false
     )
 
+    val fixBottomBar = appSettings.fixBottomBar.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        true
+    )
+
     fun updateThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             appSettings.updateThemeMode(mode)
@@ -275,6 +281,12 @@ class SettingsViewModel @Inject constructor(
     fun updateUseSystemDns(enabled: Boolean) {
         viewModelScope.launch {
             appSettings.updateUseSystemDns(enabled)
+        }
+    }
+
+    fun updateFixBottomBar(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateFixBottomBar(enabled)
         }
     }
 

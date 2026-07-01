@@ -41,7 +41,7 @@ private const val miniPlayerAspectRatio = 16f / 9f
 private val miniPlayerStashPeek = 28.dp
 private const val miniPlayerStashTriggerFraction = 0.5f
 private const val miniPlayerSettleVelocityThreshold = 1800f
-private val miniPlayerBottomGap = 12.dp
+private val miniPlayerBottomGap = 72.dp
 private val miniPlayerEdgePullHandle = 32.dp
 
 private class SettleJobHolder {

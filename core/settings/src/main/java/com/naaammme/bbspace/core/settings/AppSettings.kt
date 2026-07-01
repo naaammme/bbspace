@@ -60,6 +60,7 @@ class AppSettings @Inject constructor(
     private val teenagersAgeKey = intPreferencesKey("teenagers_age")
     private val autoCheckUpdateKey = booleanPreferencesKey("auto_check_update")
     private val useSystemDnsKey = booleanPreferencesKey("use_system_dns")
+    private val fixBottomBarKey = booleanPreferencesKey("fix_bottom_bar")
 
     val themeConfig: Flow<ThemeConfig> = context.appSettingsDataStore.data.map { prefs ->
         ThemeConfig(
@@ -158,6 +159,7 @@ class AppSettings @Inject constructor(
 
     val autoCheckUpdate: Flow<Boolean> = context.appSettingsDataStore.data.map { it[autoCheckUpdateKey] ?: true }
     val useSystemDns: Flow<Boolean> = context.appSettingsDataStore.data.map { it[useSystemDnsKey] ?: false }
+    val fixBottomBar: Flow<Boolean> = context.appSettingsDataStore.data.map { it[fixBottomBarKey] ?: true }
 
     private val interestDoneKey = booleanPreferencesKey("interest_done")
     val interestDone: Flow<Boolean> = context.appSettingsDataStore.data.map { it[interestDoneKey] ?: false }
@@ -188,6 +190,10 @@ class AppSettings @Inject constructor(
 
     suspend fun updateUseSystemDns(enabled: Boolean) {
         context.appSettingsDataStore.edit { it[useSystemDnsKey] = enabled }
+    }
+
+    suspend fun updateFixBottomBar(enabled: Boolean) {
+        context.appSettingsDataStore.edit { it[fixBottomBarKey] = enabled }
     }
 
     suspend fun markInterestDone() {

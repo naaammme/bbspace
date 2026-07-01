@@ -95,6 +95,7 @@ import com.naaammme.bbspace.feature.search.navigation.searchScreen
 import com.naaammme.bbspace.feature.space.navigation.navigateToSpace
 import com.naaammme.bbspace.feature.space.navigation.spaceScreen
 import com.naaammme.bbspace.feature.home.interest.InterestScreen
+import com.naaammme.bbspace.feature.settings.SettingsViewModel
 import com.naaammme.bbspace.feature.settings.navigation.HOME_INTEREST_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
@@ -437,7 +438,9 @@ private fun MainTabsScaffold(
     val userState by userViewModel.uiState.collectAsStateWithLifecycle()
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val useVerticalToolbar = windowSizeClass.isWidthAtLeastBreakpoint(600)
-    val navVisibilityController = rememberTopLevelNavVisibilityController()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val fixBottomBar by settingsViewModel.fixBottomBar.collectAsStateWithLifecycle()
+    val navVisibilityController = rememberTopLevelNavVisibilityController(fixBottomBar)
 
     Box(
         modifier = Modifier
@@ -611,7 +614,8 @@ private fun TopLevelFloatingNavigationItem(
 @Stable
 private class TopLevelNavVisibilityController(
     thresholdPx: Float,
-    initialHidden: Boolean = false
+    initialHidden: Boolean = false,
+    private val fixBottomBar: Boolean = false
 ) {
     private val triggerThresholdPx = thresholdPx
     private var accumulatedScroll = 0f
@@ -622,6 +626,7 @@ private class TopLevelNavVisibilityController(
     val connection = object : NestedScrollConnection {
         @Suppress("SameReturnValue")
         override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            if (fixBottomBar) return Offset.Zero
             if (source != NestedScrollSource.UserInput) return Offset.Zero
             if (available.y == 0f) return Offset.Zero
             if (kotlin.math.abs(available.y) < kotlin.math.abs(available.x)) return Offset.Zero
@@ -654,9 +659,11 @@ private class TopLevelNavVisibilityController(
 }
 
 @Composable
-private fun rememberTopLevelNavVisibilityController(): TopLevelNavVisibilityController {
+private fun rememberTopLevelNavVisibilityController(
+    fixBottomBar: Boolean = false
+): TopLevelNavVisibilityController {
     val thresholdPx = with(LocalDensity.current) { topLevelNavScrollThreshold.toPx() }
-    return remember(thresholdPx) {
-        TopLevelNavVisibilityController(thresholdPx = thresholdPx)
+    return remember(thresholdPx, fixBottomBar) {
+        TopLevelNavVisibilityController(thresholdPx = thresholdPx, fixBottomBar = fixBottomBar)
     }
 }
