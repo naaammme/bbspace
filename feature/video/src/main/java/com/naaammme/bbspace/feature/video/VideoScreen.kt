@@ -127,9 +127,8 @@ fun VideoScreen(
         val restoreLightSystemBars by rememberUpdatedState(themeUsesDarkSystemBarIcons)
 
         LaunchedEffect(ctrl, fullOn, isExpandedWidth, themeUsesDarkSystemBarIcons) {
-            val statusBarOnDarkBg = fullOn || !isExpandedWidth
-
-            ctrl.isAppearanceLightStatusBars = !statusBarOnDarkBg && themeUsesDarkSystemBarIcons
+            ctrl.isAppearanceLightStatusBars =
+                !fullOn && isExpandedWidth && themeUsesDarkSystemBarIcons
             ctrl.isAppearanceLightNavigationBars = !fullOn && themeUsesDarkSystemBarIcons
 
             if (fullOn) {

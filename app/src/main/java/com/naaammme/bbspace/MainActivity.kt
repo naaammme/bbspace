@@ -10,12 +10,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalView
 import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.naaammme.bbspace.core.settings.AppSettings
 import com.naaammme.bbspace.core.settings.update.AppUpdateCheckResult
@@ -73,6 +79,7 @@ class MainActivity : ComponentActivity() {
                 applyFrameRate(themeConfig.preferredFrameRate)
             }
             BiliTheme(config = themeConfig) {
+                ApplySystemBarAppearance()
                 AppNavHost(
                     themeConfig = themeConfig,
                     appLink = pendingAppLink,
@@ -147,6 +154,20 @@ class MainActivity : ComponentActivity() {
             is WebLinkTarget.ToLive -> target
             is WebLinkTarget.External,
             is WebLinkTarget.Stay -> null
+        }
+    }
+
+    @Composable
+    private fun ApplySystemBarAppearance() {
+        val view = LocalView.current
+        val useDarkSystemBarContent = MaterialTheme.colorScheme.background.luminance() > 0.5f
+
+        if (!view.isInEditMode) {
+            SideEffect {
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = useDarkSystemBarContent
+                insetsController.isAppearanceLightNavigationBars = useDarkSystemBarContent
+            }
         }
     }
 }
