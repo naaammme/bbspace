@@ -185,7 +185,7 @@ class CommentRepository @Inject constructor(
             CommentReplyDetailPage(
                 root = root,
                 count = root.replyCount,
-                sort = reply.mode.toModelSort(sort),
+                sort = sort,
                 canSwitchSort = reply.subjectControl.switcherType > 0L,
                 items = mapChildReplies(reply.root.repliesList),
                 nextOffset = nextOffset
@@ -305,7 +305,7 @@ class CommentRepository @Inject constructor(
             .setType(subject.type)
             .setRoot(rootRpid)
             .setRpid(rpid)
-            .setMode(sort.toProto())
+            .setMode(sort.toDetailProto())
             .setPagination(
                 FeedPagination.newBuilder()
                     .setOffset(offset)
@@ -345,7 +345,7 @@ class CommentRepository @Inject constructor(
             subject = subject,
             title = reply.subjectControl.title.ifBlank { "评论" },
             count = reply.subjectControl.count,
-            sort = reply.mode.toModelSort(reqSort),
+            sort = reqSort,
             canSwitchSort = reply.subjectControl.switcherType > 0L,
             filterTags = tags,
             selectedFilter = filterTag.ifBlank { COMMENT_FILTER_ALL },
@@ -523,8 +523,16 @@ class CommentRepository @Inject constructor(
 
     private fun CommentSort.toProto(): Mode {
         return when (this) {
-            CommentSort.HOT -> Mode.MAIN_LIST_HOT
+            CommentSort.HOT -> Mode.DEFAULT
             CommentSort.TIME -> Mode.MAIN_LIST_TIME
+        }
+    }
+
+    private fun CommentSort.toDetailProto(): Mode {
+        return when (this) {
+            CommentSort.HOT -> Mode.DEFAULT
+            // 评论详情接口的时间排序枚举和主评论相反,不知道是不是b站程序员搞出来的bug?这里客户端需要兼容
+            CommentSort.TIME -> Mode.MAIN_LIST_HOT
         }
     }
 
@@ -532,19 +540,6 @@ class CommentRepository @Inject constructor(
         return when (this) {
             CommentSort.HOT -> "heat"
             CommentSort.TIME -> "time"
-        }
-    }
-
-    private fun Mode.toModelSort(fallback: CommentSort): CommentSort {
-        return when (this) {
-            Mode.MAIN_LIST_TIME -> CommentSort.TIME
-            Mode.MAIN_LIST_HOT, Mode.DEFAULT, Mode.UNSPECIFIED, Mode.UNRECOGNIZED -> {
-                if (fallback == CommentSort.TIME) {
-                    CommentSort.TIME
-                } else {
-                    CommentSort.HOT
-                }
-            }
         }
     }
 

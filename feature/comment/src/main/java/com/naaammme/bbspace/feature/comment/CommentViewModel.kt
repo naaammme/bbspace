@@ -111,7 +111,7 @@ class CommentViewModel @Inject constructor(
                         face = record.senderAvatar
                     )
                 ),
-                sort = CommentSort.TIME,
+                sort = CommentSort.HOT,
                 loading = true,
                 highlightRpid = record.itemId
             )
@@ -120,7 +120,7 @@ class CommentViewModel @Inject constructor(
             subject = subject,
             rootRpid = rootRpid,
             rpid = record.itemId,
-            sort = CommentSort.TIME,
+            sort = CommentSort.HOT,
             offset = "",
             append = false
         )
@@ -194,7 +194,7 @@ class CommentViewModel @Inject constructor(
     fun openReplyThread(reply: CommentReply) {
         val state = _uiState.value
         val subject = state.subject ?: return
-        val sort = state.sort
+        val sort = CommentSort.HOT
         _uiState.update {
             it.copy(
                 threadPane = CommentThreadState(

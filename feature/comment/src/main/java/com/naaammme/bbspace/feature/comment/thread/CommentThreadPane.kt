@@ -164,15 +164,6 @@ private fun CommentThreadContent(
             }
 
             when {
-                state.loading && state.items.isEmpty() -> {
-                    item(
-                        key = "reply_loading",
-                        contentType = "state"
-                    ) {
-                        StateCard("加载回复中...")
-                    }
-                }
-
                 !state.error.isNullOrBlank() && state.items.isEmpty() -> {
                     item(
                         key = "reply_error",
@@ -182,7 +173,7 @@ private fun CommentThreadContent(
                     }
                 }
 
-                state.items.isEmpty() -> {
+                state.items.isEmpty() && !state.loading -> {
                     item(
                         key = "reply_empty",
                         contentType = "state"
@@ -207,14 +198,7 @@ private fun CommentThreadContent(
                 }
             }
 
-            if (state.loadingMore) {
-                item(
-                    key = "reply_loading_more",
-                    contentType = "footer"
-                ) {
-                    StateCard("加载更多回复中...")
-                }
-            } else if (!state.loadMoreError.isNullOrBlank()) {
+            if (!state.loadMoreError.isNullOrBlank()) {
                 item(
                     key = "reply_load_more_error",
                     contentType = "footer"

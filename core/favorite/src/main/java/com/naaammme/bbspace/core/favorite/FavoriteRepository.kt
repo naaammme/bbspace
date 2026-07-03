@@ -147,7 +147,9 @@ class FavoriteRepository @Inject constructor(
         item ?: return null
         val oid = item.optLong("oid")
         val otype = item.optInt("otype")
-        val title = item.optString("title").blankToNull() ?: return null
+        val title = item.optString("title").blankToNull()
+            ?: item.optString("intro").blankToNull()
+            ?: return null
         val upper = item.optJSONObject("upper")
         val cntInfo = item.optJSONObject("cnt_info")
         return FavoriteContentItem(

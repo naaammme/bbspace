@@ -315,13 +315,13 @@ private val PALETTE_PARAMS = mapOf(
     ),
     PaletteStyle.EXPRESSIVE to PaletteParams(
         secondaryHue = 72f, tertiaryHue = -72f,
-        primaryContainerSat = 0.50f, accentContainerSat = 0.36f,
+        primaryContainerSat = 0.40f, accentContainerSat = 0.28f,
         inversePrimaryValue = 0.46f
     ),
     PaletteStyle.NEUTRAL to PaletteParams(
         secondaryHue = 0f, tertiaryHue = 0f,
-        primaryContainerSat = 0.18f, accentContainerSat = 0.08f,
-        inversePrimaryValue = 0.42f, inversePrimarySat = 0.12f
+        primaryContainerSat = 0.26f, accentContainerSat = 0.18f,
+        inversePrimaryValue = 0.42f, inversePrimarySat = 0.28f
     ),
     PaletteStyle.VIBRANT to PaletteParams(
         secondaryHue = 32f, tertiaryHue = -32f,
@@ -339,22 +339,22 @@ private fun applyPaletteStyle(
     val primary = base.primary
     val primarySat = when (style) {
         PaletteStyle.TONAL_SPOT -> if (isDark) 0.60f else 0.72f
-        PaletteStyle.EXPRESSIVE -> if (isDark) 0.72f else 0.82f
-        PaletteStyle.NEUTRAL -> 0.18f
+        PaletteStyle.EXPRESSIVE -> if (isDark) 0.62f else 0.68f
+        PaletteStyle.NEUTRAL -> if (isDark) 0.32f else 0.36f
         PaletteStyle.VIBRANT -> 1.00f
         else -> 0f
     }
     val secondarySat = when (style) {
         PaletteStyle.TONAL_SPOT -> if (isDark) 0.32f else 0.28f
-        PaletteStyle.EXPRESSIVE -> if (isDark) 0.75f else 0.85f
-        PaletteStyle.NEUTRAL -> 0.10f
+        PaletteStyle.EXPRESSIVE -> if (isDark) 0.56f else 0.62f
+        PaletteStyle.NEUTRAL -> if (isDark) 0.22f else 0.24f
         PaletteStyle.VIBRANT -> 0.92f
         else -> 0f
     }
     val tertiarySat = when (style) {
         PaletteStyle.TONAL_SPOT -> if (isDark) 0.32f else 0.28f
-        PaletteStyle.EXPRESSIVE -> if (isDark) 0.72f else 0.82f
-        PaletteStyle.NEUTRAL -> 0.10f
+        PaletteStyle.EXPRESSIVE -> if (isDark) 0.54f else 0.60f
+        PaletteStyle.NEUTRAL -> if (isDark) 0.20f else 0.22f
         PaletteStyle.VIBRANT -> 0.90f
         else -> 0f
     }

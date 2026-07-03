@@ -18,28 +18,32 @@ import kotlinx.coroutines.withContext
 fun rememberExportJson(): (fileName: String, json: String) -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var pending by remember { mutableStateOf<String?>(null) }
-
+    var pendingJson by remember { mutableStateOf<String?>(null) }
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
-        if (uri != null) {
-            pending?.let { json ->
-                scope.launch {
-                    withContext(Dispatchers.IO) {
-                        context.contentResolver.openOutputStream(uri)?.use { out ->
-                            out.write(json.replace("\\/", "/").toByteArray(Charsets.UTF_8))
-                        }
-                    }
-                    Toast.makeText(context, "已导出", Toast.LENGTH_SHORT).show()
+        val json = pendingJson
+        pendingJson = null
+        if (uri == null || json == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = json.replace("\\/", "/").toByteArray(Charsets.UTF_8)
+                    context.contentResolver.openOutputStream(uri, "w")?.use { out ->
+                        out.write(bytes)
+                    } ?: error("打开导出文件失败")
                 }
             }
+            if (result.isSuccess) {
+                Toast.makeText(context, "已导出", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "导出失败", Toast.LENGTH_SHORT).show()
+            }
         }
-        pending = null
     }
 
     return { fileName, json ->
-        pending = json
+        pendingJson = json
         launcher.launch(fileName)
     }
 }
