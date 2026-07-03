@@ -47,6 +47,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun PublishedRecordPane(
     modifier: Modifier = Modifier,
+    onOpenCommentDetail: (PublishedRecord) -> Unit = {},
+    onOpenTarget: (PublishedRecord) -> Unit = {},
     vm: PublishedRecordViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -113,6 +115,9 @@ fun PublishedRecordPane(
                     ) { item ->
                         PublishedRecordCard(
                             item = item,
+                            onOpenTarget = onOpenTarget,
+                            onClick = item.takeIf { it.kind == PUBLISHED_RECORD_KIND_COMMENT }
+                                ?.let { { onOpenCommentDetail(it) } },
                             onDelete = { pendingDelete = item }
                         )
                     }
@@ -131,7 +136,7 @@ fun PublishedRecordPane(
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("删除记录") },
-            text = { Text("删除 ${buildRecordDeleteText(item)}") },
+            text = { Text("只会删除本地记录,不会影响服务器上的内容") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -217,12 +222,11 @@ private fun EmptyPublishedRecord(hasQuery: Boolean) {
 @Composable
 private fun PublishedRecordCard(
     item: PublishedRecord,
+    onOpenTarget: (PublishedRecord) -> Unit,
+    onClick: (() -> Unit)? = null,
     onDelete: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
+    val cardContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -259,10 +263,30 @@ private fun PublishedRecordCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
+                TextButton(onClick = { onOpenTarget(item) }) {
+                    Text("打开")
+                }
                 TextButton(onClick = onDelete) {
                     Text("删除")
                 }
             }
+        }
+    }
+
+    if (onClick != null) {
+        Card(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            cardContent()
+        }
+    } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            cardContent()
         }
     }
 }
@@ -302,15 +326,6 @@ private fun buildRecordMeta(item: PublishedRecord): String {
         PUBLISHED_RECORD_KIND_VIDEO_DANMAKU -> "视频弹幕 · oid ${item.targetId}"
         PUBLISHED_RECORD_KIND_LIVE_DANMAKU -> "直播弹幕 · room ${item.targetId}"
         else -> "记录 · target ${item.targetId}"
-    }
-}
-
-private fun buildRecordDeleteText(item: PublishedRecord): String {
-    return when (item.kind) {
-        PUBLISHED_RECORD_KIND_COMMENT -> "评论 ${item.itemId}"
-        PUBLISHED_RECORD_KIND_VIDEO_DANMAKU -> "视频弹幕 ${item.itemId}"
-        PUBLISHED_RECORD_KIND_LIVE_DANMAKU -> "直播弹幕 ${item.itemId}"
-        else -> "记录 ${item.itemId}"
     }
 }
 

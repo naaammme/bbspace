@@ -11,12 +11,15 @@ import com.naaammme.bbspace.core.model.CommentPage
 import com.naaammme.bbspace.core.model.CommentReply
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
+import com.naaammme.bbspace.core.model.CommentUser
+import com.naaammme.bbspace.core.model.PublishedRecord
 import com.naaammme.bbspace.feature.comment.editor.COMMENT_EDITOR_MAX_IMAGE_COUNT
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorState
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorTarget
 import com.naaammme.bbspace.feature.comment.thread.CommentThreadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import java.util.LinkedHashMap
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -79,6 +82,50 @@ class CommentViewModel @Inject constructor(
         )
     }
 
+    fun bindDetail(record: PublishedRecord?) {
+        val currentMid = _uiState.value.currentMid
+        if (record == null) {
+            reqId += 1L
+            _uiState.value = CommentUiState(currentMid = currentMid)
+            _editorState.value = CommentEditorState()
+            return
+        }
+        // 从发布记录构造评论参数：targetId/type 定位评论区，rootId 定位回复线程
+        val subject = CommentSubject(oid = record.targetId, type = record.targetType)
+        val rootRpid = record.rootId.takeIf { it > 0L } ?: record.itemId
+        reqId += 1L
+        _editorState.value = CommentEditorState()
+        _uiState.value = CommentUiState(
+            subject = subject,
+            currentMid = currentMid,
+            threadPane = CommentThreadState(
+                title = "评论详情",
+                rootRpid = rootRpid,
+                root = CommentReply(
+                    rpid = record.itemId,
+                    message = record.content,
+                    timeText = "",
+                    user = CommentUser(
+                        mid = record.senderMid,
+                        name = record.senderName,
+                        face = record.senderAvatar
+                    )
+                ),
+                sort = CommentSort.TIME,
+                loading = true,
+                highlightRpid = record.itemId
+            )
+        )
+        fetchReplyThread(
+            subject = subject,
+            rootRpid = rootRpid,
+            rpid = record.itemId,
+            sort = CommentSort.TIME,
+            offset = "",
+            append = false
+        )
+    }
+
     fun selectSort(sort: CommentSort) {
         val state = _uiState.value
         val subject = state.subject ?: return
@@ -86,16 +133,6 @@ class CommentViewModel @Inject constructor(
         refresh(
             subject = subject,
             sort = sort,
-            filter = state.selectedFilter
-        )
-    }
-
-    fun retry() {
-        val state = _uiState.value
-        val subject = state.subject ?: return
-        refresh(
-            subject = subject,
-            sort = state.sort,
             filter = state.selectedFilter
         )
     }
@@ -161,6 +198,7 @@ class CommentViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 threadPane = CommentThreadState(
+                    rootRpid = reply.rpid,
                     root = reply,
                     count = reply.replyCount,
                     sort = sort,
@@ -172,6 +210,7 @@ class CommentViewModel @Inject constructor(
         fetchReplyThread(
             subject = subject,
             rootRpid = reply.rpid,
+            rpid = reply.rpid,
             sort = sort,
             offset = "",
             append = false
@@ -182,29 +221,6 @@ class CommentViewModel @Inject constructor(
         _uiState.update {
             it.copy(threadPane = null)
         }
-    }
-
-    fun retryReplyThread() {
-        val state = _uiState.value
-        val subject = state.subject ?: return
-        val thread = state.threadPane ?: return
-        _uiState.update {
-            it.copy(
-                threadPane = thread.copy(
-                    loading = true,
-                    loadingMore = false,
-                    error = null,
-                    loadMoreError = null
-                )
-            )
-        }
-        fetchReplyThread(
-            subject = subject,
-            rootRpid = thread.root.rpid,
-            sort = thread.sort,
-            offset = "",
-            append = false
-        )
     }
 
     fun loadMoreReplyThread() {
@@ -223,7 +239,8 @@ class CommentViewModel @Inject constructor(
         }
         fetchReplyThread(
             subject = subject,
-            rootRpid = thread.root.rpid,
+            rootRpid = thread.rootRpid,
+            rpid = thread.root.rpid,
             sort = thread.sort,
             offset = nextOffset,
             append = true
@@ -255,7 +272,8 @@ class CommentViewModel @Inject constructor(
         }
         fetchReplyThread(
             subject = subject,
-            rootRpid = thread.root.rpid,
+            rootRpid = thread.rootRpid,
+            rpid = thread.root.rpid,
             sort = nextSort,
             offset = "",
             append = false
@@ -386,7 +404,7 @@ class CommentViewModel @Inject constructor(
         showEditor(
             target = state.threadPane?.let { thread ->
                 CommentEditorTarget(
-                    rootRpid = thread.root.rpid,
+                    rootRpid = thread.rootRpid,
                     parentRpid = thread.root.rpid,
                     parentName = thread.root.user.name.ifBlank { null }
                 )
@@ -461,7 +479,7 @@ class CommentViewModel @Inject constructor(
         val callId = reqId
         val target = editor.target
         val sort = state.threadPane
-            ?.takeIf { it.root.rpid == target.rootRpid && target.rootRpid > 0L }
+            ?.takeIf { it.rootRpid == target.rootRpid && target.rootRpid > 0L }
             ?.sort
             ?: state.sort
         _editorState.update {
@@ -575,6 +593,7 @@ class CommentViewModel @Inject constructor(
     private fun fetchReplyThread(
         subject: CommentSubject,
         rootRpid: Long,
+        rpid: Long,
         sort: CommentSort,
         offset: String,
         append: Boolean
@@ -584,6 +603,7 @@ class CommentViewModel @Inject constructor(
                 repo.fetchReplyDetail(
                     subject = subject,
                     rootRpid = rootRpid,
+                    rpid = rpid,
                     sort = sort,
                     offset = offset
                 )
@@ -593,16 +613,17 @@ class CommentViewModel @Inject constructor(
                 onSuccess = { page ->
                     _uiState.update { cur ->
                         val thread = cur.threadPane
-                            ?.takeIf { it.root.rpid == rootRpid }
+                            ?.takeIf { it.rootRpid == rootRpid && it.root.rpid == rpid }
                             ?: return@update cur
                         val items = if (append) {
                             mergeReplies(thread.items, page.items)
                         } else {
-                            keepTranslatedReplies(thread.items, page.items)
+                            val curMap = thread.items.associateBy { it.rpid }
+                            page.items.map { reply -> reply.copy(translatedMessage = curMap[reply.rpid]?.translatedMessage ?: reply.translatedMessage) }
                         }
                         cur.copy(
                             threadPane = thread.copy(
-                                root = keepTranslatedReply(thread.root, page.root),
+                                root = page.root.copy(translatedMessage = thread.root.translatedMessage ?: page.root.translatedMessage),
                                 count = page.count,
                                 sort = page.sort,
                                 canSwitchSort = page.canSwitchSort,
@@ -624,7 +645,7 @@ class CommentViewModel @Inject constructor(
                     }
                     _uiState.update { cur ->
                         val thread = cur.threadPane
-                            ?.takeIf { it.root.rpid == rootRpid }
+                            ?.takeIf { it.rootRpid == rootRpid && it.root.rpid == rpid }
                             ?: return@update cur
                         cur.copy(
                             threadPane = if (append) {
@@ -664,13 +685,13 @@ class CommentViewModel @Inject constructor(
         val thread = state.threadPane
         return if (thread == null || thread.root.rpid == reply.rpid) {
             CommentEditorTarget(
-                rootRpid = reply.rpid,
+                rootRpid = thread?.rootRpid ?: reply.rpid,
                 parentRpid = reply.rpid,
                 parentName = reply.user.name.ifBlank { null }
             )
         } else {
             CommentEditorTarget(
-                rootRpid = thread.root.rpid,
+                rootRpid = thread.rootRpid,
                 parentRpid = reply.rpid,
                 parentName = reply.user.name.ifBlank { null }
             )
@@ -694,7 +715,7 @@ class CommentViewModel @Inject constructor(
         )
     }
 
-    private fun mergeReplies(
+        private fun mergeReplies(
         current: List<CommentReply>,
         append: List<CommentReply>
     ): List<CommentReply> {
@@ -711,26 +732,6 @@ class CommentViewModel @Inject constructor(
             }
         }
         return items.values.toList()
-    }
-
-    private fun keepTranslatedReplies(
-        current: List<CommentReply>,
-        loaded: List<CommentReply>
-    ): List<CommentReply> {
-        if (current.isEmpty()) return loaded
-        if (loaded.isEmpty()) return emptyList()
-        val currentMap = current.associateBy { it.rpid }
-        return loaded.map { reply ->
-            val old = currentMap[reply.rpid]
-            reply.copy(translatedMessage = old?.translatedMessage ?: reply.translatedMessage)
-        }
-    }
-
-    private fun keepTranslatedReply(
-        current: CommentReply,
-        loaded: CommentReply
-    ): CommentReply {
-        return loaded.copy(translatedMessage = current.translatedMessage ?: loaded.translatedMessage)
     }
 
     private fun updateTranslatedReplies(
@@ -769,7 +770,7 @@ class CommentViewModel @Inject constructor(
         }
 
         val thread = state.threadPane
-        if (thread != null && thread.root.rpid == target.rootRpid) {
+        if (thread != null && thread.rootRpid == target.rootRpid) {
             val nextRoot = thread.root.copy(
                 replyCount = thread.root.replyCount + 1L,
                 replyEntryText = null
@@ -782,7 +783,7 @@ class CommentViewModel @Inject constructor(
             return state.copy(
                 count = nextCount,
                 items = state.items.map { item ->
-                    if (item.rpid == nextRoot.rpid) {
+                    if (item.rpid == thread.rootRpid) {
                         nextRoot
                     } else {
                         item
@@ -828,7 +829,7 @@ class CommentViewModel @Inject constructor(
                 return state.copy(
                     count = (state.count - 1L).coerceAtLeast(0L),
                     items = state.items.map { item ->
-                        if (item.rpid == nextRoot.rpid) {
+                        if (item.rpid == thread.rootRpid) {
                             nextRoot
                         } else {
                             item

@@ -34,6 +34,7 @@ dependencies {
     implementation(project(":core:published"))
     implementation(project(":core:model"))
     implementation(project(":core:designsystem"))
+    implementation(project(":feature:comment"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

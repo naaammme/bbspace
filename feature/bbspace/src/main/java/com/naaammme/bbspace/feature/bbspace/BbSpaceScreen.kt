@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,12 +39,22 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
+import com.naaammme.bbspace.core.model.CommentSubjectTool
+import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_COMMENT
+import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_LIVE_DANMAKU
+import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_VIDEO_DANMAKU
+import com.naaammme.bbspace.core.model.LiveRoute
+import com.naaammme.bbspace.core.model.PublishedRecord
+import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.model.VideoTargetTool
 import com.naaammme.bbspace.feature.bbspace.commentsearch.CommentSearchPane
 import com.naaammme.bbspace.feature.bbspace.playback.PlaybackHistoryPane
 import com.naaammme.bbspace.feature.bbspace.playback.PlaybackHistoryViewModel
 import com.naaammme.bbspace.feature.bbspace.publishedrecord.PublishedRecordPane
 import com.naaammme.bbspace.feature.bbspace.publishedrecord.PublishedRecordViewModel
 import com.naaammme.bbspace.feature.bbspace.relation.RelationCheckPane
+import com.naaammme.bbspace.feature.comment.CommentPanel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,7 +62,11 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BbSpaceScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit = {},
+    onOpenVideoDetail: (VideoTarget) -> Unit = {},
+    onOpenDynamicDetail: (String) -> Unit = {},
+    onOpenLiveDetail: (LiveRoute) -> Unit = {}
 ) {
     val playbackHistoryVm: PlaybackHistoryViewModel = hiltViewModel()
     val playbackHistoryState by playbackHistoryVm.uiState.collectAsStateWithLifecycle()
@@ -61,11 +76,48 @@ fun BbSpaceScreen(
     val scope = rememberCoroutineScope()
     val exportJson = rememberExportJson()
     var page by rememberSaveable { mutableStateOf(BbSpacePage.HOME) }
+    var selectedCommentRecord by remember { mutableStateOf<PublishedRecord?>(null) }
+    val openPublishedRecordTarget: (PublishedRecord) -> Unit = { record ->
+        record.targetId.takeIf { it > 0L }?.let { targetId ->
+            when (record.kind) {
+                PUBLISHED_RECORD_KIND_COMMENT -> {
+                    if (record.targetType == CommentSubjectTool.TYPE_VIDEO) {
+                        onOpenVideoDetail(
+                            VideoTarget.Ugc(
+                                aid = targetId,
+                                cid = 0L,
+                                src = VideoTargetTool.history()
+                            )
+                        )
+                    } else {
+                        onOpenDynamicDetail(targetId.toString())
+                    }
+                }
+                PUBLISHED_RECORD_KIND_VIDEO_DANMAKU -> {
+                    onOpenVideoDetail(
+                        VideoTarget.Ugc(
+                            aid = targetId,
+                            cid = 0L,
+                            src = VideoTargetTool.history()
+                        )
+                    )
+                }
+                PUBLISHED_RECORD_KIND_LIVE_DANMAKU -> {
+                    onOpenLiveDetail(LiveRoute(roomId = targetId))
+                }
+            }
+        }
+    }
     val handleBack = {
-        if (page == BbSpacePage.HOME) {
-            onBack()
-        } else {
-            page = BbSpacePage.HOME
+        when (page) {
+            BbSpacePage.HOME -> onBack()
+            BbSpacePage.COMMENT_DETAIL -> {
+                page = BbSpacePage.PUBLISHED_RECORD
+                selectedCommentRecord = null
+            }
+            else -> {
+                page = BbSpacePage.HOME
+            }
         }
     }
     val importLauncher = rememberLauncherForActivityResult(
@@ -91,58 +143,61 @@ fun BbSpaceScreen(
     }
 
     BackHandler(enabled = page != BbSpacePage.HOME) {
-        page = BbSpacePage.HOME
+        handleBack()
     }
 
     CollapsingTopBarScaffold(
         topBar = { scrollBehavior ->
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when (page) {
-                            BbSpacePage.HOME -> "bb空间"
-                            BbSpacePage.PLAYBACK_HISTORY -> "播放历史(${playbackHistoryState.items.size})"
-                            BbSpacePage.PUBLISHED_RECORD -> "我发布的(${publishedRecordState.totalCount})"
-                            BbSpacePage.RELATION_CHECK -> "查询关系"
-                            BbSpacePage.COMMENT_SEARCH -> "查评论"
-                        }
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = handleBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    if (page == BbSpacePage.PUBLISHED_RECORD) {
-                        TextButton(
-                            onClick = {
-                                importLauncher.launch(arrayOf("application/json", "text/*"))
+            if (page != BbSpacePage.COMMENT_DETAIL) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = when (page) {
+                                BbSpacePage.HOME -> "bb空间"
+                                BbSpacePage.PLAYBACK_HISTORY -> "播放历史(${playbackHistoryState.items.size})"
+                                BbSpacePage.PUBLISHED_RECORD -> "我发布的(${publishedRecordState.totalCount})"
+                                BbSpacePage.COMMENT_DETAIL -> "评论详情"
+                                BbSpacePage.RELATION_CHECK -> "查询关系"
+                                BbSpacePage.COMMENT_SEARCH -> "查评论"
                             }
-                        ) {
-                            Text("导入")
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = handleBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                         }
-                        TextButton(
-                            onClick = {
-                                if (publishedRecordState.totalCount == 0) {
-                                    Toast.makeText(context, "暂无发布记录", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    scope.launch {
-                                        exportJson(
-                                            "bbspace_published_records.json",
-                                            publishedRecordVm.exportJson()
-                                        )
-                                    }
+                    },
+                    actions = {
+                        if (page == BbSpacePage.PUBLISHED_RECORD) {
+                            TextButton(
+                                onClick = {
+                                    importLauncher.launch(arrayOf("application/json", "text/*"))
                                 }
-                            },
-                            enabled = !publishedRecordState.isLoading
-                        ) {
-                            Text("导出")
+                            ) {
+                                Text("导入")
+                            }
+                            TextButton(
+                                onClick = {
+                                    if (publishedRecordState.totalCount == 0) {
+                                        Toast.makeText(context, "暂无发布记录", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        scope.launch {
+                                            exportJson(
+                                                "bbspace_published_records.json",
+                                                publishedRecordVm.exportJson()
+                                            )
+                                        }
+                                    }
+                                },
+                                enabled = !publishedRecordState.isLoading
+                            ) {
+                                Text("导出")
+                            }
                         }
-                    }
-                },
-                scrollBehavior = scrollBehavior
-            )
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+            }
         }
     ) { padding ->
         when (page) {
@@ -169,10 +224,23 @@ fun BbSpaceScreen(
             BbSpacePage.PUBLISHED_RECORD -> {
                 PublishedRecordPane(
                     vm = publishedRecordVm,
+                    onOpenCommentDetail = { record ->
+                        selectedCommentRecord = record
+                        page = BbSpacePage.COMMENT_DETAIL
+                    },
+                    onOpenTarget = openPublishedRecordTarget,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
                         .padding(horizontal = 16.dp)
+                )
+            }
+            BbSpacePage.COMMENT_DETAIL -> {
+                CommentPanel(
+                    subject = null,
+                    detailRecord = selectedCommentRecord,
+                    onOpenSpace = onOpenSpace,
+                    onDismissDetail = handleBack,
                 )
             }
             BbSpacePage.RELATION_CHECK -> {
@@ -289,6 +357,7 @@ private enum class BbSpacePage {
     HOME,
     PLAYBACK_HISTORY,
     PUBLISHED_RECORD,
+    COMMENT_DETAIL,
     RELATION_CHECK,
     COMMENT_SEARCH
 }

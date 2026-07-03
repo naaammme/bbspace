@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.feature.comment.component.CommentReplyAction
 import com.naaammme.bbspace.feature.comment.component.StateCard
-import com.naaammme.bbspace.feature.comment.component.RetryCard
 import com.naaammme.bbspace.feature.comment.component.ThreadReplyCard
 import com.naaammme.bbspace.feature.comment.component.formatCount
 
@@ -42,7 +41,6 @@ internal fun CommentThreadPane(
     onDismiss: () -> Unit,
     onToggleSort: () -> Unit,
     onLoadMore: () -> Unit,
-    onRetry: () -> Unit,
     bottomPadding: Dp,
     modifier: Modifier = Modifier
 ) {
@@ -59,7 +57,6 @@ internal fun CommentThreadPane(
             onDismiss = onDismiss,
             onToggleSort = onToggleSort,
             onLoadMore = onLoadMore,
-            onRetry = onRetry,
             bottomPadding = bottomPadding,
             modifier = Modifier.fillMaxSize()
         )
@@ -76,7 +73,6 @@ private fun CommentThreadContent(
     onDismiss: () -> Unit,
     onToggleSort: () -> Unit,
     onLoadMore: () -> Unit,
-    onRetry: () -> Unit,
     bottomPadding: Dp,
     modifier: Modifier = Modifier
 ) {
@@ -98,6 +94,19 @@ private fun CommentThreadContent(
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore) {
             onLoadMore()
+        }
+    }
+    val canHighlight = state.highlightRpid > 0L && !state.loading && state.error.isNullOrBlank()
+    LaunchedEffect(canHighlight) {
+        if (!canHighlight) return@LaunchedEffect
+        val targetIndex = if (state.root.rpid == state.highlightRpid) {
+            0
+        } else {
+            val i = state.items.indexOfFirst { it.rpid == state.highlightRpid }
+            if (i >= 0) 2 + i else -1
+        }
+        if (targetIndex >= 0) {
+            listState.animateScrollToItem(targetIndex)
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
@@ -169,11 +178,7 @@ private fun CommentThreadContent(
                         key = "reply_error",
                         contentType = "state"
                     ) {
-                        RetryCard(
-                            text = state.error,
-                            button = "重试",
-                            onRetry = onRetry
-                        )
+                        StateCard(text = state.error.orEmpty())
                     }
                 }
 
@@ -214,11 +219,7 @@ private fun CommentThreadContent(
                     key = "reply_load_more_error",
                     contentType = "footer"
                 ) {
-                    RetryCard(
-                        text = state.loadMoreError,
-                        button = "重试加载更多",
-                        onRetry = onLoadMore
-                    )
+                    StateCard(text = state.loadMoreError.orEmpty())
                 }
             }
         }

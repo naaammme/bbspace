@@ -7,6 +7,7 @@ import com.naaammme.bbspace.core.model.CommentSort
 @Immutable
 data class CommentThreadState(
     val title: String = "回复详情",
+    val rootRpid: Long,
     val root: CommentReply,
     val count: Long = 0L,
     val sort: CommentSort = CommentSort.HOT,
@@ -16,7 +17,8 @@ data class CommentThreadState(
     val error: String? = null,
     val loadMoreError: String? = null,
     val items: List<CommentReply> = emptyList(),
-    val nextOffset: String? = null
+    val nextOffset: String? = null,
+    val highlightRpid: Long = 0L
 ) {
     val hasMore: Boolean
         get() = nextOffset != null

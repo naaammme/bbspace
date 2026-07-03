@@ -52,6 +52,7 @@ import com.naaammme.bbspace.core.common.media.ImageSaver
 import com.naaammme.bbspace.core.designsystem.component.CommentCardSkeleton
 import com.naaammme.bbspace.core.designsystem.component.CommentHeaderSkeleton
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
+import com.naaammme.bbspace.core.model.PublishedRecord
 import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
@@ -59,7 +60,6 @@ import com.naaammme.bbspace.core.model.CommentUser
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.feature.comment.component.CommentCard
 import com.naaammme.bbspace.feature.comment.component.CommentReplyAction
-import com.naaammme.bbspace.feature.comment.component.RetryCard
 import com.naaammme.bbspace.feature.comment.component.StateCard
 import com.naaammme.bbspace.feature.comment.component.formatCount
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorFab
@@ -74,20 +74,27 @@ import kotlinx.coroutines.withContext
 fun CommentPanel(
     subject: CommentSubject?,
     modifier: Modifier = Modifier,
+    detailRecord: PublishedRecord? = null,
     onOpenSpace: (SpaceRoute) -> Unit = {},
+    onDismissDetail: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     threadListState: LazyListState = rememberLazyListState(),
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     header: (@Composable () -> Unit)? = null,
     viewModel: CommentViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(subject) {
-        viewModel.bind(subject)
+    LaunchedEffect(subject, detailRecord?.key) {
+        if (detailRecord != null) {
+            viewModel.bindDetail(detailRecord)
+        } else {
+            viewModel.bind(subject)
+        }
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isDetailMode = detailRecord != null
     val layoutDirection = LocalLayoutDirection.current
     val replyThread = uiState.threadPane
-    val isInitLoading = subject != null && uiState.loading && uiState.items.isEmpty()
+    val isInitLoading = !isDetailMode && subject != null && uiState.loading && uiState.items.isEmpty()
     val context = LocalContext.current
     val appCtx = remember(context) { context.applicationContext }
     val scope = rememberCoroutineScope()
@@ -123,7 +130,8 @@ fun CommentPanel(
         derivedStateOf {
             val total = listState.layoutInfo.totalItemsCount
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            uiState.threadPane == null &&
+            !isDetailMode &&
+                uiState.threadPane == null &&
                 uiState.hasMore &&
                 !uiState.loading &&
                 !uiState.loadingMore &&
@@ -165,12 +173,14 @@ fun CommentPanel(
         }
     }
 
-    BackHandler(enabled = replyThread != null) {
+    BackHandler(enabled = replyThread != null && !isDetailMode) {
         viewModel.closeReplyThread()
     }
 
+    val routeSubject = uiState.subject ?: subject
     val onReplyAction: (CommentReplyAction) -> Unit = remember(
-        subject,
+        routeSubject,
+        detailRecord?.key,
         onOpenSpace,
         onSaveImage
     ) {
@@ -183,163 +193,170 @@ fun CommentPanel(
                 is CommentReplyAction.SaveImage -> onSaveImage(action.image)
                 is CommentReplyAction.OpenReplies -> viewModel.openReplyThread(action.reply)
                 is CommentReplyAction.OpenUser -> {
-                    action.user.toSpaceRoute(subject)?.let(onOpenSpace)
+                    action.user.toSpaceRoute(routeSubject)?.let(onOpenSpace)
                 }
             }
         }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = listState,
-            contentPadding = listContentPadding,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (header != null) {
-                item(key = "panel_header", contentType = "panel_header") {
-                    header()
-                }
-            }
-
-            item(
-                key = "comment_header",
-                contentType = "header"
-            ) {
-                if (isInitLoading) {
-                    CommentHeaderSkeleton()
-                } else {
-                    CommentHeader(
-                        state = uiState,
-                        onToggleSort = {
-                            val next = if (uiState.sort == CommentSort.HOT) {
-                                CommentSort.TIME
-                            } else {
-                                CommentSort.HOT
-                            }
-                            viewModel.selectSort(next)
-                        }
-                    )
-                }
-            }
-
-            when {
-                subject == null -> {
-                    item(
-                        key = "comment_empty_subject",
-                        contentType = "state"
-                    ) {
-                        StateCard(text = "暂无评论信息")
-                    }
-                }
-
-                isInitLoading -> {
-                    items(
-                        count = INIT_SKELETON_COUNT,
-                        key = { index -> "comment_skeleton_$index" },
-                        contentType = { "reply_skeleton" }
-                    ) {
-                        CommentCardSkeleton()
-                    }
-                }
-
-                !uiState.error.isNullOrBlank() && uiState.items.isEmpty() -> {
-                    item(
-                        key = "comment_error",
-                        contentType = "state"
-                    ) {
-                        RetryCard(
-                            text = uiState.error.orEmpty(),
-                            button = "重试",
-                            onRetry = viewModel::retry
-                        )
-                    }
-                }
-
-                uiState.items.isEmpty() -> {
-                    item(
-                        key = "comment_no_data",
-                        contentType = "state"
-                    ) {
-                        StateCard(text = "还没有评论")
-                    }
-                }
-
-                else -> {
-                    items(
-                        items = uiState.items,
-                        key = { it.rpid },
-                        contentType = { "reply" }
-                    ) { reply ->
-                        CommentCard(
-                            reply = reply,
-                            currentMid = uiState.currentMid,
-                            busyReplyIds = uiState.busyReplyIds,
-                            onAction = onReplyAction
-                        )
-                    }
-                }
-            }
-
-            if (uiState.loadingMore) {
-                items(
-                    count = LOAD_MORE_SKELETON_COUNT,
-                    key = { index -> "comment_loading_more_$index" },
-                    contentType = { "reply_skeleton" }
-                ) {
-                    CommentCardSkeleton()
-                }
-            } else if (!uiState.loadMoreError.isNullOrBlank()) {
-                item(
-                    key = "comment_load_more_error",
-                    contentType = "footer"
-                ) {
-                    RetryCard(
-                        text = uiState.loadMoreError.orEmpty(),
-                        button = "重试",
-                        onRetry = viewModel::loadMore
-                    )
-                }
-            } else if (!uiState.hasMore && uiState.items.isNotEmpty()) {
-                item(
-                    key = "comment_end",
-                    contentType = "footer"
-                ) {
-                    StateCard(
-                        text = uiState.endText
-                            ?: if (uiState.sort == CommentSort.HOT) {
-                                "热门评论已展示完"
-                            } else {
-                                "没有更多评论"
-                            }
-                    )
-                }
-            }
-        }
-        // 评论详情过渡动画
-        AnimatedContent(
-            targetState = replyThread,
-            contentKey = { it != null },
-            transitionSpec = {
-                (slideInHorizontally { fullWidth -> fullWidth } + fadeIn())
-                    .togetherWith(slideOutHorizontally { fullWidth -> fullWidth } + fadeOut())
-            },
-            label = "comment_thread_pane"
-        ) { threadPane ->
-            if (threadPane != null) {
+        if (isDetailMode) {
+            if (replyThread != null) {
                 CommentThreadPane(
-                    state = threadPane,
+                    state = replyThread,
                     listState = threadListState,
                     currentMid = uiState.currentMid,
                     busyReplyIds = uiState.busyReplyIds,
                     onReplyAction = onReplyAction,
-                    onDismiss = viewModel::closeReplyThread,
+                    onDismiss = onDismissDetail,
                     onToggleSort = viewModel::toggleReplyThreadSort,
                     onLoadMore = viewModel::loadMoreReplyThread,
-                    onRetry = viewModel::retryReplyThread,
                     bottomPadding = COMMENT_FAB_SPACE,
                     modifier = Modifier.fillMaxSize()
                 )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                contentPadding = listContentPadding,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (header != null) {
+                    item(key = "panel_header", contentType = "panel_header") {
+                        header()
+                    }
+                }
+
+                item(
+                    key = "comment_header",
+                    contentType = "header"
+                ) {
+                    if (isInitLoading) {
+                        CommentHeaderSkeleton()
+                    } else {
+                        CommentHeader(
+                            state = uiState,
+                            onToggleSort = {
+                                val next = if (uiState.sort == CommentSort.HOT) {
+                                    CommentSort.TIME
+                                } else {
+                                    CommentSort.HOT
+                                }
+                                viewModel.selectSort(next)
+                            }
+                        )
+                    }
+                }
+
+                when {
+                    subject == null -> {
+                        item(
+                            key = "comment_empty_subject",
+                            contentType = "state"
+                        ) {
+                            StateCard(text = "暂无评论信息")
+                        }
+                    }
+
+                    isInitLoading -> {
+                        items(
+                            count = INIT_SKELETON_COUNT,
+                            key = { index -> "comment_skeleton_$index" },
+                            contentType = { "reply_skeleton" }
+                        ) {
+                            CommentCardSkeleton()
+                        }
+                    }
+
+                    !uiState.error.isNullOrBlank() && uiState.items.isEmpty() -> {
+                        item(
+                            key = "comment_error",
+                            contentType = "state"
+                        ) {
+                            StateCard(text = uiState.error.orEmpty())
+                        }
+                    }
+
+                    uiState.items.isEmpty() -> {
+                        item(
+                            key = "comment_no_data",
+                            contentType = "state"
+                        ) {
+                            StateCard(text = "还没有评论")
+                        }
+                    }
+
+                    else -> {
+                        items(
+                            items = uiState.items,
+                            key = { it.rpid },
+                            contentType = { "reply" }
+                        ) { reply ->
+                            CommentCard(
+                                reply = reply,
+                                currentMid = uiState.currentMid,
+                                busyReplyIds = uiState.busyReplyIds,
+                                onAction = onReplyAction
+                            )
+                        }
+                    }
+                }
+
+                if (uiState.loadingMore) {
+                    items(
+                        count = LOAD_MORE_SKELETON_COUNT,
+                        key = { index -> "comment_loading_more_$index" },
+                        contentType = { "reply_skeleton" }
+                    ) {
+                        CommentCardSkeleton()
+                    }
+                } else if (!uiState.loadMoreError.isNullOrBlank()) {
+                    item(
+                        key = "comment_load_more_error",
+                        contentType = "footer"
+                    ) {
+                        StateCard(text = uiState.loadMoreError.orEmpty())
+                    }
+                } else if (!uiState.hasMore && uiState.items.isNotEmpty()) {
+                    item(
+                        key = "comment_end",
+                        contentType = "footer"
+                    ) {
+                        StateCard(
+                            text = uiState.endText
+                                ?: if (uiState.sort == CommentSort.HOT) {
+                                    "热门评论已展示完"
+                                } else {
+                                    "没有更多评论"
+                                }
+                        )
+                    }
+                }
+            }
+            AnimatedContent(
+                targetState = replyThread,
+                contentKey = { it != null },
+                transitionSpec = {
+                    (slideInHorizontally { fullWidth -> fullWidth } + fadeIn())
+                        .togetherWith(slideOutHorizontally { fullWidth -> fullWidth } + fadeOut())
+                },
+                label = "comment_thread_pane"
+            ) { threadPane ->
+                if (threadPane != null) {
+                    CommentThreadPane(
+                        state = threadPane,
+                        listState = threadListState,
+                        currentMid = uiState.currentMid,
+                        busyReplyIds = uiState.busyReplyIds,
+                        onReplyAction = onReplyAction,
+                        onDismiss = viewModel::closeReplyThread,
+                        onToggleSort = viewModel::toggleReplyThreadSort,
+                        onLoadMore = viewModel::loadMoreReplyThread,
+                        bottomPadding = COMMENT_FAB_SPACE,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
         CommentEditorLayer(

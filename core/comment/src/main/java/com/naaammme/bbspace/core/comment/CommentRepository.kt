@@ -164,6 +164,7 @@ class CommentRepository @Inject constructor(
     suspend fun fetchReplyDetail(
         subject: CommentSubject,
         rootRpid: Long,
+        rpid: Long,
         sort: CommentSort = CommentSort.HOT,
         offset: String = ""
     ): CommentReplyDetailPage {
@@ -172,6 +173,7 @@ class CommentRepository @Inject constructor(
             requestBytes = buildDetailReq(
                 subject = subject,
                 rootRpid = rootRpid,
+                rpid = rpid,
                 sort = sort,
                 offset = offset
             ).toByteArray(),
@@ -294,6 +296,7 @@ class CommentRepository @Inject constructor(
     private fun buildDetailReq(
         subject: CommentSubject,
         rootRpid: Long,
+        rpid: Long,
         sort: CommentSort,
         offset: String
     ): DetailListReq {
@@ -301,7 +304,7 @@ class CommentRepository @Inject constructor(
             .setOid(subject.oid)
             .setType(subject.type)
             .setRoot(rootRpid)
-            .setRpid(0L)
+            .setRpid(rpid)
             .setMode(sort.toProto())
             .setPagination(
                 FeedPagination.newBuilder()

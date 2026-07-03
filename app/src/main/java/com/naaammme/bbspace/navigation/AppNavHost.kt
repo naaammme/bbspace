@@ -299,7 +299,13 @@ fun AppNavHost(
                 onSwitched = { rootNavController.popBackStack() }
             )
 
-            bbSpaceScreen(rootNavController)
+            bbSpaceScreen(
+                navController = rootNavController,
+                onOpenSpace = rootNavController::navigateToSpace,
+                onOpenVideoDetail = openVideo,
+                onOpenDynamicDetail = rootNavController::navigateToDynamicDetail,
+                onOpenLiveDetail = openLive
+            )
             settingsScreen(rootNavController)
             searchScreen(
                 onBack = { rootNavController.popBackStack() },
