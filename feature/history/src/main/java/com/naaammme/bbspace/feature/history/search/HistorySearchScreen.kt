@@ -19,9 +19,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -52,6 +56,7 @@ fun HistorySearchScreen(
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
     LoadMoreTrigger(
         listState = listState,
         canLoadMore = { state.canLoadMore },
@@ -59,6 +64,12 @@ fun HistorySearchScreen(
         hasError = { state.errorMessage != null },
         onLoadMore = viewModel::loadMore
     )
+
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        focusRequester.requestFocus()
+        keyboard?.show()
+    }
 
     val keyboardOptions = remember {
         KeyboardOptions(
@@ -87,7 +98,9 @@ fun HistorySearchScreen(
                         value = state.input,
                         onValueChange = viewModel::updateKeyword,
                         placeholder = "搜索历史记录",
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                         keyboardOptions = keyboardOptions,
                         keyboardActions = keyboardActions
                     )

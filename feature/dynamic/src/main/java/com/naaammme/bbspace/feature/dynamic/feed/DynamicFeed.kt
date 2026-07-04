@@ -392,7 +392,7 @@ private fun DynamicImageRow(images: List<DynamicImage>) {
                 url = image.url,
                 modifier = Modifier
                     .width(140.dp)
-                    .aspectRatio(image.aspectRatio()),
+                    .aspectRatio(image.displayAspectRatio()),
                 shape = MaterialTheme.shapes.small
             )
         }
@@ -442,9 +442,9 @@ private fun DynamicError(
     }
 }
 
-private fun DynamicImage.aspectRatio(): Float {
+private fun DynamicImage.displayAspectRatio(): Float {
     return if (width > 0 && height > 0) {
-        width.toFloat() / height.toFloat()
+        (width.toFloat() / height.toFloat()).coerceIn(0.72f, 1.5f)
     } else {
         1f
     }
