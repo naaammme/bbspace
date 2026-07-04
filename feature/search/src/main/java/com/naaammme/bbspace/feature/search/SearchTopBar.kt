@@ -20,7 +20,10 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +54,7 @@ internal fun SearchTopBar(
     val spaceUid = text.trim().toLongOrNull()?.takeIf { it > 0L }
 
     val imeVisible = WindowInsets.isImeVisible
+    var imeShown by remember { mutableStateOf(false) }
 
     LaunchedEffect(autoFocus) {
         if (autoFocus) {
@@ -61,7 +65,9 @@ internal fun SearchTopBar(
     }
 
     LaunchedEffect(imeVisible) {
-        if (!imeVisible) {
+        if (imeVisible) {
+            imeShown = true
+        } else if (imeShown) {
             focusManager.clearFocus(force = true)
         }
     }
@@ -95,6 +101,8 @@ internal fun SearchTopBar(
                     ),
                     keyboardActions = KeyboardActions(
                         onSearch = {
+                            focusManager.clearFocus(force = true)
+                            keyboard?.hide()
                             onSearch()
                         }
                     )
@@ -113,7 +121,13 @@ internal fun SearchTopBar(
                         )
                     }
                 }
-                IconButton(onClick = onSearch) {
+                IconButton(
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        keyboard?.hide()
+                        onSearch()
+                    }
+                ) {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "搜索"

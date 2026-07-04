@@ -105,7 +105,6 @@ fun SearchScreen(
                 onTextChange = viewModel::updateInput,
                 onBack = handleBack,
                 onSearch = {
-                    keyboard?.hide()
                     viewModel.submitSearch()
                 },
                 onOpenSpace = { uid ->
