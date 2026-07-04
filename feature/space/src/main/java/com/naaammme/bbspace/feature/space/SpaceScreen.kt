@@ -27,7 +27,7 @@ import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.archive.spaceArchiveSection
 import com.naaammme.bbspace.feature.space.header.spaceHeaderSection
-import com.naaammme.bbspace.feature.space.note.spaceNoteSection
+import com.naaammme.bbspace.feature.space.note.SpaceNoteTitleButton
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -70,9 +70,18 @@ fun SpaceScreen(
 
     CollapsingTopBarScaffold(
         topBar = { scrollBehavior ->
+            val header = state.header
             TopAppBar(
                 title = {
-                    Text(text = state.title)
+                    if (header != null && header.profile.mid > 0L) {
+                        SpaceNoteTitleButton(
+                            uid = header.profile.mid,
+                            name = header.profile.name,
+                            face = header.profile.face
+                        )
+                    } else {
+                        Text(text = state.title)
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -83,7 +92,6 @@ fun SpaceScreen(
                     }
                 },
                 actions = {
-                    val header = state.header
                     if (header != null && header.profile.mid > 0L && onOpenIm != null) {
                         IconButton(
                             onClick = {
@@ -116,13 +124,6 @@ fun SpaceScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 spaceHeaderSection(header)
-                if (header.profile.mid > 0L) {
-                    spaceNoteSection(
-                        uid = header.profile.mid,
-                        name = header.profile.name,
-                        face = header.profile.face
-                    )
-                }
                 spaceArchiveSection(
                     state = state.archive,
                     onOpenVideo = onOpenVideo,

@@ -31,6 +31,7 @@ data class SpaceProfile(
     val face: String?,
     val sign: String,
     val level: Int,
+    val vipLabel: String?,
     val fansCount: Long,
     val followingCount: Long,
     val likeCount: Long,

@@ -257,6 +257,7 @@ private fun SpaceRoute.toInitialHeaderState(): SpaceHeaderUiState? {
             face = null,
             sign = "",
             level = 0,
+            vipLabel = null,
             fansCount = 0L,
             followingCount = 0L,
             likeCount = 0L,

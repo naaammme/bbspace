@@ -150,6 +150,7 @@ class SpaceRepository @Inject constructor(
         val article = data.optJSONObject("article")
         val season = data.optJSONObject("ugc_season")
         val series = data.optJSONObject("series")
+        val vip = card?.optJSONObject("vip")
         val level = card?.optJSONObject("level_info")?.optInt("current_level") ?: 0
         val likeCount = card?.optJSONObject("likes")?.optLong("like_num") ?: 0L
         val name = card?.optString("name")
@@ -162,6 +163,10 @@ class SpaceRepository @Inject constructor(
             face = card?.optString("face").orEmpty().httpsImageUrl().ifBlank { null },
             sign = card?.optString("sign").orEmpty(),
             level = level,
+            vipLabel = vip?.takeIf { it.optInt("vipStatus") > 0 }
+                ?.optJSONObject("label")
+                ?.optString("text")
+                ?.takeIf(String::isNotBlank),
             fansCount = card?.optLong("fans") ?: 0L,
             followingCount = card?.optLong("attention") ?: 0L,
             likeCount = likeCount,
