@@ -23,6 +23,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -136,9 +137,9 @@ private fun FeedCard(
                     .fillMaxWidth()
                     .aspectRatio(16f / 10f)
             ) {
-                if (isDisliked) {
+                if (dislikedReason != null) {
                     DislikedOverlay(
-                        reason = dislikedReason.orEmpty(),
+                        reason = dislikedReason,
                         onUndo = { onCancelDislike(item) },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -257,11 +258,9 @@ private fun MoreMenu(
     onDislike: (FeedItem, ThreePointReason) -> Unit
 ) {
     var show by remember { mutableStateOf(false) }
-    Box(
-        modifier = Modifier
-            .size(24.dp)
-            .clickable { show = true },
-        contentAlignment = Alignment.Center
+    IconButton(
+        onClick = { show = true },
+        modifier = Modifier.size(24.dp)
     ) {
         Icon(Icons.Default.MoreVert, contentDescription = null)
     }
