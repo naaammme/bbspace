@@ -37,7 +37,8 @@ fun NavGraphBuilder.spaceScreen(
     onOpenVideo: (VideoTarget) -> Unit,
     onOpenDynamic: (String) -> Unit = {},
     onOpenLive: (LiveRoute) -> Unit = {},
-    onOpenIm: ((Long, String, String?) -> Unit)? = null
+    onOpenIm: ((Long, String, String?) -> Unit)? = null,
+    onOpenRelation: (Long, Int) -> Unit = { _, _ -> }
 ) {
     composable(
         route = SPACE_ROUTE,
@@ -65,7 +66,36 @@ fun NavGraphBuilder.spaceScreen(
             onOpenVideo = onOpenVideo,
             onOpenDynamic = onOpenDynamic,
             onOpenLive = onOpenLive,
-            onOpenIm = onOpenIm
+            onOpenIm = onOpenIm,
+            onOpenRelation = onOpenRelation
+        )
+    }
+}
+
+fun NavController.navigateToSpaceRelation(vmid: Long, initialTab: Int) {
+    navigate("space_relation/$vmid?initialTab=$initialTab")
+}
+
+fun NavGraphBuilder.spaceRelationScreen(
+    onBack: () -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit
+) {
+    composable(
+        route = "space_relation/{vmid}?initialTab={initialTab}",
+        arguments = listOf(
+            navArgument("vmid") {
+                type = NavType.LongType
+                defaultValue = 0L
+            },
+            navArgument("initialTab") {
+                type = NavType.IntType
+                defaultValue = 0
+            }
+        )
+    ) {
+        com.naaammme.bbspace.feature.space.relation.RelationScreen(
+            onBack = onBack,
+            onOpenSpace = onOpenSpace
         )
     }
 }

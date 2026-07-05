@@ -40,6 +40,7 @@ fun SpaceScreen(
     onOpenDynamic: (String) -> Unit = {},
     onOpenLive: (LiveRoute) -> Unit = {},
     onOpenIm: ((Long, String, String?) -> Unit)? = null,
+    onOpenRelation: (Long, Int) -> Unit = { _, _ -> },
     viewModel: SpaceViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -134,7 +135,15 @@ fun SpaceScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                spaceHeaderSection(header)
+                spaceHeaderSection(
+                    state = header,
+                    onOpenFollowings = {
+                        onOpenRelation(header.profile.mid, 0)
+                    },
+                    onOpenFollowers = {
+                        onOpenRelation(header.profile.mid, 1)
+                    }
+                )
                 spaceArchiveSection(
                     state = state.archive,
                     videoCount = header.profile.videoCount,

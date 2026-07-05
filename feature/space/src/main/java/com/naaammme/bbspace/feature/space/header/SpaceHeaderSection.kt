@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,7 +34,9 @@ import com.naaammme.bbspace.core.designsystem.component.SelectableText
 import com.naaammme.bbspace.feature.space.SpaceHeaderUiState
 
 internal fun LazyListScope.spaceHeaderSection(
-    state: SpaceHeaderUiState
+    state: SpaceHeaderUiState,
+    onOpenFollowings: () -> Unit,
+    onOpenFollowers: () -> Unit
 ) {
     state.bannerUrl?.let { banner ->
         item(
@@ -48,7 +51,11 @@ internal fun LazyListScope.spaceHeaderSection(
         key = "header_profile",
         contentType = "profile"
     ) {
-        ProfileCard(state = state)
+        ProfileCard(
+            state = state,
+            onOpenFollowings = onOpenFollowings,
+            onOpenFollowers = onOpenFollowers
+        )
     }
 }
 
@@ -74,7 +81,11 @@ private fun BannerCard(imageUrl: String) {
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun ProfileCard(state: SpaceHeaderUiState) {
+private fun ProfileCard(
+    state: SpaceHeaderUiState,
+    onOpenFollowings: () -> Unit,
+    onOpenFollowers: () -> Unit
+) {
     val profile = state.profile
     val faceUrl = profile.face
     var showAvatarPreview by remember { mutableStateOf(false) }
@@ -170,8 +181,8 @@ private fun ProfileCard(state: SpaceHeaderUiState) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SpaceStatChip("粉丝", profile.fansCount.toString())
-                SpaceStatChip("关注", profile.followingCount.toString())
+                SpaceStatChip("粉丝", profile.fansCount.toString(), onClick = onOpenFollowers)
+                SpaceStatChip("关注", profile.followingCount.toString(), onClick = onOpenFollowings)
                 if (profile.likeCount > 0L) {
                     SpaceStatChip("获赞", profile.likeCount.toString())
                 }
@@ -204,11 +215,20 @@ private fun ProfileCard(state: SpaceHeaderUiState) {
 @Composable
 private fun SpaceStatChip(
     label: String,
-    value: String
+    value: String,
+    onClick: (() -> Unit)? = null
 ) {
+    val shape = MaterialTheme.shapes.small
     Surface(
+        modifier = if (onClick != null) {
+            Modifier
+                .clip(shape)
+                .clickable(onClick = onClick)
+        } else {
+            Modifier
+        },
         color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.small
+        shape = shape
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

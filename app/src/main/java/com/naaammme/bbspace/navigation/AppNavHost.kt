@@ -1,4 +1,4 @@
-﻿package com.naaammme.bbspace.navigation
+package com.naaammme.bbspace.navigation
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -94,6 +94,8 @@ import com.naaammme.bbspace.feature.search.navigation.navigateToSearch
 import com.naaammme.bbspace.feature.search.navigation.searchScreen
 import com.naaammme.bbspace.feature.space.navigation.navigateToSpace
 import com.naaammme.bbspace.feature.space.navigation.spaceScreen
+import com.naaammme.bbspace.feature.space.navigation.spaceRelationScreen
+import com.naaammme.bbspace.feature.space.navigation.navigateToSpaceRelation
 import com.naaammme.bbspace.feature.home.interest.InterestScreen
 import com.naaammme.bbspace.feature.settings.SettingsViewModel
 import com.naaammme.bbspace.feature.settings.navigation.HOME_INTEREST_ROUTE
@@ -359,7 +361,14 @@ fun AppNavHost(
                             avatar = avatar
                         )
                     )
+                },
+                onOpenRelation = { vmid, initialTab ->
+                    rootNavController.navigateToSpaceRelation(vmid, initialTab)
                 }
+            )
+            spaceRelationScreen(
+                onBack = { rootNavController.popBackStack() },
+                onOpenSpace = rootNavController::navigateToSpace
             )
             downloadScreen(
                 navController = rootNavController,
