@@ -260,13 +260,17 @@ class CommentSearchViewModel @Inject constructor(
                     add(
                         CommentSearchItem(
                             id = "aicu:${rpid.ifBlank { "$pageNum:$i" }}",
-                            message = normalizeText(item.optString("message")),
+                            message = item.optString("message")
+                                .replace('\u00A0', ' ')
+                                .trim(),
                             metaLine = buildAicuMetaLine(
                                 oid = dyn?.optString("oid").orEmpty(),
                                 type = dyn?.optInt("type"),
                                 rpid = rpid
                             ),
-                            timeText = formatEpochTime(timeSec, localFormatter)
+                            timeText = timeSec.takeIf { it > 0L }
+                                ?.let { localFormatter.format(Date(it * 1000L)) }
+                                .orEmpty()
                         )
                     )
                 }
@@ -309,16 +313,6 @@ class CommentSearchViewModel @Inject constructor(
             if (type != null) add("type $type")
             if (rpid.isNotBlank()) add("rpid $rpid")
         }.joinToString(" · ")
-    }
-
-    private fun normalizeText(text: String): String {
-        if (text.isBlank()) return ""
-        return text.replace('\u00A0', ' ').trim()
-    }
-
-    private fun formatEpochTime(seconds: Long, formatter: SimpleDateFormat): String {
-        if (seconds <= 0L) return ""
-        return formatter.format(Date(seconds * 1000L))
     }
 
     private fun getFriendlyErrorMessage(err: Throwable): String {

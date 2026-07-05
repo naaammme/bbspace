@@ -29,7 +29,6 @@ import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.feature.comment.component.CommentReplyAction
 import com.naaammme.bbspace.feature.comment.component.StateCard
 import com.naaammme.bbspace.feature.comment.component.ThreadReplyCard
-import com.naaammme.bbspace.feature.comment.component.formatCount
 
 @Composable
 internal fun CommentThreadPane(
@@ -226,7 +225,7 @@ private fun ThreadInfoBar(
     ) {
         Text(
             text = if (count > 0L) {
-                "相关回复共${count.formatCount()}条"
+                "相关回复共${count}条"
             } else {
                 "相关回复"
             },

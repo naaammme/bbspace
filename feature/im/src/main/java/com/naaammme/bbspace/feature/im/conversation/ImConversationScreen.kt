@@ -351,7 +351,7 @@ private fun MessageContent(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "${message.shareViewCount.formatCount()} 播放",
+                                text = "${message.shareViewCount} 播放",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = timeColor,
                                 maxLines = 1,
@@ -541,21 +541,6 @@ private fun formatMessageTime(timestampSec: Long): String {
 }
 
 private val MESSAGE_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-
-private fun Long.formatCount(): String {
-    return when {
-        this >= 100_000_000L -> formatDecimal(this / 100_000_000f, "亿")
-        this >= 10_000L -> formatDecimal(this / 10_000f, "万")
-        else -> toString()
-    }
-}
-
-private fun formatDecimal(value: Float, suffix: String): String {
-    val text = String.format(java.util.Locale.ROOT, "%.1f", value)
-        .trimEnd('0')
-        .trimEnd('.')
-    return "$text$suffix"
-}
 
 private val LocalOnOpenSpace = compositionLocalOf<((Long) -> Unit)?> { null }
 private val LocalOnOpenVideo = compositionLocalOf<((Long) -> Unit)?> { null }

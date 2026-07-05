@@ -30,7 +30,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -141,8 +140,8 @@ class SearchRepository @Inject constructor(
             cover = av.cover.httpsImageUrl(),
             author = av.author,
             duration = av.duration,
-            viewText = av.viewContent.ifBlank { av.play.toLong().formatCount() },
-            danmakuText = av.danmaku.toLong().formatCount(),
+            viewText = av.viewContent.ifBlank { av.play.toString() },
+            danmakuText = av.danmaku.toString(),
             publishTimeText = av.showCardDesc2.removePrefix("· ").takeIf(String::isNotBlank),
             reason = av.takeIf { it.hasRcmdReason() }?.rcmdReason?.content?.takeIf(String::isNotBlank),
             feedbacks = av.feedback.sectionsList.mapNotNull(::mapFeedbackSec)
@@ -161,8 +160,8 @@ class SearchRepository @Inject constructor(
             name = name.replace("<em class=\"keyword\">", "").replace("</em>", ""),
             avatar = author.cover.httpsImageUrl().takeIf(String::isNotBlank),
             sign = author.sign.takeIf(String::isNotBlank),
-            fansText = author.fans.toLong().formatCount(),
-            archivesText = author.archives.toLong().formatCount(),
+            fansText = author.fans.toString(),
+            archivesText = author.archives.toString(),
             level = author.level
         )
     }
@@ -220,22 +219,6 @@ class SearchRepository @Inject constructor(
             SearchOrder.PUBDATE -> Sort.SORT_PUBLISH_TIME
             SearchOrder.DANMAKU -> Sort.SORT_DANMAKU_COUNT
         }
-    }
-
-    private fun Long?.formatCount(): String {
-        val count = this ?: 0L
-        return when {
-            count >= 100_000_000L -> formatDecimal(count / 100_000_000f, "亿")
-            count >= 10_000L -> formatDecimal(count / 10_000f, "万")
-            else -> count.toString()
-        }
-    }
-
-    private fun formatDecimal(value: Float, suffix: String): String {
-        val text = String.format(Locale.ROOT, "%.1f", value)
-            .trimEnd('0')
-            .trimEnd('.')
-        return "$text$suffix"
     }
 
     private fun localTime(): Int {

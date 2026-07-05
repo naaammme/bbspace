@@ -61,7 +61,6 @@ import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.feature.comment.component.CommentCard
 import com.naaammme.bbspace.feature.comment.component.CommentReplyAction
 import com.naaammme.bbspace.feature.comment.component.StateCard
-import com.naaammme.bbspace.feature.comment.component.formatCount
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorFab
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorSheet
 import com.naaammme.bbspace.feature.comment.thread.CommentThreadPane
@@ -488,7 +487,7 @@ private fun sortText(sort: CommentSort): String {
 
 private fun headerCount(count: Long): String {
     return if (count > 0L) {
-        "${count.formatCount()} 条评论"
+        "$count 条评论"
     } else {
         "暂无评论"
     }

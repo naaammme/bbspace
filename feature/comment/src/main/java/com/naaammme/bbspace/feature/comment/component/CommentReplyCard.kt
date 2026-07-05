@@ -85,7 +85,7 @@ internal fun CommentCard(
                     Text(
                         text = reply.replyEntryText
                             ?.takeIf(String::isNotBlank)
-                            ?: "查看 ${reply.replyCount.formatCount()} 条回复",
+                            ?: "查看 ${reply.replyCount} 条回复",
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -242,7 +242,7 @@ private fun ReplyBody(
                         )
                     }
                     Text(
-                        text = "点赞 ${reply.likeCount.formatCount()}",
+                        text = "点赞 ${reply.likeCount}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

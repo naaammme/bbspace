@@ -186,7 +186,7 @@ class VideoDetailRepository @Inject constructor(
         val owner = reply.owner
         val name = owner.title.ifBlank { return null }
         val fansText = owner.fans.ifBlank {
-            owner.fansNum.takeIf { it > 0L }?.let(::formatCount).orEmpty()
+            owner.fansNum.takeIf { it > 0L }?.toString().orEmpty()
         }.ifBlank { null }
         return VideoOwner(
             mid = owner.mid,
@@ -199,13 +199,13 @@ class VideoDetailRepository @Inject constructor(
 
     private fun mapStat(stat: Stat): VideoStat {
         return VideoStat(
-            view = stat.vt.text.ifBlank { formatCount(stat.vt.value) },
-            danmaku = stat.danmaku.text.ifBlank { formatCount(stat.danmaku.value) },
-            reply = formatCount(stat.reply),
-            like = formatCount(stat.like),
-            coin = formatCount(stat.coin),
-            fav = formatCount(stat.fav),
-            share = formatCount(stat.share)
+            view = stat.vt.text.ifBlank { stat.vt.value.toString() },
+            danmaku = stat.danmaku.text.ifBlank { stat.danmaku.value.toString() },
+            reply = stat.reply.toString(),
+            like = stat.like.toString(),
+            coin = stat.coin.toString(),
+            fav = stat.fav.toString(),
+            share = stat.share.toString()
         )
     }
 
@@ -314,10 +314,10 @@ class VideoDetailRepository @Inject constructor(
             )
             val title = basic.title.ifBlank { return@mapNotNull null }
             val viewText = card.av.stat.vt.text.ifBlank {
-                formatCount(card.av.stat.vt.value)
+                card.av.stat.vt.value.toString()
             }.takeIf(String::isNotBlank)
             val danmakuText = card.av.stat.danmaku.text.ifBlank {
-                formatCount(card.av.stat.danmaku.value)
+                card.av.stat.danmaku.value.toString()
             }.takeIf(String::isNotBlank)
             VideoRelate(
                 target = ids.toUgcTarget(
@@ -487,19 +487,6 @@ class VideoDetailRepository @Inject constructor(
         val ids: List<ResolvedVideoIds> = emptyList(),
         val current: ResolvedVideoIds? = null
     )
-
-    private fun formatCount(count: Long): String {
-        return when {
-            count >= 100_000_000L -> formatDecimal(count / 100_000_000f, "亿")
-            count >= 10_000L -> formatDecimal(count / 10_000f, "万")
-            else -> count.toString()
-        }
-    }
-
-    private fun formatDecimal(value: Float, suffix: String): String {
-        val text = String.format(Locale.ROOT, "%.1f", value).trimEnd('0').trimEnd('.')
-        return "$text$suffix"
-    }
 
     private fun formatDur(durationSec: Long): String {
         val minute = durationSec / 60

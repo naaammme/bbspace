@@ -27,10 +27,10 @@ fun buildShapes(style: CornerStyle): Shapes = when (style) {
         extraLarge = RoundedCornerShape(32.dp)
     )
     CornerStyle.CIRCULAR -> Shapes(
-        extraSmall = RoundedCornerShape(50),
-        small = RoundedCornerShape(50),
-        medium = RoundedCornerShape(50),
-        large = RoundedCornerShape(50),
-        extraLarge = RoundedCornerShape(50)
+        extraSmall = RoundedCornerShape(12.dp),
+        small = RoundedCornerShape(16.dp),
+        medium = RoundedCornerShape(20.dp),
+        large = RoundedCornerShape(28.dp),
+        extraLarge = RoundedCornerShape(36.dp)
     )
 }

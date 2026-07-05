@@ -15,7 +15,6 @@ import com.naaammme.bbspace.core.model.VideoTargetTool
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
-import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -229,11 +228,11 @@ class SpaceRepository @Inject constructor(
                         categoryName = item.optString("tname").ifBlank { null },
                         durationSec = item.optLong("duration").coerceAtLeast(0L),
                         viewText = item.optString("view_content").ifBlank {
-                            formatCount(item.optLong("play"))
+                            item.optLong("play").toString()
                         },
                         danmakuText = item.optLong("danmaku")
                             .takeIf { it > 0L }
-                            ?.let(::formatCount),
+                            ?.toString(),
                         publishTimeText = item.optString("publish_time_text").ifBlank {
                             item.optLong("ctime")
                                 .takeIf { it > 0L }
@@ -254,24 +253,6 @@ class SpaceRepository @Inject constructor(
                 add(title)
             }
         }.distinct()
-    }
-
-    private fun formatCount(count: Long): String {
-        return when {
-            count >= 100_000_000L -> formatDecimal(count / 100_000_000f, "亿")
-            count >= 10_000L -> formatDecimal(count / 10_000f, "万")
-            else -> count.toString()
-        }
-    }
-
-    private fun formatDecimal(
-        value: Float,
-        suffix: String
-    ): String {
-        val text = String.format(Locale.ROOT, "%.1f", value)
-            .trimEnd('0')
-            .trimEnd('.')
-        return "$text$suffix"
     }
 
     private fun formatPubDate(ts: Long): String {

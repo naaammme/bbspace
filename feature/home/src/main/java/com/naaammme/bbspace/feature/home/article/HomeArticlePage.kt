@@ -236,26 +236,8 @@ private fun ArticleAuthorRow(
 
 private fun buildStatLine(item: ArticleRecommendItem): String? {
     return buildList {
-        if (item.viewCount > 0) add("${formatCount(item.viewCount)} 阅读")
-        if (item.likeCount > 0) add("${formatCount(item.likeCount)} 点赞")
-        if (item.replyCount > 0) add("${formatCount(item.replyCount)} 评论")
+        if (item.viewCount > 0) add("${item.viewCount} 阅读")
+        if (item.likeCount > 0) add("${item.likeCount} 点赞")
+        if (item.replyCount > 0) add("${item.replyCount} 评论")
     }.takeIf { it.isNotEmpty() }?.joinToString("  ")
-}
-
-private fun formatCount(value: Long): String {
-    return when {
-        value >= 100_000_000L -> formatDecimal(value / 100_000_000f, "亿")
-        value >= 10_000L -> formatDecimal(value / 10_000f, "万")
-        else -> value.toString()
-    }
-}
-
-private fun formatDecimal(
-    value: Float,
-    suffix: String
-): String {
-    val text = String.format(java.util.Locale.ROOT, "%.1f", value)
-        .trimEnd('0')
-        .trimEnd('.')
-    return "$text$suffix"
 }

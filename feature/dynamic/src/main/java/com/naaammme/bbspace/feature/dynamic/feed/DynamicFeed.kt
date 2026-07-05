@@ -180,7 +180,7 @@ private fun DynamicCardContent(
         DynamicBodyContent(item = item)
         item.stats?.let { stats ->
             Text(
-                text = "转发 ${formatCount(stats.repost)}  评论 ${formatCount(stats.reply)}  点赞 ${formatCount(stats.like)}",
+                text = "转发 ${stats.repost}  评论 ${stats.reply}  点赞 ${stats.like}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -447,22 +447,6 @@ private fun DynamicImage.displayAspectRatio(): Float {
         (width.toFloat() / height.toFloat()).coerceIn(0.72f, 1.5f)
     } else {
         1f
-    }
-}
-
-private fun formatCount(value: Long): String {
-    return when {
-        value >= 100_000_000L -> {
-            val number = value / 100_000_000f
-            if (number >= 10f) "${number.toInt()}亿" else "%.1f亿".format(number)
-        }
-
-        value >= 10_000L -> {
-            val number = value / 10_000f
-            if (number >= 10f) "${number.toInt()}万" else "%.1f万".format(number)
-        }
-
-        else -> value.toString()
     }
 }
 

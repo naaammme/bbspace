@@ -24,7 +24,6 @@ import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.SelectableText
 import com.naaammme.bbspace.feature.space.SpaceHeaderUiState
-import java.util.Locale
 
 internal fun LazyListScope.spaceHeaderSection(
     state: SpaceHeaderUiState
@@ -148,10 +147,10 @@ private fun ProfileCard(state: SpaceHeaderUiState) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SpaceStatChip("粉丝", formatCount(profile.fansCount))
-                SpaceStatChip("关注", formatCount(profile.followingCount))
+                SpaceStatChip("粉丝", profile.fansCount.toString())
+                SpaceStatChip("关注", profile.followingCount.toString())
                 if (profile.likeCount > 0L) {
-                    SpaceStatChip("获赞", formatCount(profile.likeCount))
+                    SpaceStatChip("获赞", profile.likeCount.toString())
                 }
                 SpaceStatChip("视频", profile.videoCount.toString())
                 if (profile.articleCount > 0) {
@@ -222,20 +221,3 @@ private fun TagChip(text: String) {
     }
 }
 
-private fun formatCount(count: Long): String {
-    return when {
-        count >= 100_000_000L -> formatDecimal(count / 100_000_000f, "亿")
-        count >= 10_000L -> formatDecimal(count / 10_000f, "万")
-        else -> count.toString()
-    }
-}
-
-private fun formatDecimal(
-    value: Float,
-    suffix: String
-): String {
-    val text = String.format(Locale.ROOT, "%.1f", value)
-        .trimEnd('0')
-        .trimEnd('.')
-    return "$text$suffix"
-}

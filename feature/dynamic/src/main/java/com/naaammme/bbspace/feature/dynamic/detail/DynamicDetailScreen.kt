@@ -302,14 +302,14 @@ private fun DynamicDetailImageGrid(images: List<DynamicImage>, modifier: Modifie
 private fun DynamicDetailStats(stats: DynamicStats) {
     val text = remember(stats) {
         buildString {
-            if (stats.repost > 0) append("转发 ${formatCount(stats.repost)}")
+            if (stats.repost > 0) append("转发 ${stats.repost}")
             if (stats.reply > 0) {
                 if (isNotEmpty()) append("  ")
-                append("评论 ${formatCount(stats.reply)}")
+                append("评论 ${stats.reply}")
             }
             if (stats.like > 0) {
                 if (isNotEmpty()) append("  ")
-                append("点赞 ${formatCount(stats.like)}")
+                append("点赞 ${stats.like}")
             }
         }
     }
@@ -343,20 +343,6 @@ private fun LazyListScope.detailContentItems(detail: DynamicDetail) {
         item(key = "detail_stats", contentType = "stats") {
             DynamicDetailStats(stats)
         }
-    }
-}
-
-private fun formatCount(value: Long): String {
-    return when {
-        value >= 100_000_000L -> {
-            val number = value / 100_000_000f
-            if (number >= 10f) "${number.toInt()}亿" else "%.1f亿".format(number)
-        }
-        value >= 10_000L -> {
-            val number = value / 10_000f
-            if (number >= 10f) "${number.toInt()}万" else "%.1f万".format(number)
-        }
-        else -> value.toString()
     }
 }
 
