@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.feature.space.header
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -15,6 +16,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -22,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
+import com.naaammme.bbspace.core.designsystem.component.PreviewImage
+import com.naaammme.bbspace.core.designsystem.component.PreviewImageDialog
 import com.naaammme.bbspace.core.designsystem.component.SelectableText
 import com.naaammme.bbspace.feature.space.SpaceHeaderUiState
 
@@ -69,6 +76,18 @@ private fun BannerCard(imageUrl: String) {
 @Composable
 private fun ProfileCard(state: SpaceHeaderUiState) {
     val profile = state.profile
+    val faceUrl = profile.face
+    var showAvatarPreview by remember { mutableStateOf(false) }
+
+    if (showAvatarPreview && !faceUrl.isNullOrBlank()) {
+        PreviewImageDialog(
+            images = listOf(PreviewImage(url = faceUrl)),
+            startIdx = 0,
+            onDismiss = { showAvatarPreview = false },
+            onSaveImage = null
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -85,9 +104,13 @@ private fun ProfileCard(state: SpaceHeaderUiState) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AvatarImage(
-                    url = profile.face,
+                    url = faceUrl,
                     contentDescription = profile.name,
-                    modifier = Modifier.size(72.dp),
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clickable(enabled = !faceUrl.isNullOrBlank()) {
+                            showAvatarPreview = true
+                        },
                     fallbackContent = {
                         Text(
                             text = profile.name.take(1),
@@ -220,4 +243,3 @@ private fun TagChip(text: String) {
         )
     }
 }
-

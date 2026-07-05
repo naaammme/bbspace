@@ -131,7 +131,7 @@ private fun PreviewGridItem(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PreviewImageDialog(
+fun PreviewImageDialog(
     images: List<PreviewImage>,
     startIdx: Int,
     onDismiss: () -> Unit,
@@ -161,7 +161,6 @@ private fun PreviewImageDialog(
                         image = images[page],
                         active = pagerState.currentPage == page,
                         onDismiss = onDismiss,
-                        onSaveImage = onSaveImage?.let { save -> { save(images[page]) } },
                         onScaleChange = { scale ->
                             if (pagerState.currentPage == page) {
                                 currentScale = scale
@@ -192,6 +191,22 @@ private fun PreviewImageDialog(
                         color = Color.White,
                         modifier = Modifier.align(Alignment.Center)
                     )
+                    if (onSaveImage != null) {
+                        TextButton(
+                            onClick = {
+                                val currentImage = images.getOrNull(pagerState.currentPage)
+                                if (currentImage != null) {
+                                    onSaveImage(currentImage)
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        ) {
+                            Text(
+                                text = "保存",
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -204,7 +219,6 @@ private fun PreviewImagePage(
     image: PreviewImage,
     active: Boolean,
     onDismiss: () -> Unit,
-    onSaveImage: (() -> Unit)?,
     onScaleChange: (Float) -> Unit
 ) {
     val density = LocalDensity.current
@@ -256,17 +270,14 @@ private fun PreviewImagePage(
                     translationX = offset.x
                     translationY = offset.y
                 }
-                .combinedClickable(
-                    onClick = {
-                        if (scale > 1f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                        } else {
-                            onDismiss()
-                        }
-                    },
-                    onLongClick = onSaveImage
-                )
+                .clickable {
+                    if (scale > 1f) {
+                        scale = 1f
+                        offset = Offset.Zero
+                    } else {
+                        onDismiss()
+                    }
+                }
                 .transformable(
                     state = tfState,
                     canPan = { scale > 1f }

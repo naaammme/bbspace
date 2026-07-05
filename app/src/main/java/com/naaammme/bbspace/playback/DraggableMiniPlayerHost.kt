@@ -75,12 +75,12 @@ internal fun DraggableMiniPlayerHost(
         val safeBottomPx = with(density) { safeInsets.getBottom(this) }
         val bottomGapPx = with(density) { miniPlayerBottomGap.roundToPx() }
         val minVisibleXPx = safeLeftPx.toFloat()
-        val maxVisibleXPx = remember(hostWidthPx, safeRightPx, playerWidthPx) {
-            (hostWidthPx - safeRightPx - playerWidthPx).coerceAtLeast(0).toFloat()
+        val maxVisibleXPx = remember(hostWidthPx, safeRightPx, playerWidthPx, minVisibleXPx) {
+            (hostWidthPx - safeRightPx - playerWidthPx).toFloat().coerceAtLeast(minVisibleXPx)
         }
         val minYPx = safeTopPx.toFloat()
-        val maxYPxFloat = remember(hostHeightPx, safeBottomPx, bottomGapPx, playerHeightPx) {
-            (hostHeightPx - safeBottomPx - bottomGapPx - playerHeightPx).coerceAtLeast(0).toFloat()
+        val maxYPxFloat = remember(hostHeightPx, safeBottomPx, bottomGapPx, playerHeightPx, minYPx) {
+            (hostHeightPx - safeBottomPx - bottomGapPx - playerHeightPx).toFloat().coerceAtLeast(minYPx)
         }
         val initialYOffsetPx = remember(maxYPxFloat, minYPx, density) {
             (maxYPxFloat - with(density) { 60.dp.roundToPx().toFloat() }).coerceAtLeast(minYPx)

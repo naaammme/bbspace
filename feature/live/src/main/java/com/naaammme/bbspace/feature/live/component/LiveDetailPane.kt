@@ -31,6 +31,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -57,6 +58,7 @@ import java.util.Date
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 
 @Composable
@@ -101,9 +103,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.liveMessageItems(
         key = { it.msgId ?: "live_msg_${it.localId}" },
         contentType = { "live_message" }
     ) { msg ->
+        val timeText = remember(msg.sendTimeMs) {
+            if (msg.sendTimeMs <= 0L) {
+                "--:--"
+            } else {
+                timeFmt.format(Date(msg.sendTimeMs))
+            }
+        }
         LiveMessageCard(
             message = msg,
-            timeFmt = timeFmt
+            timeText = timeText
         )
     }
 }
@@ -166,7 +175,7 @@ private fun LiveMetaSection(
 @Composable
 private fun LiveMessageCard(
     message: LiveRoomMessage,
-    timeFmt: DateFormat
+    timeText: String
 ) {
     val user = message.user
     val headText = remember(
@@ -180,13 +189,6 @@ private fun LiveMessageCard(
             user?.name?.takeIf(String::isNotBlank),
             message.medal?.let { "${it.name} ${it.level}" }
         ).joinToString(" · ").ifBlank { "匿名用户" }
-    }
-    val timeText = remember(message.sendTimeMs) {
-        if (message.sendTimeMs <= 0L) {
-            "--:--"
-        } else {
-            timeFmt.format(Date(message.sendTimeMs))
-        }
     }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -255,16 +257,21 @@ private fun LiveDetailMessageList(
     val listState = rememberLazyListState()
     val messages = roomSession.messages
     var followNew by remember { mutableStateOf(true) }
+    val currentMessages by rememberUpdatedState(messages)
 
-    LaunchedEffect(messages.lastOrNull()?.localId) {
-        if (followNew) {
-            delay(AUTO_SCROLL_COALESCE_MS)
-            if (!followNew || listState.isScrollInProgress) return@LaunchedEffect
-            val total = listState.layoutInfo.totalItemsCount
-            if (total > 0) {
-                listState.scrollToItem(total - 1)
+    LaunchedEffect(listState) {
+        snapshotFlow { currentMessages.lastOrNull()?.localId }
+            .conflate()
+            .collect { id ->
+                if (id != null && followNew) {
+                    delay(AUTO_SCROLL_COALESCE_MS)
+                    if (!followNew || listState.isScrollInProgress) return@collect
+                    val total = listState.layoutInfo.totalItemsCount
+                    if (total > 0) {
+                        listState.scrollToItem(total - 1)
+                    }
+                }
             }
-        }
     }
 
     LaunchedEffect(listState) {
