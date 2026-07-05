@@ -203,16 +203,11 @@ class PlaybackService : Service() {
             notification: Notification,
             ongoing: Boolean
         ) {
-            if (ongoing) {
-                if (!isForeground) {
-                    startForeground(notificationId, notification)
-                    isForeground = true
-                }
-                return
-            }
-            if (isForeground) {
-                ServiceCompat.stopForeground(this@PlaybackService, ServiceCompat.STOP_FOREGROUND_DETACH)
-                isForeground = false
+            // 始终保持前台服务状态防止在失去音频焦点时退居后台而被系统直接杀死
+            // Android 11+ 的媒体控制中心依然允许用户手取消划掉暂停状态的媒体卡片，不会影响体验
+            if (!isForeground) {
+                startForeground(notificationId, notification)
+                isForeground = true
             }
         }
 
