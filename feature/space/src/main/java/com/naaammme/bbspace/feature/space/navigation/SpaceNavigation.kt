@@ -6,6 +6,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.SpaceRouteTool
 import com.naaammme.bbspace.core.model.VideoTarget
@@ -34,6 +35,8 @@ fun NavController.navigateToSpace(route: SpaceRoute) {
 fun NavGraphBuilder.spaceScreen(
     onBack: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
+    onOpenDynamic: (String) -> Unit = {},
+    onOpenLive: (LiveRoute) -> Unit = {},
     onOpenIm: ((Long, String, String?) -> Unit)? = null
 ) {
     composable(
@@ -60,6 +63,8 @@ fun NavGraphBuilder.spaceScreen(
         SpaceScreen(
             onBack = onBack,
             onOpenVideo = onOpenVideo,
+            onOpenDynamic = onOpenDynamic,
+            onOpenLive = onOpenLive,
             onOpenIm = onOpenIm
         )
     }

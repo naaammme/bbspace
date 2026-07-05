@@ -13,6 +13,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -22,61 +23,114 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
+import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceVideo
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.SpaceArchiveUiState
+import com.naaammme.bbspace.feature.space.SpaceDynamicUiState
+import com.naaammme.bbspace.feature.space.SpaceSection
 import com.naaammme.bbspace.feature.space.component.RetryCard
 import com.naaammme.bbspace.feature.space.component.StateCard
+import com.naaammme.bbspace.feature.space.dynamic.spaceDynamicSection
 import java.util.Locale
 
 internal fun LazyListScope.spaceArchiveSection(
     state: SpaceArchiveUiState,
+    videoCount: Int,
+    dynamics: SpaceDynamicUiState,
+    section: SpaceSection,
     onOpenVideo: (VideoTarget) -> Unit,
-    onLoadMore: () -> Unit,
-    onSelectOrder: (String) -> Unit
+    onSelectOrder: (String) -> Unit,
+    onSelectSection: (SpaceSection) -> Unit,
+    onOpenDynamic: (String) -> Unit,
+    onOpenLive: (LiveRoute) -> Unit,
+    onRefresh: () -> Unit,
+    onLoadMore: () -> Unit
 ) {
-    if (state.orders.size > 1) {
-        item(
-            key = "archive_order",
-            contentType = "order"
+    item(
+        key = "space_section_bar",
+        contentType = "section_bar"
+    ) {
+        val selectedIndex = if (section == SpaceSection.VIDEO) 0 else 1
+        FilledTabRow(
+            tabs = listOf("视频", "动态"),
+            selectedIndex = selectedIndex,
+            onSelect = { index ->
+                onSelectSection(if (index == 0) SpaceSection.VIDEO else SpaceSection.DYNAMIC)
+            }
+        )
+    }
+
+    when (section) {
+        SpaceSection.VIDEO -> videoSection(
+            state = state,
+            videoCount = videoCount,
+            onOpenVideo = onOpenVideo,
+            onSelectOrder = onSelectOrder,
+            onRetryLoadMore = onLoadMore
+        )
+        SpaceSection.DYNAMIC -> spaceDynamicSection(
+            state = dynamics,
+            onOpenDynamic = onOpenDynamic,
+            onOpenLive = onOpenLive,
+            onOpenVideo = onOpenVideo,
+            onRetry = onRefresh,
+            onLoadMore = onLoadMore
+        )
+    }
+}
+
+private fun LazyListScope.videoSection(
+    state: SpaceArchiveUiState,
+    videoCount: Int,
+    onOpenVideo: (VideoTarget) -> Unit,
+    onSelectOrder: (String) -> Unit,
+    onRetryLoadMore: () -> Unit
+) {
+    item(
+        key = "archive_toolbar",
+        contentType = "toolbar"
+    ) {
+        val orderIndex = state.orders.indexOfFirst { it.value == state.selectedOrder }
+            .takeIf { it >= 0 }
+            ?: 0
+        val order = state.orders.getOrNull(orderIndex)
+        val nextOrder = state.orders
+            .takeIf { it.size > 1 }
+            ?.get((orderIndex + 1) % state.orders.size)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val titles = remember(state.orders) {
-                state.orders.map { it.title }
-            }
-            val selectedIndex = remember(state.orders, state.selectedOrder) {
-                state.orders.indexOfFirst { it.value == state.selectedOrder }
-                    .coerceAtLeast(0)
-            }
-            FilledTabRow(
-                tabs = titles,
-                selectedIndex = selectedIndex,
-                onSelect = { index ->
-                    onSelectOrder(state.orders[index].value)
-                }
+            Text(
+                text = "${videoCount.coerceAtLeast(state.videos.size)} 个视频",
+                style = MaterialTheme.typography.titleSmall
             )
+            TextButton(
+                onClick = { nextOrder?.let { onSelectOrder(it.value) } },
+                enabled = nextOrder != null
+            ) {
+                Text(
+                    text = order?.title ?: "排序",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
         }
     }
 
-    val message = state.message
-    if (!message.isNullOrBlank()) {
-        item(
-            key = "archive_error",
-            contentType = "state"
-        ) {
+    state.message?.let { message ->
+        item(key = "archive_error", contentType = "state") {
             StateCard(text = message)
         }
     }
 
     when {
         state.showEmpty && !state.isRefreshing -> {
-            item(
-                key = "archive_empty",
-                contentType = "state"
-            ) {
+            item(key = "archive_empty", contentType = "state") {
                 StateCard(text = "这个空间还没有公开视频")
             }
         }
-
         else -> {
             items(
                 items = state.videos,
@@ -91,26 +145,18 @@ internal fun LazyListScope.spaceArchiveSection(
         }
     }
 
-    val loadMoreError = state.loadMoreError
     when {
-        !loadMoreError.isNullOrBlank() -> {
-            item(
-                key = "archive_load_more_error",
-                contentType = "state"
-            ) {
+        state.loadMoreError != null -> {
+            item(key = "archive_load_more_error", contentType = "state") {
                 RetryCard(
-                    text = loadMoreError,
+                    text = state.loadMoreError,
                     button = "重试",
-                    onRetry = onLoadMore
+                    onRetry = onRetryLoadMore
                 )
             }
         }
-
         !state.hasMore && state.videos.isNotEmpty() -> {
-            item(
-                key = "archive_end",
-                contentType = "state"
-            ) {
+            item(key = "archive_end", contentType = "state") {
                 StateCard(text = "没有更多视频了")
             }
         }
@@ -123,11 +169,7 @@ private fun SpaceVideoCard(
     onClick: () -> Unit
 ) {
     val meta = remember(video.author, video.categoryName, video.publishTimeText) {
-        listOfNotNull(
-            video.author,
-            video.categoryName,
-            video.publishTimeText
-        ).joinToString(" · ")
+        listOfNotNull(video.author, video.categoryName, video.publishTimeText).joinToString(" · ")
     }
     val durationText = remember(video.durationSec) {
         video.durationSec.takeIf { it > 0L }?.let(::formatDuration)

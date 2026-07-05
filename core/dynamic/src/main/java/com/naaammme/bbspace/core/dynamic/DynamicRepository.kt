@@ -4,6 +4,8 @@ import com.bapis.bilibili.app.dynamic.v2.AdParam
 import com.bapis.bilibili.app.dynamic.v2.Config
 import com.bapis.bilibili.app.dynamic.v2.DynAllReply
 import com.bapis.bilibili.app.dynamic.v2.DynAllReq
+import com.bapis.bilibili.app.dynamic.v2.DynSpaceReq
+import com.bapis.bilibili.app.dynamic.v2.DynSpaceRsp
 import com.bapis.bilibili.app.dynamic.v2.DynamicItem
 import com.bapis.bilibili.app.dynamic.v2.FeedSortOptionReq
 import com.bapis.bilibili.app.dynamic.v2.ModuleAuthor
@@ -85,6 +87,38 @@ class DynamicRepository @Inject constructor(
         )
         return withContext(Dispatchers.Default) {
             mapDetail(reply.opusItem)
+        }
+    }
+
+    suspend fun fetchSpace(
+        hostUid: Long,
+        page: Int,
+        historyOffset: String = "",
+        from: String = "space"
+    ): DynamicPage {
+        val req = DynSpaceReq.newBuilder()
+            .setHostUid(hostUid)
+            .setHistoryOffset(historyOffset)
+            .setLocalTime(localTime())
+            .setPage(page.toLong())
+            .setFrom(from)
+            .build()
+        val reply = grpcClient.call(
+            endpoint = SPACE_ENDPOINT,
+            requestBytes = req.toByteArray(),
+            parser = DynSpaceRsp.parser()
+        )
+        return withContext(Dispatchers.Default) {
+            DynamicPage(
+                items = reply.listList.mapNotNull(::mapItem),
+                upList = null,
+                cursor = DynamicCursor(
+                    historyOffset = reply.historyOffset,
+                    page = page + 1
+                ),
+                hasMore = reply.hasMore,
+                updateNum = 0L
+            )
         }
     }
 
@@ -692,5 +726,14 @@ class DynamicRepository @Inject constructor(
     private companion object {
         const val ENDPOINT = "bilibili.app.dynamic.v2.Dynamic/DynAll"
         const val OPUS_DETAIL_ENDPOINT = "bilibili.app.dynamic.v2.Opus/OpusDetail"
+        const val SPACE_ENDPOINT = "bilibili.app.dynamic.v2.Dynamic/DynSpace"
+        const val DEFAULT_QN = 80L
+        const val DEFAULT_FNVER = 0L
+        const val DEFAULT_FNVAL = 272L
+        const val DEFAULT_FORCE_HOST = 0L
+        const val DEFAULT_VOICE_BALANCE = 1L
+        const val DEFAULT_CLIENT_ATTR = 0L
+        const val SHORT_EDGE = "1080"
+        const val LONG_EDGE = "1920"
     }
 }

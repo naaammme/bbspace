@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
+import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.archive.spaceArchiveSection
 import com.naaammme.bbspace.feature.space.header.spaceHeaderSection
@@ -36,14 +37,23 @@ import kotlinx.coroutines.flow.filter
 fun SpaceScreen(
     onBack: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
+    onOpenDynamic: (String) -> Unit = {},
+    onOpenLive: (LiveRoute) -> Unit = {},
     onOpenIm: ((Long, String, String?) -> Unit)? = null,
     viewModel: SpaceViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val listState = rememberLazyListState()
-    val archiveState by rememberUpdatedState(state.archive)
+    val videoListState = rememberLazyListState()
+    val dynamicListState = rememberLazyListState()
+    val listState = when (state.selectedSection) {
+        SpaceSection.VIDEO -> videoListState
+        SpaceSection.DYNAMIC -> dynamicListState
+    }
+    val archiveState = rememberUpdatedState(state.archive)
+    val dynamicsState = rememberUpdatedState(state.dynamics)
+    val selectedSectionState = rememberUpdatedState(state.selectedSection)
 
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, state.selectedSection) {
         snapshotFlow {
             val total = listState.layoutInfo.totalItemsCount
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -51,20 +61,21 @@ fun SpaceScreen(
         }
             .distinctUntilChanged()
             .filter { (total, last) ->
-                archiveState.canLoadMore &&
+                when (selectedSectionState.value) {
+                    SpaceSection.VIDEO -> archiveState.value.canLoadMore
+                    SpaceSection.DYNAMIC -> dynamicsState.value.canLoadMore
+                } &&
                         total > 0 &&
                         last >= total - LOAD_MORE_TRIGGER_OFFSET
             }
-            .collect {
-                viewModel.loadMore()
-            }
+            .collect { viewModel.loadMore() }
     }
 
     LaunchedEffect(state.archive.selectedOrder) {
-        val needScrollTop = listState.firstVisibleItemIndex > 0 ||
-                listState.firstVisibleItemScrollOffset > 0
+        val needScrollTop = videoListState.firstVisibleItemIndex > 0 ||
+                videoListState.firstVisibleItemScrollOffset > 0
         if (needScrollTop) {
-            listState.scrollToItem(0)
+            videoListState.scrollToItem(0)
         }
     }
 
@@ -126,9 +137,16 @@ fun SpaceScreen(
                 spaceHeaderSection(header)
                 spaceArchiveSection(
                     state = state.archive,
+                    videoCount = header.profile.videoCount,
+                    dynamics = state.dynamics,
+                    section = state.selectedSection,
                     onOpenVideo = onOpenVideo,
-                    onLoadMore = viewModel::loadMore,
-                    onSelectOrder = viewModel::selectOrder
+                    onSelectOrder = viewModel::selectOrder,
+                    onSelectSection = viewModel::selectSection,
+                    onOpenDynamic = onOpenDynamic,
+                    onOpenLive = onOpenLive,
+                    onRefresh = viewModel::refresh,
+                    onLoadMore = viewModel::loadMore
                 )
             }
         }

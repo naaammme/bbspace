@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.feature.space
 
 import androidx.compose.runtime.Immutable
+import com.naaammme.bbspace.core.model.DynamicItem
 import com.naaammme.bbspace.core.model.SpaceOrderOption
 import com.naaammme.bbspace.core.model.SpaceProfile
 import com.naaammme.bbspace.core.model.SpaceVideo
@@ -15,10 +16,17 @@ private val DEFAULT_ORDERS = listOf(
 @Immutable
 data class SpaceUiState(
     val header: SpaceHeaderUiState? = null,
-    val archive: SpaceArchiveUiState = SpaceArchiveUiState()
+    val archive: SpaceArchiveUiState = SpaceArchiveUiState(),
+    val dynamics: SpaceDynamicUiState = SpaceDynamicUiState(),
+    val selectedSection: SpaceSection = SpaceSection.VIDEO
 ) {
     val title: String
         get() = header?.profile?.name ?: "个人空间"
+}
+
+enum class SpaceSection {
+    VIDEO,
+    DYNAMIC
 }
 
 @Immutable
@@ -47,6 +55,30 @@ data class SpaceArchiveUiState(
 
     val showEmpty: Boolean
         get() = videos.isEmpty() &&
+                !isRefreshing &&
+                message.isNullOrBlank()
+}
+
+@Immutable
+data class SpaceDynamicUiState(
+    val items: List<DynamicItem> = emptyList(),
+    val historyOffset: String = "",
+    val page: Int = 1,
+    val hasMore: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val message: String? = null,
+    val loadMoreError: String? = null
+) {
+    val canLoadMore: Boolean
+        get() = hasMore &&
+                !isRefreshing &&
+                !isLoadingMore &&
+                loadMoreError.isNullOrBlank() &&
+                items.isNotEmpty()
+
+    val showEmpty: Boolean
+        get() = items.isEmpty() &&
                 !isRefreshing &&
                 message.isNullOrBlank()
 }

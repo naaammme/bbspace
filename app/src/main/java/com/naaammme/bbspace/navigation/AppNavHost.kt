@@ -345,6 +345,10 @@ fun AppNavHost(
             spaceScreen(
                 onBack = { rootNavController.popBackStack() },
                 onOpenVideo = openVideo,
+                onOpenDynamic = { opusId ->
+                    rootNavController.navigateToDynamicDetail(opusId)
+                },
+                onOpenLive = openLive,
                 onOpenIm = { mid, name, avatar ->
                     rootNavController.navigateToImConversation(
                         ImSessionItem(

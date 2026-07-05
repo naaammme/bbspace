@@ -27,6 +27,7 @@ android {
 
 dependencies {
     implementation(project(":core:space"))
+    implementation(project(":core:dynamic"))
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
 
