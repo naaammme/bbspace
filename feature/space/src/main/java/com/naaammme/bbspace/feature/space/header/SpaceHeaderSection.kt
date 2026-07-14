@@ -94,8 +94,7 @@ private fun ProfileCard(
         PreviewImageDialog(
             images = listOf(PreviewImage(url = faceUrl)),
             startIdx = 0,
-            onDismiss = { showAvatarPreview = false },
-            onSaveImage = null
+            onDismiss = { showAvatarPreview = false }
         )
     }
 

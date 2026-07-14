@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.common.media.ImageSaver
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImageGrid
@@ -257,34 +256,9 @@ private fun DynamicDetailImageGrid(images: List<DynamicImage>, modifier: Modifie
             )
         }
     }
-    val context = LocalContext.current
-    val appCtx = remember(context) { context.applicationContext }
-    val scope = rememberCoroutineScope()
-    val onSaveImage: (PreviewImage) -> Unit = { image ->
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { ImageSaver.saveUrl(appCtx, image.url) }
-            }
-            result
-                .onSuccess {
-                    Toast.makeText(context, "已保存到相册", Toast.LENGTH_SHORT).show()
-                }
-                .onFailure { err ->
-                    Logger.e(DYNAMIC_DETAIL_TAG, err as? Exception) {
-                        "save dynamic detail image failed url=${image.url}"
-                    }
-                    Toast.makeText(
-                        context,
-                        err.message ?: "保存图片失败",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-        }
-    }
     PreviewImageGrid(
         images = previewImages,
-        modifier = modifier,
-        onSaveImage = onSaveImage
+        modifier = modifier
     )
 }
 

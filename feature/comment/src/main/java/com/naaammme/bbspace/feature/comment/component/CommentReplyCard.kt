@@ -48,7 +48,6 @@ internal sealed interface CommentReplyAction {
     data class Translate(val rpid: Long) : CommentReplyAction
     data class Delete(val reply: CommentReply) : CommentReplyAction
     data class Reply(val reply: CommentReply) : CommentReplyAction
-    data class SaveImage(val image: PreviewImage) : CommentReplyAction
     data class OpenReplies(val reply: CommentReply) : CommentReplyAction
     data class OpenUser(val user: CommentUser) : CommentReplyAction
 }
@@ -215,8 +214,7 @@ private fun ReplyBody(
 
             if (previewImages.isNotEmpty()) {
                 PreviewImageGrid(
-                    images = previewImages,
-                    onSaveImage = { onAction(CommentReplyAction.SaveImage(it)) }
+                    images = previewImages
                 )
             }
 

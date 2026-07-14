@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.common.media.ImageSaver
 import com.naaammme.bbspace.core.designsystem.component.CommentCardSkeleton
 import com.naaammme.bbspace.core.designsystem.component.CommentHeaderSkeleton
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
@@ -106,27 +105,7 @@ fun CommentPanel(
         end = contentPadding.calculateEndPadding(layoutDirection),
         bottom = contentPadding.calculateBottomPadding() + COMMENT_FAB_SPACE
     )
-    val onSaveImage: (PreviewImage) -> Unit = { image ->
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { ImageSaver.saveUrl(appCtx, image.url) }
-            }
-            result
-                .onSuccess {
-                    Toast.makeText(context, "已保存到相册", Toast.LENGTH_SHORT).show()
-                }
-                .onFailure { err ->
-                    Logger.e(COMMENT_TAG, err as? Exception) {
-                        "save comment image failed url=${image.url}"
-                    }
-                    Toast.makeText(
-                        context,
-                        err.message ?: "保存图片失败",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-        }
-    }
+
     var fabVisible by remember { mutableStateOf(true) }
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -183,8 +162,7 @@ fun CommentPanel(
     val onReplyAction: (CommentReplyAction) -> Unit = remember(
         routeSubject,
         detailRecord?.key,
-        onOpenSpace,
-        onSaveImage
+        onOpenSpace
     ) {
         { action ->
             when (action) {
@@ -192,7 +170,6 @@ fun CommentPanel(
                 is CommentReplyAction.Translate -> viewModel.translateReply(action.rpid)
                 is CommentReplyAction.Delete -> viewModel.deleteReply(action.reply)
                 is CommentReplyAction.Reply -> viewModel.replyTo(action.reply)
-                is CommentReplyAction.SaveImage -> onSaveImage(action.image)
                 is CommentReplyAction.OpenReplies -> viewModel.openReplyThread(action.reply)
                 is CommentReplyAction.OpenUser -> {
                     action.user.toSpaceRoute(routeSubject)?.let(onOpenSpace)

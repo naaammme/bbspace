@@ -39,10 +39,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.widget.Toast
+import androidx.compose.runtime.rememberCoroutineScope
+import com.naaammme.bbspace.core.common.media.ImageSaver
+import com.naaammme.bbspace.core.common.log.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Immutable
 data class PreviewImage(
@@ -54,8 +62,7 @@ data class PreviewImage(
 @Composable
 fun PreviewImageGrid(
     images: List<PreviewImage>,
-    modifier: Modifier = Modifier,
-    onSaveImage: ((PreviewImage) -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     if (images.isEmpty()) return
 
@@ -97,8 +104,7 @@ fun PreviewImageGrid(
         PreviewImageDialog(
             images = images,
             startIdx = previewIdx,
-            onDismiss = { previewIdx = -1 },
-            onSaveImage = onSaveImage
+            onDismiss = { previewIdx = -1 }
         )
     }
 }
@@ -134,9 +140,10 @@ private fun PreviewGridItem(
 fun PreviewImageDialog(
     images: List<PreviewImage>,
     startIdx: Int,
-    onDismiss: () -> Unit,
-    onSaveImage: ((PreviewImage) -> Unit)?
+    onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(
         initialPage = startIdx,
         pageCount = { images.size }
@@ -191,21 +198,29 @@ fun PreviewImageDialog(
                         color = Color.White,
                         modifier = Modifier.align(Alignment.Center)
                     )
-                    if (onSaveImage != null) {
-                        TextButton(
-                            onClick = {
-                                val currentImage = images.getOrNull(pagerState.currentPage)
-                                if (currentImage != null) {
-                                    onSaveImage(currentImage)
+                    TextButton(
+                        onClick = {
+                            val currentImage = images.getOrNull(pagerState.currentPage)
+                            if (currentImage != null) {
+                                scope.launch {
+                                    val result = withContext(Dispatchers.IO) {
+                                        runCatching { ImageSaver.saveUrl(context, currentImage.url) }
+                                    }
+                                    result.onSuccess {
+                                        Toast.makeText(context, "已保存到相册", Toast.LENGTH_SHORT).show()
+                                    }.onFailure { err ->
+                                        Logger.e("PreviewImageDialog", err as? Exception) { "save image failed url=${currentImage.url}" }
+                                        Toast.makeText(context, err.message ?: "保存图片失败", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
-                            },
-                            modifier = Modifier.align(Alignment.CenterEnd)
-                        ) {
-                            Text(
-                                text = "保存",
-                                color = Color.White
-                            )
-                        }
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Text(
+                            text = "保存",
+                            color = Color.White
+                        )
                     }
                 }
             }
