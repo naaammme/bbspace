@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.space.SpaceRepository
-import com.naaammme.bbspace.core.common.log.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,7 +65,6 @@ class RelationViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Logger.e(TAG, e) { "Failed to refresh relations (isFans=$isFans) for mid=$vmid" }
                 updateTabState(isFans) {
                     it.copy(
                         isRefreshing = false,
@@ -98,7 +96,6 @@ class RelationViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Logger.e(TAG, e) { "Failed to load more relations (isFans=$isFans) for mid=$vmid" }
                 updateTabState(isFans) {
                     it.copy(
                         isLoading = false,
@@ -121,6 +118,5 @@ class RelationViewModel @Inject constructor(
 
     companion object {
         private const val PAGE_SIZE = 20
-        private const val TAG = "RelationViewModel"
     }
 }

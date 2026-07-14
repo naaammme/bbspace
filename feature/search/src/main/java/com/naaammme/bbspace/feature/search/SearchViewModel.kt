@@ -57,14 +57,14 @@ class SearchViewModel @Inject constructor(
     val canLoadMore: Boolean
         get() = next.isNotBlank()
 
-    val hasActiveFilter: Boolean
-        get() = sel.isNotEmpty() || time.isActive
-
     private val _authors = MutableStateFlow<List<SearchAuthor>>(emptyList())
     val authors = _authors.asStateFlow()
 
     private val _videos = MutableStateFlow<List<SearchVideo>>(emptyList())
     val videos = _videos.asStateFlow()
+
+    private val authorIds = hashSetOf<Long>()
+    private val videoIds = hashSetOf<Pair<Long, Long>>()
 
     private val historyOrder = MutableStateFlow(SearchHistoryOrder.TIME)
     val currentHistoryOrder = historyOrder.asStateFlow()
@@ -104,7 +104,7 @@ class SearchViewModel @Inject constructor(
             if (recordHistory) {
                 repo.recordHistory(query)
             }
-            search(query, reset = true)
+            search(query)
         }
     }
 
@@ -122,10 +122,9 @@ class SearchViewModel @Inject constructor(
     }
 
     fun applyFilter(key: String, params: Set<String>, nextTime: SearchTime = time) {
-        val filter = filters.find { it.key == key } ?: return
+        if (filters.none { it.key == key }) return
         val nextSel = sel.toMutableMap().apply {
-            val valid = normalizeSel(filter, params)
-            if (valid.isEmpty()) remove(key) else put(key, valid)
+            if (params.isEmpty()) remove(key) else put(key, params)
         }
         val timeValue = if (key == SINCE_KEY) nextTime else time
         applyFilters(nextSel, timeValue)
@@ -134,9 +133,15 @@ class SearchViewModel @Inject constructor(
     fun applyFilters(nextSel: Map<String, Set<String>>, nextTime: SearchTime = time) {
         val normalizedSel = buildMap {
             filters.forEach { filter ->
-                val valid = normalizeSel(filter, nextSel[filter.key].orEmpty())
+                val picked = nextSel[filter.key].orEmpty()
+                val valid = filter.ops
+                    .asSequence()
+                    .filter { !it.isDefault }
+                    .map { it.param }
+                    .filter { it in picked }
+                    .toList()
                 if (valid.isEmpty()) return@forEach
-                put(filter.key, valid)
+                put(filter.key, if (filter.single) setOf(valid.first()) else valid.toSet())
             }
         }
         val timeValue = if (normalizedSel[SINCE_KEY]?.singleOrNull() == CUSTOM_TIME) {
@@ -151,12 +156,21 @@ class SearchViewModel @Inject constructor(
         order = nextOrder
         if (keyword.isBlank()) return
         viewModelScope.launch {
-            search(keyword, reset = true)
+            search(keyword)
         }
     }
 
     fun consumeBack(): Boolean {
-        if (!hasSearchResultState()) return false
+        val hasState = keyword.isNotBlank() ||
+                _authors.value.isNotEmpty() ||
+                _videos.value.isNotEmpty() ||
+                isLoading ||
+                isLoadingMore ||
+                errorMessage != null ||
+                filters.isNotEmpty() ||
+                sel.isNotEmpty() ||
+                time.isActive
+        if (!hasState) return false
         clearSearchState()
         return true
     }
@@ -169,8 +183,10 @@ class SearchViewModel @Inject constructor(
                 errorMessage = null
                 val page = repo.search(buildReq(keyword, next))
                 next = page.next
-                _authors.value += page.authors
-                _videos.value += page.videos
+                val newAuthors = page.authors.filter { authorIds.add(it.mid) }
+                val newVideos = page.videos.filter { videoIds.add(it.aid to it.cid) }
+                _authors.value += newAuthors
+                _videos.value += newVideos
                 if (page.filters.isNotEmpty()) {
                     syncFilters(page.filters)
                 }
@@ -183,33 +199,27 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    private suspend fun search(query: String, reset: Boolean) {
+    private suspend fun search(query: String) {
         try {
-            if (reset) {
-                isLoading = true
-                next = ""
-                _authors.value = emptyList()
-                _videos.value = emptyList()
-            } else {
-                isLoadingMore = true
-            }
+            isLoading = true
+            next = ""
+            authorIds.clear()
+            videoIds.clear()
+            _authors.value = emptyList()
+            _videos.value = emptyList()
             errorMessage = null
-            val page = repo.search(buildReq(query, if (reset) "" else next))
+            val page = repo.search(buildReq(query, ""))
             keyword = page.keyword
             input = page.keyword
             next = page.next
             syncFilters(page.filters)
-            _authors.value = if (reset) page.authors else _authors.value + page.authors
-            _videos.value = if (reset) page.videos else _videos.value + page.videos
+            _authors.value = page.authors.filter { authorIds.add(it.mid) }
+            _videos.value = page.videos.filter { videoIds.add(it.aid to it.cid) }
         } catch (e: Exception) {
             Logger.e(TAG, e) { "搜索失败" }
             errorMessage = e.message
         } finally {
-            if (reset) {
-                isLoading = false
-            } else {
-                isLoadingMore = false
-            }
+            isLoading = false
         }
     }
 
@@ -267,33 +277,6 @@ class SearchViewModel @Inject constructor(
         order = SearchOrder.fromParam(sel[SORT_KEY]?.firstOrNull())
     }
 
-    private fun normalizeSel(filter: SearchFilter, params: Set<String>): Set<String> {
-        val valid = filter.ops
-            .asSequence()
-            .filter { !it.isDefault }
-            .map { it.param }
-            .filter { it in params }
-            .toList()
-        if (valid.isEmpty()) return emptySet()
-        return if (filter.single) {
-            setOf(valid.first())
-        } else {
-            valid.toSet()
-        }
-    }
-
-    private fun hasSearchResultState(): Boolean {
-        return keyword.isNotBlank() ||
-                _authors.value.isNotEmpty() ||
-                _videos.value.isNotEmpty() ||
-                isLoading ||
-                isLoadingMore ||
-                errorMessage != null ||
-                filters.isNotEmpty() ||
-                sel.isNotEmpty() ||
-                time.isActive
-    }
-
     private fun clearSearchState() {
         keyword = ""
         next = ""
@@ -302,6 +285,8 @@ class SearchViewModel @Inject constructor(
         time = SearchTime()
         sel = emptyMap()
         errorMessage = null
+        authorIds.clear()
+        videoIds.clear()
         _authors.value = emptyList()
         _videos.value = emptyList()
     }

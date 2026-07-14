@@ -53,7 +53,6 @@ fun ErrorLogScreen(
     viewModel: ErrorLogViewModel = hiltViewModel()
 ) {
     val logs by viewModel.logs.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val fmt = remember { SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()) }
 
     CollapsingTopBarScaffold(
@@ -67,14 +66,6 @@ fun ErrorLogScreen(
                 },
                 actions = {
                     if (logs.isNotEmpty()) {
-                        TextButton(onClick = {
-                            val text = logs.joinToString("\n---\n") { it.toReportText(fmt) }
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("error_logs", text))
-                            Toast.makeText(context, "已复制 ${logs.size} 条日志", Toast.LENGTH_SHORT).show()
-                        }) {
-                            Text("复制全部")
-                        }
                         IconButton(onClick = { viewModel.clear() }) {
                             Icon(Icons.Default.Delete, contentDescription = null)
                         }
@@ -111,11 +102,12 @@ fun ErrorLogScreen(
 private fun ErrorLogItem(log: ErrorLog, fmt: SimpleDateFormat) {
     var expanded by remember { mutableStateOf(false) }
     val hasStack = !log.stackTrace.isNullOrEmpty()
+    val context = LocalContext.current
+    val timeStr = remember(log.time) { fmt.format(Date(log.time)) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (hasStack) Modifier.clickable { expanded = !expanded } else Modifier),
+        onClick = { if (hasStack) expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
         )
@@ -123,18 +115,43 @@ private fun ErrorLogItem(log: ErrorLog, fmt: SimpleDateFormat) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = log.tag,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = fmt.format(Date(log.time)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = timeStr,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "复制",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable {
+                                val text = buildString {
+                                    append("[$timeStr] [${log.tag}] ${log.message}")
+                                    if (!log.stackTrace.isNullOrEmpty()) {
+                                        append("\n${log.stackTrace}")
+                                    }
+                                }
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("error_log", text))
+                                Toast.makeText(context, "日志已复制", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
             }
             Text(
                 text = log.message,
@@ -156,9 +173,3 @@ private fun ErrorLogItem(log: ErrorLog, fmt: SimpleDateFormat) {
     }
 }
 
-private fun ErrorLog.toReportText(fmt: SimpleDateFormat): String {
-    val sb = StringBuilder()
-    sb.append("[${fmt.format(Date(time))}] [$tag] $message")
-    if (!stackTrace.isNullOrEmpty()) sb.append("\n$stackTrace")
-    return sb.toString()
-}
