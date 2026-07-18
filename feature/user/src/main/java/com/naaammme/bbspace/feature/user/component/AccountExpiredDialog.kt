@@ -10,7 +10,7 @@ fun AccountExpiredDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("账号已过期") },
-        text = { Text("当前账号已经过期，请删除账号。") },
+        text = { Text("当前账号已经过期，请务必删除此账号!!!") },
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("知道了")

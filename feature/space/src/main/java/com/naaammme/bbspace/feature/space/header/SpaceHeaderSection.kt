@@ -4,17 +4,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,7 +40,9 @@ import com.naaammme.bbspace.feature.space.SpaceHeaderUiState
 internal fun LazyListScope.spaceHeaderSection(
     state: SpaceHeaderUiState,
     onOpenFollowings: () -> Unit,
-    onOpenFollowers: () -> Unit
+    onOpenFollowers: () -> Unit,
+    onToggleFollow: () -> Unit,
+    onToggleBlock: () -> Unit
 ) {
     state.bannerUrl?.let { banner ->
         item(
@@ -54,7 +60,9 @@ internal fun LazyListScope.spaceHeaderSection(
         ProfileCard(
             state = state,
             onOpenFollowings = onOpenFollowings,
-            onOpenFollowers = onOpenFollowers
+            onOpenFollowers = onOpenFollowers,
+            onToggleFollow = onToggleFollow,
+            onToggleBlock = onToggleBlock
         )
     }
 }
@@ -84,17 +92,46 @@ private fun BannerCard(imageUrl: String) {
 private fun ProfileCard(
     state: SpaceHeaderUiState,
     onOpenFollowings: () -> Unit,
-    onOpenFollowers: () -> Unit
+    onOpenFollowers: () -> Unit,
+    onToggleFollow: () -> Unit,
+    onToggleBlock: () -> Unit
 ) {
     val profile = state.profile
     val faceUrl = profile.face
     var showAvatarPreview by remember { mutableStateOf(false) }
+    var pendingRelationAction by remember { mutableStateOf<RelationConfirmAction?>(null) }
 
     if (showAvatarPreview && !faceUrl.isNullOrBlank()) {
         PreviewImageDialog(
             images = listOf(PreviewImage(url = faceUrl)),
             startIdx = 0,
             onDismiss = { showAvatarPreview = false }
+        )
+    }
+
+    pendingRelationAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingRelationAction = null },
+            title = { Text(if (action == RelationConfirmAction.BLOCK) "拉黑用户" else "取消关注") },
+            text = { Text(if (action == RelationConfirmAction.BLOCK) "确定要拉黑TA吗？" else "确定要取消关注TA吗？") },
+            dismissButton = {
+                TextButton(onClick = { pendingRelationAction = null }) {
+                    Text("取消")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingRelationAction = null
+                        when (action) {
+                            RelationConfirmAction.UNFOLLOW -> onToggleFollow()
+                            RelationConfirmAction.BLOCK -> onToggleBlock()
+                        }
+                    }
+                ) {
+                    Text(if (action == RelationConfirmAction.BLOCK) "拉黑" else "取消关注")
+                }
+            }
         )
     }
 
@@ -197,19 +234,86 @@ private fun ProfileCard(
                 }
             }
 
-            if (profile.tags.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    profile.tags.forEach { tag ->
-                        TagChip(text = tag)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                profile.tags.forEach { tag ->
+                    TagChip(text = tag)
+                }
+                
+                val isFollowed = profile.relation == 1
+                val followText = when {
+                    isFollowed && profile.guestRelation == 1 -> "互相关注"
+                    isFollowed -> "已关注"
+                    profile.guestRelation == 1 -> "已被关注,回关"
+                    else -> "关注"
+                }
+                if (!state.isSelf) {
+                    val isBlocked = profile.relation == -1
+                    val blockText = when {
+                        isBlocked && profile.guestRelation == -1 -> "互相拉黑"
+                        isBlocked -> "取消拉黑"
+                        profile.guestRelation == -1 -> "已被拉黑,回拉"
+                        else -> "拉黑"
+                    }
+                    val blockButtonColors = if (isBlocked) {
+                        androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    } else {
+                        androidx.compose.material3.ButtonDefaults.buttonColors()
+                    }
+
+                    androidx.compose.material3.Button(
+                        onClick = {
+                            if (isBlocked) {
+                                onToggleBlock()
+                            } else {
+                                pendingRelationAction = RelationConfirmAction.BLOCK
+                            }
+                        },
+                        enabled = state.isLogin,
+                        colors = blockButtonColors,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(text = blockText, style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    if (!isBlocked) {
+                        val buttonColors = if (isFollowed) {
+                            androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        } else {
+                            androidx.compose.material3.ButtonDefaults.buttonColors()
+                        }
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                if (isFollowed) {
+                                    pendingRelationAction = RelationConfirmAction.UNFOLLOW
+                                } else {
+                                    onToggleFollow()
+                                }
+                            },
+                            enabled = state.isLogin,
+                            colors = buttonColors,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text(text = followText, style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private enum class RelationConfirmAction { UNFOLLOW, BLOCK }
 
 @Composable
 private fun SpaceStatChip(

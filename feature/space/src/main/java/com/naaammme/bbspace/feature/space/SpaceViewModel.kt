@@ -8,6 +8,7 @@ import com.naaammme.bbspace.core.dynamic.DynamicRepository
 import com.naaammme.bbspace.core.model.SpaceProfile
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.SpaceRouteTool
+import com.naaammme.bbspace.core.auth.AuthStore
 import com.naaammme.bbspace.core.space.SpaceRepository
 import com.naaammme.bbspace.feature.space.navigation.SPACE_FROM_ARG
 import com.naaammme.bbspace.feature.space.navigation.SPACE_FROM_VIEW_AID_ARG
@@ -25,7 +26,8 @@ import kotlinx.coroutines.launch
 class SpaceViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repo: SpaceRepository,
-    private val dynamicRepo: DynamicRepository
+    private val dynamicRepo: DynamicRepository,
+    private val authStore: AuthStore
 ) : ViewModel() {
 
     private val route = savedStateHandle.toSpaceRoute()
@@ -81,7 +83,9 @@ class SpaceViewModel @Inject constructor(
                 val homeOrderState = resolveSpaceOrderState(home.orders, preferredOrder)
                 val headerState = SpaceHeaderUiState(
                     profile = home.profile,
-                    bannerUrl = home.bannerUrl
+                    bannerUrl = home.bannerUrl,
+                    isLogin = authStore.mid > 0L,
+                    isSelf = authStore.mid > 0L && authStore.mid == home.profile.mid
                 )
                 if (route.mid > 0L && homeOrderState.selectedOrder != home.defaultOrder) {
                     val page = repo.fetchArchive(
@@ -203,6 +207,49 @@ class SpaceViewModel @Inject constructor(
         when (_uiState.value.selectedSection) {
             SpaceSection.VIDEO -> loadMoreVideos()
             SpaceSection.DYNAMIC -> loadMoreDynamics()
+        }
+    }
+
+    fun toggleFollow() {
+        val profile = _uiState.value.header?.profile ?: return
+        if (profile.mid <= 0L) return
+        val isFollow = profile.relation != 1
+
+        viewModelScope.launch {
+            try {
+                repo.modifyRelation(profile.mid, isFollow)
+                updateProfileRelationState(if (isFollow) 1 else -999)
+            } catch (e: Exception) {
+                Logger.e(TAG, e) { "修改关注状态失败" }
+                // TODO: 可以在这里增加发送 Toast 或 Snackbar 的 SideEffect
+            }
+        }
+    }
+
+    fun toggleBlock() {
+        val profile = _uiState.value.header?.profile ?: return
+        if (profile.mid <= 0L) return
+        val isBlack = profile.relation != -1
+
+        viewModelScope.launch {
+            try {
+                repo.modifyBlacklist(profile.mid, isBlack)
+                updateProfileRelationState(if (isBlack) -1 else -999)
+            } catch (e: Exception) {
+                Logger.e(TAG, e) { "修改拉黑状态失败" }
+                // TODO: 可以在这里增加发送 Toast 或 Snackbar 的 SideEffect
+            }
+        }
+    }
+
+    private fun updateProfileRelationState(newRelation: Int) {
+        _uiState.update { current ->
+            val curProfile = current.header?.profile ?: return@update current
+            current.copy(
+                header = current.header.copy(
+                    profile = curProfile.copy(relation = newRelation)
+                )
+            )
         }
     }
 
@@ -382,7 +429,9 @@ class SpaceViewModel @Inject constructor(
                 seriesCount = 0,
                 tags = emptyList()
             ),
-            bannerUrl = null
+            bannerUrl = null,
+            isLogin = authStore.mid > 0L,
+            isSelf = authStore.mid > 0L && authStore.mid == mid
         )
     }
 

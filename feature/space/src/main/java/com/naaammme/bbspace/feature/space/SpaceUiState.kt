@@ -32,7 +32,9 @@ enum class SpaceSection {
 @Immutable
 data class SpaceHeaderUiState(
     val profile: SpaceProfile,
-    val bannerUrl: String?
+    val bannerUrl: String?,
+    val isLogin: Boolean = false,
+    val isSelf: Boolean = false
 )
 
 @Immutable

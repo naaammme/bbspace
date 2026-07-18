@@ -13,9 +13,14 @@ import com.naaammme.bbspace.core.model.SpaceVideo
 import com.naaammme.bbspace.core.model.RelationUser
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoTargetTool
+import com.naaammme.bbspace.infra.crypto.BiliSessionId
+import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
+import com.bapis.bilibili.relation.interfaces.Act
+import com.bapis.bilibili.relation.interfaces.FollowingReq
+import com.bapis.bilibili.relation.interfaces.ModifyRelationReply
 import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,8 +33,34 @@ import org.json.JSONObject
 class SpaceRepository @Inject constructor(
     private val restClient: BiliRestClient,
     private val restParamBuilder: BiliRestParamBuilder,
-    private val authStore: AuthStore
+    private val authStore: AuthStore,
+    private val grpcClient: BiliGrpcClient
 ) {
+
+    // 空间页专用的关系操作与空间数据请求放在同一职责模块，避免为薄封装增加独立模块。
+    private suspend fun modifyRelationAct(fid: Long, act: Act) {
+        val req = FollowingReq.newBuilder()
+            .setFid(fid)
+            .setAct(act)
+            .setSource(31)
+            .setSpmid("main.space.0.0")
+            .setExtendContent("{\"entity\":\"user\",\"entity_id\":\"$fid\"}")
+            .setActionId(BiliSessionId.polarisAction())
+            .build()
+        grpcClient.call(
+            endpoint = MODIFY_RELATION_ENDPOINT,
+            requestBytes = req.toByteArray(),
+            parser = ModifyRelationReply.parser()
+        )
+    }
+
+    suspend fun modifyRelation(fid: Long, isFollow: Boolean) {
+        modifyRelationAct(fid, if (isFollow) Act.ACT_ADD_FOLLOWING else Act.ACT_DEL_FOLLOWING)
+    }
+
+    suspend fun modifyBlacklist(fid: Long, isBlack: Boolean) {
+        modifyRelationAct(fid, if (isBlack) Act.ACT_ADD_BLACK else Act.ACT_DEL_BLACK)
+    }
 
     suspend fun fetchHome(route: SpaceRoute): SpaceHome {
         val json = restClient.getSigned(
@@ -174,7 +205,9 @@ class SpaceRepository @Inject constructor(
             articleCount = article?.optInt("count") ?: 0,
             seasonCount = season?.optInt("count") ?: 0,
             seriesCount = series?.optInt("count") ?: 0,
-            tags = parseTagTitles(card?.optJSONArray("space_tag"))
+            tags = parseTagTitles(card?.optJSONArray("space_tag")),
+            relation = data.optInt("relation", -999),
+            guestRelation = data.optInt("guest_relation", -999)
         )
     }
 
@@ -321,12 +354,12 @@ class SpaceRepository @Inject constructor(
             }
         }
     }
-
     private companion object {
         const val SPACE_HOME_ENDPOINT = "/x/v2/space"
         const val SPACE_ARCHIVE_CURSOR_ENDPOINT = "/x/v2/space/archive/cursor"
         const val FOLLOWINGS_ENDPOINT = "/x/relation/followings"
         const val FANS_ENDPOINT = "/x/relation/fans"
+        const val MODIFY_RELATION_ENDPOINT = "bilibili.relation.interface.v1.RelationInterface/ModifyRelation"
         const val PAGE_SIZE = 20
         const val DEFAULT_ORDER = "pubdate"
         const val SORT_DESC = "desc"

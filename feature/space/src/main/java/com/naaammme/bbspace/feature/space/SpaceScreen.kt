@@ -142,7 +142,9 @@ fun SpaceScreen(
                     },
                     onOpenFollowers = {
                         onOpenRelation(header.profile.mid, 1)
-                    }
+                    },
+                    onToggleFollow = viewModel::toggleFollow,
+                    onToggleBlock = viewModel::toggleBlock
                 )
                 spaceArchiveSection(
                     state = state.archive,

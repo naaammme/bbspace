@@ -39,7 +39,9 @@ data class SpaceProfile(
     val articleCount: Int,
     val seasonCount: Int,
     val seriesCount: Int,
-    val tags: List<String>
+    val tags: List<String>,
+    val relation: Int = -999,
+    val guestRelation: Int = -999
 )
 
 @Immutable
