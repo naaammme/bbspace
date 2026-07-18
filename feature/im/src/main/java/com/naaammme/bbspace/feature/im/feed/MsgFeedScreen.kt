@@ -77,7 +77,7 @@ fun MsgFeedScreen(
                             1 -> vm.changeFilter(MsgFeedFilter.FOLLOWING)
                         }
                     },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    modifier = Modifier
                 )
                 MsgFeedPane(
                     onOpenCommentDetail = { record ->

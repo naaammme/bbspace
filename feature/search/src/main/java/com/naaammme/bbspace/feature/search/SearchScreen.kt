@@ -273,7 +273,7 @@ private fun SearchSortRow(
             val op = filter.ops[index]
             onSelect(if (op.isDefault) emptySet() else setOf(op.param))
         },
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 1.dp),
+        modifier = Modifier,
         trailing = trailing
     )
 }

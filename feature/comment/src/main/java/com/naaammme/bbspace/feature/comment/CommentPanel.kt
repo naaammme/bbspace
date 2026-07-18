@@ -369,7 +369,8 @@ fun CommentPanel(
                         onToggleSort = viewModel::toggleReplyThreadSort,
                         onLoadMore = viewModel::loadMoreReplyThread,
                         bottomPadding = COMMENT_FAB_SPACE,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        isDetailMode = false
                     )
                 }
             }

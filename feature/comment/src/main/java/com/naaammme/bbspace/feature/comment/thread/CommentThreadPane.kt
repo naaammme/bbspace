@@ -4,17 +4,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -41,7 +48,8 @@ internal fun CommentThreadPane(
     onToggleSort: () -> Unit,
     onLoadMore: () -> Unit,
     bottomPadding: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDetailMode: Boolean = true
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -57,11 +65,13 @@ internal fun CommentThreadPane(
             onToggleSort = onToggleSort,
             onLoadMore = onLoadMore,
             bottomPadding = bottomPadding,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            isDetailMode = isDetailMode
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CommentThreadContent(
     state: CommentThreadState,
@@ -73,7 +83,8 @@ private fun CommentThreadContent(
     onToggleSort: () -> Unit,
     onLoadMore: () -> Unit,
     bottomPadding: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDetailMode: Boolean = true
 ) {
     val stateHolder by rememberUpdatedState(state)
     val shouldLoadMore by remember {
@@ -113,22 +124,33 @@ private fun CommentThreadContent(
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = state.title,
-                style = MaterialTheme.typography.titleMedium
-            )
-            TextButton(onClick = onDismiss) {
-                Text("关闭")
-            }
-        }
-        HorizontalDivider()
+        TopAppBar(
+            title = {
+                Text(
+                    text = state.title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回"
+                    )
+                }
+            },
+            actions = {
+                if (isDetailMode) {
+                    IconButton(onClick = { onReplyAction(CommentReplyAction.OpenOriginalContent(state.root)) }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "前往原内容"
+                        )
+                    }
+                }
+            },
+            windowInsets = if (!isDetailMode) WindowInsets(0.dp) else TopAppBarDefaults.windowInsets
+        )
 
         LazyColumn(
             state = listState,
@@ -138,7 +160,6 @@ private fun CommentThreadContent(
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = 12.dp,
                 bottom = 16.dp + bottomPadding
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -172,7 +193,7 @@ private fun CommentThreadContent(
                         key = "reply_error",
                         contentType = "state"
                     ) {
-                        StateMessageCard(text = state.error.orEmpty(), isError = true)
+                        StateMessageCard(text = state.error, isError = true)
                     }
                 }
 
@@ -206,7 +227,7 @@ private fun CommentThreadContent(
                     key = "reply_load_more_error",
                     contentType = "footer"
                 ) {
-                    StateMessageCard(text = state.loadMoreError.orEmpty(), isError = true)
+                    StateMessageCard(text = state.loadMoreError, isError = true)
                 }
             }
         }
@@ -221,9 +242,7 @@ private fun ThreadInfoBar(
     onToggleSort: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -233,7 +252,7 @@ private fun ThreadInfoBar(
             } else {
                 "相关回复"
             },
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (canSwitchSort) {
@@ -252,7 +271,7 @@ private fun ThreadInfoBar(
         } else {
             Text(
                 text = threadSortText(sort),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

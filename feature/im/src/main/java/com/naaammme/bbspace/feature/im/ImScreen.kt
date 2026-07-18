@@ -81,7 +81,6 @@ fun ImScreen(
                         onSelect = { index -> state.tabs.getOrNull(index)?.let(vm::selectTab) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
                     )
                     when {
                         state.isLoading -> {

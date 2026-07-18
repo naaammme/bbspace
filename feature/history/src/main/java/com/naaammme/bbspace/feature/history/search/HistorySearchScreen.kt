@@ -148,7 +148,7 @@ fun HistorySearchScreen(
                 state.errorMessage != null && state.items.isEmpty() -> {
                     StateMessageCard(
                         text = state.errorMessage.orEmpty().ifBlank { "搜索历史记录失败" },
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
                         isError = true,
                         actionText = "重试",
                         onAction = viewModel::submitSearch
@@ -158,14 +158,14 @@ fun HistorySearchScreen(
                 state.query.isBlank() -> {
                     StateMessageCard(
                         text = "输入关键词搜索历史记录",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().padding(16.dp)
                     )
                 }
 
                 state.items.isEmpty() -> {
                     StateMessageCard(
                         text = "没有找到相关历史记录",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().padding(16.dp)
                     )
                 }
 

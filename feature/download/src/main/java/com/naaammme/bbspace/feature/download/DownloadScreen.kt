@@ -120,7 +120,7 @@ private fun DownloadContent(
             tabs = DownloadTab.entries.map { it.title },
             selectedIndex = state.tab.ordinal,
             onSelect = { index -> onSelectTab(DownloadTab.entries[index]) },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+            modifier = Modifier
         )
 
         when (state.tab) {

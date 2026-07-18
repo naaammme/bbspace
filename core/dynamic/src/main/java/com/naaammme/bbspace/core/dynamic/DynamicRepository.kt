@@ -69,6 +69,7 @@ class DynamicRepository @Inject constructor(
         }
     }
 
+    // TODO: 考虑后续将动态详情接口从 OpusDetailReq 迁移到 DynDetailReq ???
     suspend fun fetchOpusDetail(opusId: String, opusType: Int = 0): DynamicDetail {
         val req = OpusDetailReq.newBuilder()
             .setOpusTypeValue(opusType)

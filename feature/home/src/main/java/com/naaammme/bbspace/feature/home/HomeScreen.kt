@@ -238,7 +238,7 @@ private fun HomeTopBar(
             tabs = homeTabs,
             selectedIndex = selectedIndex,
             onSelect = onSelectTab,
-            modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 0.dp, bottom = 3.dp)
+            modifier = Modifier
         )
     }
 }

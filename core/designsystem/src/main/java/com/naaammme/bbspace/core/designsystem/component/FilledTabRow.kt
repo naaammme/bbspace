@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.core.designsystem.component
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,11 +22,13 @@ fun FilledTabRow(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(start = 4.dp, end = 4.dp, top = 0.dp, bottom = 3.dp),
     trailing: (@Composable RowScope.() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(contentPadding)
             .padding(2.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically

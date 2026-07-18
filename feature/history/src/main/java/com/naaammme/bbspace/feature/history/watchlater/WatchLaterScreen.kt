@@ -112,7 +112,7 @@ fun WatchLaterScreen(
                 tabs = WatchLaterTab.entries.map { it.title },
                 selectedIndex = state.tab.ordinal,
                 onSelect = { index -> viewModel.selectTab(WatchLaterTab.entries[index]) },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                modifier = Modifier
             )
 
             BiliPullToRefreshBox(
