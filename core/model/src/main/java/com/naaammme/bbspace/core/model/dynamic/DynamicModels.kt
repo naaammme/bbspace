@@ -148,7 +148,8 @@ data class DynamicDetail(
     val stats: DynamicStats?,
     val replyBizId: Long = 0L,
     val replyBizType: Long = 0L,
-    val hasMore: Boolean = false
+    val hasMore: Boolean = false,
+    val forwardOrigin: DynamicForwardItem? = null
 )
 
 @Immutable

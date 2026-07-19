@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -35,11 +38,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
+import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImageGrid
 import com.naaammme.bbspace.core.designsystem.component.SelectableText
@@ -48,6 +53,7 @@ import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.DynamicDetail
 import com.naaammme.bbspace.core.model.DynamicDetailAuthor
 import com.naaammme.bbspace.core.model.DynamicDetailParagraph
+import com.naaammme.bbspace.core.model.DynamicForwardItem
 import com.naaammme.bbspace.core.model.DynamicImage
 import com.naaammme.bbspace.core.model.DynamicStats
 import com.naaammme.bbspace.core.model.SpaceRoute
@@ -182,6 +188,12 @@ private fun DetailContent(detail: DynamicDetail) {
     detail.paragraphs.forEach { paragraph ->
         DynamicDetailParagraphItem(paragraph)
     }
+    detail.forwardOrigin?.let { forwardOrigin ->
+        DynamicForwardOriginCard(
+            origin = forwardOrigin,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+    }
     detail.stats?.let { stats ->
         DynamicDetailStats(stats)
     }
@@ -263,6 +275,51 @@ private fun DynamicDetailImageGrid(images: List<DynamicImage>, modifier: Modifie
 }
 
 @Composable
+private fun DynamicForwardOriginCard(
+    origin: DynamicForwardItem,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        origin.authorName?.let {
+            Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        origin.bodyText?.let {
+            SelectableText(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (!origin.title.isNullOrBlank() || !origin.cover.isNullOrBlank()) {
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                origin.cover?.let {
+                    CoverImage(
+                        url = it,
+                        modifier = Modifier.width(132.dp).aspectRatio(1.6f),
+                        shape = MaterialTheme.shapes.small
+                    )
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(origin.title.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    origin.badge?.let { badge ->
+                        Text(
+                            text = badge,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.extraSmall)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DynamicDetailStats(stats: DynamicStats) {
     val text = remember(stats) {
         buildString {
@@ -301,6 +358,15 @@ private fun LazyListScope.detailContentItems(detail: DynamicDetail) {
         contentType = { _, para -> para.type }
     ) { _, paragraph ->
         DynamicDetailParagraphItem(paragraph)
+    }
+
+    detail.forwardOrigin?.let { forwardOrigin ->
+        item(key = "detail_forward_origin", contentType = "forward_origin") {
+            DynamicForwardOriginCard(
+                origin = forwardOrigin,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
     }
 
     detail.stats?.let { stats ->

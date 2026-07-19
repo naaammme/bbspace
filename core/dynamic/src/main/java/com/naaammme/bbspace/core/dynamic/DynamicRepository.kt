@@ -194,13 +194,25 @@ class DynamicRepository @Inject constructor(
             } else null
         }
 
-        val reply = opus.extend.reply
+        val extend = opus.extend
+        val reply = extend.reply
+        val forwardOrigin = if (extend.origName.isNotBlank() || extend.origDescList.isNotEmpty()) {
+            DynamicForwardItem(
+                authorName = extend.origName.blankToNull(),
+                bodyText = extend.origDescList.joinToString("") { it.text }.blankToNull(),
+                title = null,
+                cover = extend.origImgUrl.blankToNull()?.httpsImageUrlOrNull(),
+                badge = null
+            )
+        } else null
+
         return DynamicDetail(
             author = author,
             paragraphs = paragraphs,
             stats = stats,
             replyBizId = reply.replyBizId.takeIf { it > 0L } ?: 0L,
-            replyBizType = reply.replyBizType.takeIf { it > 0L } ?: 0L
+            replyBizType = reply.replyBizType.takeIf { it > 0L } ?: 0L,
+            forwardOrigin = forwardOrigin
         )
     }
 

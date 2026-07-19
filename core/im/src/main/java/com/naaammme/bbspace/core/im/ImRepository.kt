@@ -245,7 +245,7 @@ class ImRepository @Inject constructor(
                             )
                         },
                         coverImage = msg.coverImage.httpsImageUrlOrNull(),
-                        subjectId = android.net.Uri.parse(msg.nativeUri).lastPathSegment?.toLongOrNull() ?: 0L,
+                        subjectId = extractSubjectId(msg.nativeUri),
                         rootId = biz.rootId,
                         sourceId = biz.sourceId,
                         businessId = msg.businessId,
@@ -686,5 +686,12 @@ class ImRepository @Inject constructor(
             ImSessionTab.FOLLOW,
             ImSessionTab.STRANGER
         )
+
+        private val SUBJECT_ID_REGEX = """bilibili://(?:opus/detail|video)/(\d+)""".toRegex()
+
+        private fun extractSubjectId(nativeUri: String): Long = SUBJECT_ID_REGEX
+            .find(nativeUri)
+            ?.groupValues?.get(1)?.toLongOrNull()
+            ?: 0L
     }
 }
