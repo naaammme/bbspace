@@ -1,8 +1,5 @@
 package com.naaammme.bbspace.playback
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naaammme.bbspace.core.settings.AppSettings
@@ -10,6 +7,8 @@ import com.naaammme.bbspace.core.playback.LivePlaybackController
 import com.naaammme.bbspace.core.playback.StreamPlaybackSession
 import com.naaammme.bbspace.core.model.LiveRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
@@ -45,9 +44,9 @@ class PlaybackHostViewModel @Inject constructor(
             initialValue = false
         )
 
-    private val _hostMode = mutableStateOf(PlaybackHostMode.Hidden)
-    val hostMode: PlaybackHostMode
-        get() = _hostMode.value
+    private val _hostMode = MutableStateFlow(PlaybackHostMode.Hidden)
+    val hostMode = _hostMode.asStateFlow()
+
     private var shouldResumeAfterBackgroundPause = false
 
     init {
