@@ -161,8 +161,7 @@ private fun DynamicCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        )
     ) {
         DynamicCardContent(item = item, onOpenSpace = onOpenSpace)
     }

@@ -73,8 +73,7 @@ private fun BannerCard(imageUrl: String) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        )
     ) {
         BiliAsyncImage(
             url = imageUrl,
@@ -139,8 +138,7 @@ private fun ProfileCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -251,39 +249,9 @@ private fun ProfileCard(
                 }
                 if (!state.isSelf) {
                     val isBlocked = profile.relation == -1
-                    val blockText = when {
-                        isBlocked && profile.guestRelation == -1 -> "互相拉黑"
-                        isBlocked -> "取消拉黑"
-                        profile.guestRelation == -1 -> "已被拉黑,回拉"
-                        else -> "拉黑"
-                    }
-                    val blockButtonColors = if (isBlocked) {
-                        androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    } else {
-                        androidx.compose.material3.ButtonDefaults.buttonColors()
-                    }
-
-                    androidx.compose.material3.Button(
-                        onClick = {
-                            if (isBlocked) {
-                                onToggleBlock()
-                            } else {
-                                pendingRelationAction = RelationConfirmAction.BLOCK
-                            }
-                        },
-                        enabled = state.isLogin,
-                        colors = blockButtonColors,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text(text = blockText, style = MaterialTheme.typography.labelMedium)
-                    }
 
                     if (!isBlocked) {
-                        val buttonColors = if (isFollowed) {
+                        val buttonColors = if (!isFollowed) {
                             androidx.compose.material3.ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -306,6 +274,36 @@ private fun ProfileCard(
                         ) {
                             Text(text = followText, style = MaterialTheme.typography.labelMedium)
                         }
+                    }
+                    val blockText = when {
+                        isBlocked && profile.guestRelation == -1 -> "互相拉黑"
+                        isBlocked -> "取消拉黑"
+                        profile.guestRelation == -1 -> "已被拉黑,回拉"
+                        else -> "拉黑"
+                    }
+                    val blockButtonColors = if (!isBlocked) {
+                        androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    } else {
+                        androidx.compose.material3.ButtonDefaults.buttonColors()
+                    }
+
+                    androidx.compose.material3.Button(
+                        onClick = {
+                            if (isBlocked) {
+                                onToggleBlock()
+                            } else {
+                                pendingRelationAction = RelationConfirmAction.BLOCK
+                            }
+                        },
+                        enabled = state.isLogin,
+                        colors = blockButtonColors,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(text = blockText, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

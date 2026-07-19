@@ -303,8 +303,7 @@ private fun BbSpaceEntryCard(
 ) {
     Card(
         modifier = modifier,
-        onClick = onClick,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier

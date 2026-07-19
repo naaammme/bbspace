@@ -150,8 +150,7 @@ private fun PlaybackHistoryManageCard(
     onClear: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -222,8 +221,7 @@ private fun PlaybackHistoryCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { expanded = !expanded },
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        onClick = { expanded = !expanded }
     ) {
         Row(
             modifier = Modifier

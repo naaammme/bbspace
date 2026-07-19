@@ -263,15 +263,13 @@ private fun PublishedRecordCard(
     if (onClick != null) {
         Card(
             onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             cardContent()
         }
     } else {
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             cardContent()
         }

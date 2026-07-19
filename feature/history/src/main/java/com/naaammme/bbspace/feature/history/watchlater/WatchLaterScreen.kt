@@ -211,14 +211,13 @@ private fun WatchLaterItemCard(
     val colors = CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     )
-    val elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
 
     if (item.isOpenable) {
-        Card(onClick = onClick, modifier = cardModifier, colors = colors, elevation = elevation) {
+        Card(onClick = onClick, modifier = cardModifier, colors = colors) {
             WatchLaterItemContent(item = item)
         }
     } else {
-        Card(modifier = cardModifier, colors = colors, elevation = elevation) {
+        Card(modifier = cardModifier, colors = colors) {
             WatchLaterItemContent(item = item)
         }
     }

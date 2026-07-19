@@ -232,8 +232,7 @@ private fun CommentSearchBaseCard(
     Card(
         onClick = onClick ?: {},
         enabled = onClick != null,
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

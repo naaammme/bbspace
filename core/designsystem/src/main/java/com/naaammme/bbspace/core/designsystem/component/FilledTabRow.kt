@@ -52,8 +52,7 @@ fun FilledTabRow(
                         } else {
                             MaterialTheme.colorScheme.surface
                         }
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    )
                 ) {
                     Text(
                         text = tab,

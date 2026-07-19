@@ -334,8 +334,7 @@ private fun SearchFilterButton(
             } else {
                 MaterialTheme.colorScheme.surface
             }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        )
     ) {
         Icon(
             imageVector = Icons.Default.Menu,

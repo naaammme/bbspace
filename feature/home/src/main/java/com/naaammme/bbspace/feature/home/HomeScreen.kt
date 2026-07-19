@@ -196,8 +196,7 @@ private fun HomeTopBar(
                 modifier = Modifier.weight(1f),
                 colors = CardDefaults.cardColors(
                     MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                )
             ) {
                 Row(
                     modifier = Modifier

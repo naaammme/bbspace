@@ -131,8 +131,7 @@ private fun FeedCard(
     Card(
         onClick = onClick,
         enabled = canOpen,
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column {
             CoverImage(
