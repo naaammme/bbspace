@@ -132,7 +132,7 @@ fun AppNavHost(
     val playbackHostViewModel: PlaybackHostViewModel = hiltViewModel()
     val videoViewModel: VideoViewModel = hiltViewModel()
     val liveViewModel: LiveViewModel = hiltViewModel()
-    val hostMode by playbackHostViewModel.hostMode.collectAsStateWithLifecycle()
+    val hostMode = playbackHostViewModel.hostMode
     var forcedDismissMode by remember { mutableStateOf<PlaybackHostMode?>(null) }
     val playbackMode = when {
         hostMode != PlaybackHostMode.Expanded -> hostMode

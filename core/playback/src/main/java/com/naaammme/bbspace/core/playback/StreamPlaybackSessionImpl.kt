@@ -235,9 +235,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 is StreamPlaybackTarget.Live -> finishLivePlayback(releasePlayer = true)
                 null -> {}
             }
-            _currentTarget.value = null
-            _liveState.value = LivePlaybackViewState()
-            syncSessionState()
         }
     }
 
@@ -810,11 +807,13 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
     private fun finishLivePlayback(releasePlayer: Boolean) {
         val hadLive = _liveState.value.playbackSource != null
+        _currentTarget.value = null
         _liveState.value = LivePlaybackViewState()
         if (hadLive) {
             if (releasePlayer) playerEngine.release()
             else playerEngine.stopForReuse(resetPosition = true)
         }
+        syncSessionState()
     }
 
     // session state
