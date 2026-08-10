@@ -196,7 +196,8 @@ class DynamicRepository @Inject constructor(
 
         val extend = opus.extend
         val reply = extend.reply
-        val forwardOrigin = if (extend.origName.isNotBlank() || extend.origDescList.isNotEmpty()) {
+        val isRepost = opus.opusTypeValue == 4 || extend.origDynIdStr.isNotBlank()       
+        val forwardOrigin = if (isRepost) {
             DynamicForwardItem(
                 authorName = extend.origName.blankToNull(),
                 bodyText = extend.origDescList.joinToString("") { it.text }.blankToNull(),
