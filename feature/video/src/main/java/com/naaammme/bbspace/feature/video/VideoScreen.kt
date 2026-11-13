@@ -1,6 +1,7 @@
 package com.naaammme.bbspace.feature.video
 
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,9 +34,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -81,6 +83,7 @@ fun VideoScreen(
     val act = LocalActivity.current
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val isExpandedWidth = windowSizeClass.isWidthAtLeastBreakpoint(840)
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val themeUsesDarkSystemBarIcons = MaterialTheme.colorScheme.background.luminance() > 0.5f
     var isFull by rememberSaveable { mutableStateOf(false) }
     var downloadSheetOn by rememberSaveable { mutableStateOf(false) }
@@ -126,15 +129,20 @@ fun VideoScreen(
         val ctrl = remember(win) { WindowInsetsControllerCompat(win, win.decorView) }
         val restoreLightSystemBars by rememberUpdatedState(themeUsesDarkSystemBarIcons)
 
-        LaunchedEffect(ctrl, fullOn, isExpandedWidth, themeUsesDarkSystemBarIcons) {
+        LaunchedEffect(ctrl, fullOn, hostExpanded, isExpandedWidth, isLandscape, themeUsesDarkSystemBarIcons) {
             ctrl.isAppearanceLightStatusBars =
-                !fullOn && isExpandedWidth && themeUsesDarkSystemBarIcons
+                !fullOn && isExpandedWidth && isLandscape && themeUsesDarkSystemBarIcons
             ctrl.isAppearanceLightNavigationBars = !fullOn && themeUsesDarkSystemBarIcons
 
             if (fullOn) {
                 ctrl.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 ctrl.hide(WindowInsetsCompat.Type.systemBars())
+            } else if (hostExpanded && isExpandedWidth && isLandscape) {
+                // 平板横屏非全屏：与横屏全屏一致地隐藏状态栏，下拉临时显示
+                ctrl.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                ctrl.hide(WindowInsetsCompat.Type.statusBars())
             } else {
                 ctrl.show(WindowInsetsCompat.Type.systemBars())
             }
@@ -167,12 +175,21 @@ fun VideoScreen(
     ) {
         val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val playerTopPad = 16.dp
-        val playerGap = 16.dp
         val compactVideoH = maxWidth * (9f / 16f)
         val compactPlayerSpaceH = statusTop + compactVideoH
-        val expandedContentW = (maxWidth - (playerTopPad * 2) - playerGap).coerceAtLeast(0.dp)
-        val expandedPlayerW = expandedContentW * 0.54f
-        val expandedPlayerH = (maxHeight - statusTop - (playerTopPad * 2)).coerceAtLeast(0.dp)
+        // 平板横屏非全屏：视频区宽度随视频画面比例浮动，在保证右侧详情/评论区可用的前提下
+        // 尽量扩大视频显示面积。占比下限为当前 54:46 分栏（视频较长、上下贴边时），
+        // 上限为 21:9 分栏（视频较宽、左右贴边时把详情区挤到最窄）。
+        val landscapeVideoAspect = remember(videoState.currentStream) {
+            val stream = videoState.currentStream
+            val vw = stream?.width ?: 0
+            val vh = stream?.height ?: 0
+            if (vw > 0 && vh > 0) vw.toFloat() / vh.toFloat() else null
+        }
+        val expandedPlayerFraction = landscapeVideoAspect
+            ?.let { aspect -> (maxHeight.value * aspect / maxWidth.value).coerceIn(0.54f, 21f / 30f) }
+            ?: 0.54f
+        val expandedPlayerW = maxWidth * expandedPlayerFraction
 
         when {
             !hostExpanded || fullOn -> {
@@ -189,21 +206,16 @@ fun VideoScreen(
                 }
             }
 
-            isExpandedWidth -> {
+            isExpandedWidth && isLandscape -> {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.background)
-                        .statusBarsPadding()
-                        .padding(playerTopPad),
-                    horizontalArrangement = Arrangement.spacedBy(playerGap),
-                    verticalAlignment = androidx.compose.ui.Alignment.Top
                 ) {
                     VideoPlayerPane(
                         modifier = Modifier
                             .width(expandedPlayerW)
-                            .height(expandedPlayerH)
-                            .clip(MaterialTheme.shapes.extraLarge),
+                            .fillMaxHeight(),
                         viewModel = viewModel,
                         videoTitle = videoState.detail?.title,
                         isFull = false,
@@ -212,7 +224,11 @@ fun VideoScreen(
                         onGoHome = onGoHome
                     )
                     VideoDetailPage(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .statusBarsPadding()
+                            .padding(playerTopPad),
                         detail = videoState.detail,
                         ids = videoState.ids,
                         detailLoading = videoState.detailLoading,

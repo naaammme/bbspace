@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -29,6 +30,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -45,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -269,6 +272,21 @@ private fun PlaybackSettingsSection(
         onSelect = viewModel::updateGestureSpeed
     )
 
+    SheetSwitchCard(
+        title = "双击视频侧边跳转",
+        subtitle = "开启后双击画面左右侧跳转进度，关闭后双击任意非按钮区域切换暂停",
+        checked = settingsState.playback.doubleTapSideSeekEnabled,
+        onCheckedChange = viewModel::updateDoubleTapSideSeekEnabled
+    )
+
+    SheetIntInputCard(
+        title = "双击侧边跳转时长",
+        subtitle = "双击画面左右侧时跳转的秒数",
+        value = settingsState.playback.doubleTapSeekSeconds,
+        unit = "秒",
+        onValueChange = viewModel::updateDoubleTapSeekSeconds
+    )
+
     SheetChoiceCard(
         title = "全屏视频大小",
         subtitle = "调整画面尺寸",
@@ -481,6 +499,91 @@ private fun SheetChoiceCard(
             }
         }
     }
+}
+
+@Composable
+private fun SheetIntInputCard(
+    title: String,
+    subtitle: String,
+    value: Int,
+    unit: String,
+    onValueChange: (Int) -> Unit
+) {
+    var showInputDialog by rememberSaveable { mutableStateOf(false) }
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = { showInputDialog = true }) {
+                Text("$value $unit")
+            }
+        }
+    }
+    if (showInputDialog) {
+        IntInputDialog(
+            title = title,
+            initialValue = value,
+            unit = unit,
+            onDismiss = { showInputDialog = false },
+            onConfirm = { next ->
+                showInputDialog = false
+                onValueChange(next)
+            }
+        )
+    }
+}
+
+@Composable
+private fun IntInputDialog(
+    title: String,
+    initialValue: Int,
+    unit: String,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    var text by rememberSaveable { mutableStateOf(initialValue.toString()) }
+    val parsed = text.trim().toIntOrNull()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { raw -> text = raw.filter { it.isDigit() }.take(4) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                suffix = { Text(unit) }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = parsed != null && parsed > 0,
+                onClick = { parsed?.let(onConfirm) }
+            ) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
 }
 
 @Composable

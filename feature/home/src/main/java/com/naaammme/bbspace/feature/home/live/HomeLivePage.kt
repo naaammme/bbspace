@@ -39,6 +39,7 @@ import com.naaammme.bbspace.core.model.SpaceRoute
 @Composable
 fun HomeLivePage(
     isActive: Boolean,
+    columns: Int,
     onOpenLive: (LiveRoute) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
     viewModel: HomeLiveViewModel = hiltViewModel()
@@ -57,6 +58,7 @@ fun HomeLivePage(
         modifier = Modifier.fillMaxSize(),
         errorMessage = state.errorMessage,
         loadMoreEnabled = isActive,
+        columns = columns,
         key = { _, item -> item.actionKey() },
         loadingContent = {
             VideoGridCardSkeleton()

@@ -28,6 +28,8 @@ fun FeedSettingsScreen(
     val lessonsMode by viewModel.lessonsMode.collectAsStateWithLifecycle()
     val teenagersMode by viewModel.teenagersMode.collectAsStateWithLifecycle()
     val teenagersAge by viewModel.teenagersAge.collectAsStateWithLifecycle()
+    val feedGridColumnsPortrait by viewModel.feedGridColumnsPortrait.collectAsStateWithLifecycle()
+    val feedGridColumnsLandscape by viewModel.feedGridColumnsLandscape.collectAsStateWithLifecycle()
     var teenagersAgeDraft by remember(teenagersAge) { mutableFloatStateOf(teenagersAge.toFloat()) }
     val teenagersAgeText = teenagersAgeDraft.roundToInt().coerceIn(1, 17).toString()
 
@@ -200,6 +202,22 @@ fun FeedSettingsScreen(
                 }
             }
             item {
+                FeedGridColumnsCard(
+                    title = "竖屏首页推荐列数",
+                    subtitle = "竖屏时首页推荐视频每行显示的数量",
+                    current = feedGridColumnsPortrait,
+                    onSelect = viewModel::updateFeedGridColumnsPortrait
+                )
+            }
+            item {
+                FeedGridColumnsCard(
+                    title = "横屏首页推荐列数",
+                    subtitle = "横屏时首页推荐视频每行显示的数量",
+                    current = feedGridColumnsLandscape,
+                    onSelect = viewModel::updateFeedGridColumnsLandscape
+                )
+            }
+            item {
                 Card(
                     onClick = onNavigateToInterest,
                     modifier = Modifier.fillMaxWidth()
@@ -221,6 +239,40 @@ fun FeedSettingsScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeedGridColumnsCard(
+    title: String,
+    subtitle: String,
+    current: Int,
+    onSelect: (Int) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (1..5).forEach { columns ->
+                    FilterChip(
+                        selected = columns == current,
+                        onClick = { onSelect(columns) },
+                        label = { Text(columns.toString()) }
+                    )
                 }
             }
         }
