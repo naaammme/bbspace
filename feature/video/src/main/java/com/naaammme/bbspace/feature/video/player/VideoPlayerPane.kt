@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -68,6 +71,7 @@ import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.VideoPlaybackState
+import com.naaammme.bbspace.feature.video.R
 import com.naaammme.bbspace.feature.video.detail.QualityOptionItem
 import com.naaammme.bbspace.feature.video.VideoViewModel
 import com.naaammme.bbspace.feature.video.formatPlaybackTime
@@ -116,6 +120,8 @@ internal fun VideoPlayerPane(
     var activeDialog by remember { mutableStateOf<PlayerDialog?>(null) }
     var showPlaybackSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(false) }
+    var locked by rememberSaveable { mutableStateOf(false) }
+    var showLocks by rememberSaveable { mutableStateOf(false) }
     val videoResizeMode = rememberSaveable { mutableStateOf(PlayerVideoResizeMode.Fit) }
     val topMetaText = remember(showCtrl, isFull) {
         if (showCtrl && isFull) {
@@ -162,6 +168,20 @@ internal fun VideoPlayerPane(
 
     LaunchedEffect(state.playWhenReady) {
         playerView.keepScreenOn = state.playWhenReady
+    }
+
+    LaunchedEffect(isFull, locked) {
+        if (!isFull && locked) {
+            locked = false
+            showLocks = false
+        }
+    }
+
+    LaunchedEffect(isFull, locked, showLocks) {
+        if (isFull && locked && showLocks) {
+            delay(2_000)
+            showLocks = false
+        }
     }
 
     DisposableEffect(owner, playerView, player) {
@@ -220,9 +240,17 @@ internal fun VideoPlayerPane(
                 settingsState = settingsState,
                 isFull = isFull,
                 showCtrl = showCtrl,
+                locked = locked,
+                showLockButtons = isFull && ((!locked && showCtrl) || (locked && showLocks)),
                 activeDialog = activeDialog,
                 showPlaybackSheet = showPlaybackSheet,
                 onShowCtrlChange = { showCtrl = it },
+                onLockButtonClick = {
+                    locked = !locked
+                    showLocks = locked
+                    showCtrl = !locked
+                },
+                onToggleLocks = { showLocks = !showLocks },
                 onShowA = {
                     showCtrl = true
                     activeDialog = PlayerDialog.Audio
@@ -241,7 +269,7 @@ internal fun VideoPlayerPane(
                 }
             )
 
-            if (showCtrl) {
+            if (showCtrl && !locked) {
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -429,9 +457,13 @@ private fun VideoPlayerOverlay(
     settingsState: PlayerSettingsState,
     isFull: Boolean,
     showCtrl: Boolean,
+    locked: Boolean,
+    showLockButtons: Boolean,
     activeDialog: PlayerDialog?,
     showPlaybackSheet: Boolean,
     onShowCtrlChange: (Boolean) -> Unit,
+    onLockButtonClick: () -> Unit,
+    onToggleLocks: () -> Unit,
     onShowA: () -> Unit,
     onShowQ: () -> Unit,
     onShowSp: () -> Unit,
@@ -477,7 +509,13 @@ private fun VideoPlayerOverlay(
                 .fillMaxSize()
                 .videoGestures(
                     state = gestureState,
-                    onToggleControls = { onShowCtrlChange(!showCtrl) },
+                    onToggleControls = {
+                        if (locked) {
+                            onToggleLocks()
+                        } else {
+                            onShowCtrlChange(!showCtrl)
+                        }
+                    },
                     onTogglePlay = viewModel::togglePlayPause,
                     onSeekTo = viewModel::seekTo,
                     onStartSpeedUp = {
@@ -487,6 +525,9 @@ private fun VideoPlayerOverlay(
                         formatSpeed(speed)
                     },
                     onStopSpeedUp = { viewModel.setSpeed(speedBeforeGesture) },
+                    sideSeekEnabled = { settingsState.playback.doubleTapSideSeekEnabled },
+                    doubleTapSeekMs = { settingsState.playback.doubleTapSeekSeconds * 1000L },
+                    locked = { locked },
                     onBrightnessDelta = { deltaFrac ->
                         val next = (dragStartBrightness + deltaFrac).coerceIn(0.01f, 1f)
                         if (abs(next - lastGestureBrightness) >= 0.02f || lastGestureBrightness.isNaN()) {
@@ -551,7 +592,7 @@ private fun VideoPlayerOverlay(
 
         VideoGestureFeedback(gestureState)
 
-        if (showCtrl) {
+        if (showCtrl && !locked) {
             PlayerCtrlBarHost(
                 viewModel = viewModel,
                 state = state,
@@ -565,11 +606,49 @@ private fun VideoPlayerOverlay(
                 onShowQ = onShowQ,
                 onShowSp = onShowSp,
                 onToggleFull = onToggleFull,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
+
+        if (showLockButtons) {
+            PlayerLockButton(
+                locked = locked,
+                onClick = onLockButtonClick,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 4.dp)
+            )
+            PlayerLockButton(
+                locked = locked,
+                onClick = onLockButtonClick,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerLockButton(
+    locked: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_player_lock),
+            contentDescription = if (locked) "解锁" else "锁定",
+            tint = Color.White,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
 
@@ -668,7 +747,7 @@ private fun PlayerCtrlBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 2.dp),
+                .padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Slider(

@@ -63,6 +63,18 @@ class SettingsViewModel @Inject constructor(
         16
     )
 
+    val feedGridColumnsPortrait = appSettings.feedGridColumnsPortrait.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        2
+    )
+
+    val feedGridColumnsLandscape = appSettings.feedGridColumnsLandscape.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        4
+    )
+
     val enableHdrAnd8k = appSettings.enableHdrAnd8k.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
@@ -233,6 +245,18 @@ class SettingsViewModel @Inject constructor(
     fun updateTeenagersAge(age: Int) {
         viewModelScope.launch {
             appSettings.updateTeenagersAge(age)
+        }
+    }
+
+    fun updateFeedGridColumnsPortrait(columns: Int) {
+        viewModelScope.launch {
+            appSettings.updateFeedGridColumnsPortrait(columns)
+        }
+    }
+
+    fun updateFeedGridColumnsLandscape(columns: Int) {
+        viewModelScope.launch {
+            appSettings.updateFeedGridColumnsLandscape(columns)
         }
     }
 

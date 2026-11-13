@@ -58,6 +58,7 @@ fun HomeVideoPage(
     errorMessage: String?,
     toastMessage: String,
     dislikedReasons: Map<String, String>,
+    columns: Int,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
@@ -92,6 +93,7 @@ fun HomeVideoPage(
         modifier = Modifier.fillMaxSize(),
         state = gridState,
         errorMessage = errorMessage,
+        columns = columns,
         key = { _, item -> item.actionKey() },
         contentType = { _, item -> item.cardType },
         loadingContent = {

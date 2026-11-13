@@ -150,6 +150,18 @@ class VideoViewModel @Inject constructor(
         }
     }
 
+    fun updateDoubleTapSideSeekEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            playerSettings.setDoubleTapSideSeekEnabled(enabled)
+        }
+    }
+
+    fun updateDoubleTapSeekSeconds(seconds: Int) {
+        viewModelScope.launch {
+            playerSettings.setDoubleTapSeekSeconds(seconds)
+        }
+    }
+
     fun updateDanmaku(config: DanmakuConfig) {
         viewModelScope.launch {
             playerSettings.setDanmaku(config)

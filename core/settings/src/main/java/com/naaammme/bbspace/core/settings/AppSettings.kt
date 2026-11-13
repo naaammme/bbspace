@@ -58,6 +58,8 @@ class AppSettings @Inject constructor(
     private val lessonsModeKey = booleanPreferencesKey("lessons_mode")
     private val teenagersModeKey = booleanPreferencesKey("teenagers_mode")
     private val teenagersAgeKey = intPreferencesKey("teenagers_age")
+    private val feedGridColumnsPortraitKey = intPreferencesKey("feed_grid_columns_portrait")
+    private val feedGridColumnsLandscapeKey = intPreferencesKey("feed_grid_columns_landscape")
     private val autoCheckUpdateKey = booleanPreferencesKey("auto_check_update")
     private val useSystemDnsKey = booleanPreferencesKey("use_system_dns")
     private val fixBottomBarKey = booleanPreferencesKey("fix_bottom_bar")
@@ -157,6 +159,16 @@ class AppSettings @Inject constructor(
         (it[teenagersAgeKey] ?: DEFAULT_TEENAGERS_AGE).coerceIn(MIN_TEENAGERS_AGE, MAX_TEENAGERS_AGE)
     }
 
+    val feedGridColumnsPortrait: Flow<Int> = context.appSettingsDataStore.data.map {
+        (it[feedGridColumnsPortraitKey] ?: DEFAULT_FEED_GRID_COLUMNS_PORTRAIT)
+            .coerceIn(MIN_FEED_GRID_COLUMNS, MAX_FEED_GRID_COLUMNS)
+    }
+
+    val feedGridColumnsLandscape: Flow<Int> = context.appSettingsDataStore.data.map {
+        (it[feedGridColumnsLandscapeKey] ?: DEFAULT_FEED_GRID_COLUMNS_LANDSCAPE)
+            .coerceIn(MIN_FEED_GRID_COLUMNS, MAX_FEED_GRID_COLUMNS)
+    }
+
     val autoCheckUpdate: Flow<Boolean> = context.appSettingsDataStore.data.map { it[autoCheckUpdateKey] ?: true }
     val useSystemDns: Flow<Boolean> = context.appSettingsDataStore.data.map { it[useSystemDnsKey] ?: false }
     val fixBottomBar: Flow<Boolean> = context.appSettingsDataStore.data.map { it[fixBottomBarKey] ?: true }
@@ -182,6 +194,18 @@ class AppSettings @Inject constructor(
 
     suspend fun updateTeenagersAge(age: Int) {
         context.appSettingsDataStore.edit { it[teenagersAgeKey] = age.coerceIn(MIN_TEENAGERS_AGE, MAX_TEENAGERS_AGE) }
+    }
+
+    suspend fun updateFeedGridColumnsPortrait(columns: Int) {
+        context.appSettingsDataStore.edit {
+            it[feedGridColumnsPortraitKey] = columns.coerceIn(MIN_FEED_GRID_COLUMNS, MAX_FEED_GRID_COLUMNS)
+        }
+    }
+
+    suspend fun updateFeedGridColumnsLandscape(columns: Int) {
+        context.appSettingsDataStore.edit {
+            it[feedGridColumnsLandscapeKey] = columns.coerceIn(MIN_FEED_GRID_COLUMNS, MAX_FEED_GRID_COLUMNS)
+        }
     }
 
     suspend fun updateAutoCheckEnabled(enabled: Boolean) {
@@ -221,6 +245,8 @@ class AppSettings @Inject constructor(
     private val inAppMiniPlayerKey = booleanPreferencesKey("in_app_mini_player")
     private val autoRotateFullscreenKey = booleanPreferencesKey("auto_rotate_fullscreen")
     private val gestureSpeedKey = floatPreferencesKey("gesture_speed")
+    private val doubleTapSideSeekEnabledKey = booleanPreferencesKey("double_tap_side_seek_enabled")
+    private val doubleTapSeekSecondsKey = intPreferencesKey("double_tap_seek_seconds")
     private val videoCdnModeKey = stringPreferencesKey("video_cdn_mode")
     private val reportPlaybackKey = booleanPreferencesKey("report_playback")
     private val danmakuEnabledKey = booleanPreferencesKey("danmaku_enabled")
@@ -261,6 +287,11 @@ class AppSettings @Inject constructor(
                 gestureSpeed = (
                     prefs[gestureSpeedKey] ?: defaultPlaybackPrefs.gestureSpeed
                 ).coerceIn(0.25f, 3f),
+                doubleTapSideSeekEnabled = prefs[doubleTapSideSeekEnabledKey]
+                    ?: defaultPlaybackPrefs.doubleTapSideSeekEnabled,
+                doubleTapSeekSeconds = (
+                    prefs[doubleTapSeekSecondsKey] ?: defaultPlaybackPrefs.doubleTapSeekSeconds
+                ).coerceIn(MIN_DOUBLE_TAP_SEEK_SECONDS, MAX_DOUBLE_TAP_SEEK_SECONDS),
                 videoCdnMode = prefs[videoCdnModeKey]
                     ?.let(VideoCdnMode::valueOf)
                     ?: defaultPlaybackPrefs.videoCdnMode
@@ -344,6 +375,16 @@ class AppSettings @Inject constructor(
         context.appSettingsDataStore.edit { it[gestureSpeedKey] = speed.coerceIn(0.25f, 3f) }
     }
 
+    suspend fun setDoubleTapSideSeekEnabled(enabled: Boolean) {
+        context.appSettingsDataStore.edit { it[doubleTapSideSeekEnabledKey] = enabled }
+    }
+
+    suspend fun setDoubleTapSeekSeconds(seconds: Int) {
+        context.appSettingsDataStore.edit {
+            it[doubleTapSeekSecondsKey] = seconds.coerceIn(MIN_DOUBLE_TAP_SEEK_SECONDS, MAX_DOUBLE_TAP_SEEK_SECONDS)
+        }
+    }
+
     suspend fun setVideoCdnMode(mode: VideoCdnMode) {
         context.appSettingsDataStore.edit { it[videoCdnModeKey] = mode.name }
     }
@@ -378,6 +419,12 @@ class AppSettings @Inject constructor(
         const val DEFAULT_TEENAGERS_AGE = 16
         const val MIN_TEENAGERS_AGE = 1
         const val MAX_TEENAGERS_AGE = 17
+        const val MIN_FEED_GRID_COLUMNS = 1
+        const val MAX_FEED_GRID_COLUMNS = 5
+        const val DEFAULT_FEED_GRID_COLUMNS_PORTRAIT = 2
+        const val DEFAULT_FEED_GRID_COLUMNS_LANDSCAPE = 4
+        const val MIN_DOUBLE_TAP_SEEK_SECONDS = 1
+        const val MAX_DOUBLE_TAP_SEEK_SECONDS = 600
     }
 
     private fun Int?.toPlayerBufferProfile(defaultProfile: PlayerBufferProfile): PlayerBufferProfile {
