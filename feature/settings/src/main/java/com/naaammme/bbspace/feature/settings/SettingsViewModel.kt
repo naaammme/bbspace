@@ -75,6 +75,12 @@ class SettingsViewModel @Inject constructor(
         4
     )
 
+    val dynamicUpList = appSettings.dynamicUpList.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        true
+    )
+
     val enableHdrAnd8k = appSettings.enableHdrAnd8k.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
@@ -257,6 +263,12 @@ class SettingsViewModel @Inject constructor(
     fun updateFeedGridColumnsLandscape(columns: Int) {
         viewModelScope.launch {
             appSettings.updateFeedGridColumnsLandscape(columns)
+        }
+    }
+
+    fun updateDynamicUpList(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettings.updateDynamicUpList(enabled)
         }
     }
 

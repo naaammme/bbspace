@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.playback
 
+import androidx.activity.compose.LocalActivity
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition.Companion.None as EnterNone
@@ -15,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -72,56 +74,85 @@ fun PlaybackHost(
     }
     var prevMode by remember { mutableStateOf(mode) }
     LaunchedEffect(mode) { prevMode = mode }
-    val skipEnter = mode == PlaybackHostMode.Expanded && prevMode == PlaybackHostMode.Mini
+    var prevInPip by remember { mutableStateOf(PipPlayback.isInPip) }
+    LaunchedEffect(PipPlayback.isInPip) { prevInPip = PipPlayback.isInPip }
+    val skipEnter = (
+        mode == PlaybackHostMode.Expanded && prevMode == PlaybackHostMode.Mini
+        ) || (prevInPip && !PipPlayback.isInPip)
     val enterSpec = if (skipEnter) EnterNone else slideInHorizontally(
         animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
     ) { fullWidth -> fullWidth }
+    // 正常分支被画中画临时替换时，用 SaveableStateHolder 保留视频页/直播页的可保存状态
+    val expandedStateHolder = rememberSaveableStateHolder()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = target is StreamPlaybackTarget.Video && mode == PlaybackHostMode.Expanded,
-            enter = enterSpec,
-            exit = ExitNone
-        ) {
-            VideoScreen(
-                onBack = onDismissExpanded,
-                onGoHome = onGoHome,
-                onOpenSpace = onOpenSpace,
-                onOpenDownloadCache = onOpenDownloadCache,
-                onStartDownload = onStartDownload,
-                viewModel = videoViewModel,
-                hostExpanded = true
-            )
-        }
-
-        AnimatedVisibility(
-            visible = target is StreamPlaybackTarget.Live && mode == PlaybackHostMode.Expanded,
-            enter = enterSpec,
-            exit = ExitNone
-        ) {
-            LiveScreen(
-                onBack = onDismissExpanded,
-                viewModel = liveViewModel,
-                hostExpanded = true
-            )
-        }
-
-        val curTarget = target
-        if (mode == PlaybackHostMode.Mini &&
-            miniPlayerAvailable &&
-            curTarget != null
-        ) {
-            DraggableMiniPlayerHost(
-                modifier = modifier
-            ) {
+        if (PipPlayback.isInPip) {
+            // 原生画中画模式：整个窗口只渲染播放器（含播放/暂停与关闭按钮）
+            val pipTarget = target
+            if (pipTarget != null) {
                 InAppMiniPlayer(
                     player = player,
-                    target = curTarget,
+                    target = pipTarget,
                     sessionState = sessionState,
                     onExpand = onExpand,
                     onTogglePlay = onTogglePlay,
                     onClose = onClose
                 )
+            } else {
+                // 画中画内已无播放目标：把任务退到后台，退出画中画窗口
+                val act = LocalActivity.current
+                LaunchedEffect(pipTarget) {
+                    act?.moveTaskToBack(true)
+                }
+            }
+        } else {
+            expandedStateHolder.SaveableStateProvider("playback_expanded") {
+                AnimatedVisibility(
+                    visible = target is StreamPlaybackTarget.Video && mode == PlaybackHostMode.Expanded,
+                    enter = enterSpec,
+                    exit = ExitNone
+                ) {
+                    VideoScreen(
+                        onBack = onDismissExpanded,
+                        onGoHome = onGoHome,
+                        onOpenSpace = onOpenSpace,
+                        onOpenDownloadCache = onOpenDownloadCache,
+                        onStartDownload = onStartDownload,
+                        viewModel = videoViewModel,
+                        hostExpanded = true
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = target is StreamPlaybackTarget.Live && mode == PlaybackHostMode.Expanded,
+                    enter = enterSpec,
+                    exit = ExitNone
+                ) {
+                    LiveScreen(
+                        onBack = onDismissExpanded,
+                        viewModel = liveViewModel,
+                        hostExpanded = true
+                    )
+                }
+            }
+
+            val curTarget = target
+            if (mode == PlaybackHostMode.Mini &&
+                miniPlayerAvailable &&
+                curTarget != null
+            ) {
+                DraggableMiniPlayerHost(
+                    modifier = modifier
+                ) {
+                    InAppMiniPlayer(
+                        player = player,
+                        target = curTarget,
+                        sessionState = sessionState,
+                        onExpand = onExpand,
+                        onTogglePlay = onTogglePlay,
+                        onClose = onClose
+                    )
+                }
             }
         }
     }

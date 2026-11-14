@@ -31,6 +31,7 @@ import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.UpListRow
+import com.naaammme.bbspace.core.designsystem.component.scrollTapGuard
 import com.naaammme.bbspace.core.model.DynamicBody
 import com.naaammme.bbspace.core.model.DynamicImage
 import com.naaammme.bbspace.core.model.DynamicItem
@@ -47,6 +48,8 @@ fun DynamicFeed(
     isLoadingMore: Boolean,
     errorMessage: String?,
     loadMoreError: String?,
+    manualLoadMore: Boolean = false,
+    onManualLoadMore: () -> Unit = {},
     onRetryRefresh: () -> Unit,
     onRetryLoadMore: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
@@ -57,7 +60,9 @@ fun DynamicFeed(
 ) {
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .scrollTapGuard(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -129,10 +134,23 @@ fun DynamicFeed(
                 contentType = "error"
             ) {
                 StateMessageCard(
-                    text = loadMoreError.ifBlank { "加载动态失败" },
+                    text = loadMoreError.ifBlank { "加载更多动态失败" },
                     isError = true,
                     actionText = "点击重试加载更多",
                     onAction = onRetryLoadMore
+                )
+            }
+        }
+
+        if (manualLoadMore) {
+            item(
+                key = "dynamic_manual_more",
+                contentType = "manual_more"
+            ) {
+                StateMessageCard(
+                    text = "已暂停自动加载，点击加载更多",
+                    actionText = "加载更多",
+                    onAction = onManualLoadMore
                 )
             }
         }

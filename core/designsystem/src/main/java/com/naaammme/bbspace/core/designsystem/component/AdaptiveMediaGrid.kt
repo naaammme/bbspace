@@ -100,7 +100,9 @@ fun <T> AdaptiveMediaGrid(
         LazyVerticalStaggeredGrid(
             state = gridState,
             columns = StaggeredGridCells.Fixed(columns),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .scrollTapGuard(),
             horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
             verticalItemSpacing = verticalSpacing,
             contentPadding = contentPadding

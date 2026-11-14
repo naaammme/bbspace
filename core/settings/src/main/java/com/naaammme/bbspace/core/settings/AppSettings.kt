@@ -169,6 +169,11 @@ class AppSettings @Inject constructor(
             .coerceIn(MIN_FEED_GRID_COLUMNS, MAX_FEED_GRID_COLUMNS)
     }
 
+    private val dynamicUpListKey = booleanPreferencesKey("dynamic_up_list")
+    val dynamicUpList: Flow<Boolean> = context.appSettingsDataStore.data.map {
+        it[dynamicUpListKey] ?: true
+    }
+
     val autoCheckUpdate: Flow<Boolean> = context.appSettingsDataStore.data.map { it[autoCheckUpdateKey] ?: true }
     val useSystemDns: Flow<Boolean> = context.appSettingsDataStore.data.map { it[useSystemDnsKey] ?: false }
     val fixBottomBar: Flow<Boolean> = context.appSettingsDataStore.data.map { it[fixBottomBarKey] ?: true }
@@ -206,6 +211,10 @@ class AppSettings @Inject constructor(
         context.appSettingsDataStore.edit {
             it[feedGridColumnsLandscapeKey] = columns.coerceIn(MIN_FEED_GRID_COLUMNS, MAX_FEED_GRID_COLUMNS)
         }
+    }
+
+    suspend fun updateDynamicUpList(enabled: Boolean) {
+        context.appSettingsDataStore.edit { it[dynamicUpListKey] = enabled }
     }
 
     suspend fun updateAutoCheckEnabled(enabled: Boolean) {

@@ -191,46 +191,78 @@ fun Modifier.videoGestures(
                     val change = event.changes.firstOrNull() ?: break
 
                     if (!change.pressed) {
+                        if (change.isConsumed) {
+                            // 子控件（按钮等）已消费本次点击：不再触发单击切换，
+                            // 但拖动/长按状态的清理不能跳过
+                            when (phase) {
+                                Phase.Drag -> {
+                                    if (state.dragType == DragType.Seek) {
+                                        curSeekTo(state.dragSeekPosMs ?: state.dragStartPosMs)
+                                    }
+                                    state.resetDrag()
+                                    curDragEnd()
+                                }
+
+                                Phase.LongPress -> {
+                                    if (speedActive) {
+                                        curStopSpeedUp()
+                                        state.showSpeedBadge = false
+                                    }
+                                    speedActive = false
+                                }
+
+                                Phase.Press -> Unit
+                            }
+                            waitForAllUp()
+                            break
+                        }
                         when (phase) {
                             Phase.Press -> {
-                                val second = withTimeoutOrNull(doubleTapTimeout) {
-                                    awaitFirstDown(requireUnconsumed = false)
-                                }
-                                if (second != null) {
-                                    if (!curLocked()) {
-                                        val sndX = second.position.x / w
-                                        when {
-                                            curSideSeekEnabled() && sndX < SIDE_GESTURE_ZONE -> {
-                                                val seekMs = curDoubleTapSeekMs()
-                                                val target = (curPositionMs() - seekMs).coerceAtLeast(0L)
-                                                curSeekTo(target)
-                                                state.showDoubleTap(
-                                                    DoubleTapHint.Rewind,
-                                                    formatSeekDelta(-seekMs)
-                                                )
-                                            }
-                                            curSideSeekEnabled() && sndX > RIGHT_GESTURE_ZONE_START -> {
-                                                val seekMs = curDoubleTapSeekMs()
-                                                val target = (curPositionMs() + seekMs).coerceAtMost(curDurationMs())
-                                                curSeekTo(target)
-                                                state.showDoubleTap(
-                                                    DoubleTapHint.Forward,
-                                                    formatSeekDelta(seekMs)
-                                                )
-                                            }
-                                            else -> {
-                                                val willPlay = !curIsPlaying()
-                                                curTogglePlay()
-                                                state.showDoubleTap(
-                                                    if (willPlay) DoubleTapHint.Play else DoubleTapHint.Pause,
-                                                    if (willPlay) "播放" else "暂停"
-                                                )
-                                            }
-                                        }
-                                    }
+                                if (curLocked()) {
+                                    // 锁定时跳过双击检测：单击立即切换控件显隐，
+                                    // 不必等 2 秒自动隐藏
+                                    curToggleControls()
                                     waitForAllUp()
                                 } else {
-                                    curToggleControls()
+                                    val second = withTimeoutOrNull(doubleTapTimeout) {
+                                        awaitFirstDown(requireUnconsumed = false)
+                                    }
+                                    if (second != null) {
+                                        if (!curLocked()) {
+                                            val sndX = second.position.x / w
+                                            when {
+                                                curSideSeekEnabled() && sndX < SIDE_GESTURE_ZONE -> {
+                                                    val seekMs = curDoubleTapSeekMs()
+                                                    val target = (curPositionMs() - seekMs).coerceAtLeast(0L)
+                                                    curSeekTo(target)
+                                                    state.showDoubleTap(
+                                                        DoubleTapHint.Rewind,
+                                                        formatSeekDelta(-seekMs)
+                                                    )
+                                                }
+                                                curSideSeekEnabled() && sndX > RIGHT_GESTURE_ZONE_START -> {
+                                                    val seekMs = curDoubleTapSeekMs()
+                                                    val target = (curPositionMs() + seekMs).coerceAtMost(curDurationMs())
+                                                    curSeekTo(target)
+                                                    state.showDoubleTap(
+                                                        DoubleTapHint.Forward,
+                                                        formatSeekDelta(seekMs)
+                                                    )
+                                                }
+                                                else -> {
+                                                    val willPlay = !curIsPlaying()
+                                                    curTogglePlay()
+                                                    state.showDoubleTap(
+                                                        if (willPlay) DoubleTapHint.Play else DoubleTapHint.Pause,
+                                                        if (willPlay) "播放" else "暂停"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        waitForAllUp()
+                                    } else {
+                                        curToggleControls()
+                                    }
                                 }
                             }
                             Phase.Drag -> {

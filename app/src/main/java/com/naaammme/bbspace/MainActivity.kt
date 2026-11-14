@@ -1,6 +1,7 @@
 package com.naaammme.bbspace
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.hardware.display.DisplayManager
 import android.os.Build
@@ -10,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +37,8 @@ import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.model.WebLinkParser
 import com.naaammme.bbspace.core.model.WebLinkTarget
 import com.naaammme.bbspace.navigation.AppNavHost
+import com.naaammme.bbspace.playback.PipPlayback
+import com.naaammme.bbspace.playback.PlaybackHostViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -50,11 +54,31 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var updateChecker: AppUpdateChecker
 
+    private val playbackHostViewModel: PlaybackHostViewModel by viewModels()
+
     private var updateDialog by mutableStateOf<AppUpdateDialogState?>(null)
 
     private var cachedDisplayModes: Array<Display.Mode>? = null
 
     private var pendingAppLink by mutableStateOf<WebLinkTarget?>(null)
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // 正在播放视频/直播时离开应用（回桌面等），进入原生画中画继续播放
+        if (PipPlayback.isSupported() && playbackHostViewModel.shouldEnterPip()) {
+            val sessionState = playbackHostViewModel.sessionState.value
+            PipPlayback.buildParams(this, sessionState.videoWidth, sessionState.videoHeight)
+                ?.let { enterPictureInPictureMode(it) }
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        PipPlayback.updateInPip(isInPictureInPictureMode)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

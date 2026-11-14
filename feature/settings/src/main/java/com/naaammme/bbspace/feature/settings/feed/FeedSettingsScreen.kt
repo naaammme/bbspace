@@ -30,6 +30,7 @@ fun FeedSettingsScreen(
     val teenagersAge by viewModel.teenagersAge.collectAsStateWithLifecycle()
     val feedGridColumnsPortrait by viewModel.feedGridColumnsPortrait.collectAsStateWithLifecycle()
     val feedGridColumnsLandscape by viewModel.feedGridColumnsLandscape.collectAsStateWithLifecycle()
+    val dynamicUpList by viewModel.dynamicUpList.collectAsStateWithLifecycle()
     var teenagersAgeDraft by remember(teenagersAge) { mutableFloatStateOf(teenagersAge.toFloat()) }
     val teenagersAgeText = teenagersAgeDraft.roundToInt().coerceIn(1, 17).toString()
 
@@ -216,6 +217,31 @@ fun FeedSettingsScreen(
                     current = feedGridColumnsLandscape,
                     onSelect = viewModel::updateFeedGridColumnsLandscape
                 )
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("动态页最常访问用户", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "在动态页顶部显示最常访问用户栏",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = dynamicUpList,
+                            onCheckedChange = viewModel::updateDynamicUpList
+                        )
+                    }
+                }
             }
             item {
                 Card(

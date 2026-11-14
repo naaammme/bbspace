@@ -23,6 +23,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
@@ -30,13 +34,21 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -63,6 +75,9 @@ import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.feature.video.detail.VideoDetailPage
 import com.naaammme.bbspace.feature.video.player.VideoPlayerPane
 import java.util.Locale
+import kotlin.math.min
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 internal val speedOps = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 
@@ -245,18 +260,100 @@ fun VideoScreen(
             }
 
             else -> {
+                // 竖屏视频（高>宽）：在详情页/评论区顶部继续下拉时向下扩大播放器区域，
+                // 向上划时收回；画面比例始终不变，只做等比缩放。
+                // 上限取"视频左右贴住屏幕两边"与"播放器区域占画面 80% 高度"先到者。
+                val density = LocalDensity.current
+                val portraitAspect = landscapeVideoAspect?.takeIf { it < 1f }
+                val maxExpandPx = portraitAspect?.let { aspect ->
+                    val widthLimitH = maxWidth / aspect
+                    val heightLimitH = maxHeight * 0.8f - statusTop
+                    val expandedH = Dp(min(widthLimitH.value, heightLimitH.value))
+                    with(density) { (expandedH - compactVideoH).coerceAtLeast(0.dp).toPx() }
+                } ?: 0f
+                val expandState = remember(videoState.ids.aid) { mutableFloatStateOf(0f) }
+                val scope = rememberCoroutineScope()
+                val expandAnim = remember { mutableStateOf<Job?>(null) }
+                val expandConnection = remember(maxExpandPx, expandState, scope) {
+                    object : NestedScrollConnection {
+                        private fun setExpand(value: Float) {
+                            expandAnim.value?.cancel()
+                            expandAnim.value = null
+                            expandState.floatValue = value
+                        }
+
+                        override fun onPreScroll(
+                            available: Offset,
+                            source: NestedScrollSource
+                        ): Offset {
+                            val dy = available.y
+                            // 向上划：先把扩大区域收回，再让列表滚动
+                            if (dy < 0f && expandState.floatValue > 0f) {
+                                val prev = expandState.floatValue
+                                val next = (prev + dy).coerceIn(0f, maxExpandPx)
+                                setExpand(next)
+                                return Offset(0f, next - prev)
+                            }
+                            return Offset.Zero
+                        }
+
+                        override fun onPostScroll(
+                            consumed: Offset,
+                            available: Offset,
+                            source: NestedScrollSource
+                        ): Offset {
+                            val dy = available.y
+                            // 列表已在顶部仍下拉：把播放器区域向下扩大
+                            if (dy > 0f && expandState.floatValue < maxExpandPx) {
+                                val prev = expandState.floatValue
+                                val next = (prev + dy).coerceIn(0f, maxExpandPx)
+                                setExpand(next)
+                                return Offset(0f, next - prev)
+                            }
+                            return Offset.Zero
+                        }
+
+                        override suspend fun onPreFling(available: Velocity): Velocity {
+                            val cur = expandState.floatValue
+                            if (maxExpandPx > 0f && cur > 0f && cur < maxExpandPx) {
+                                val target = when {
+                                    available.y > 600f -> maxExpandPx
+                                    available.y < -600f -> 0f
+                                    else -> if (cur > maxExpandPx / 2f) maxExpandPx else 0f
+                                }
+                                expandAnim.value?.cancel()
+                                expandAnim.value = scope.launch {
+                                    animate(
+                                        initialValue = cur,
+                                        targetValue = target,
+                                        animationSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    ) { v, _ ->
+                                        expandState.floatValue = v
+                                    }
+                                }
+                            }
+                            return Velocity.Zero
+                        }
+                    }
+                }
+                val expandDp = with(density) {
+                    (if (maxExpandPx > 0f) expandState.floatValue else 0f).toDp()
+                }
+
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(compactPlayerSpaceH)
+                            .height(compactPlayerSpaceH + expandDp)
                             .background(Color.Black)
                     ) {
                         VideoPlayerPane(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .statusBarsPadding()
-                                .height(compactVideoH),
+                                .height(compactVideoH + expandDp),
                             viewModel = viewModel,
                             videoTitle = videoState.detail?.title,
                             isFull = false,
@@ -268,7 +365,14 @@ fun VideoScreen(
                     VideoDetailPage(
                         modifier = Modifier
                             .weight(1f)
-                            .background(MaterialTheme.colorScheme.background),
+                            .background(MaterialTheme.colorScheme.background)
+                            .then(
+                                if (maxExpandPx > 0f) {
+                                    Modifier.nestedScroll(expandConnection)
+                                } else {
+                                    Modifier
+                                }
+                            ),
                         detail = videoState.detail,
                         ids = videoState.ids,
                         detailLoading = videoState.detailLoading,
