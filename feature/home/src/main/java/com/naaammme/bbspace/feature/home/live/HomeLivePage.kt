@@ -107,9 +107,9 @@ private fun LiveRecommendCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             CoverImage(
                 url = item.cover,
                 contentDescription = item.title,
@@ -134,7 +134,11 @@ private fun LiveRecommendCard(
                 }
             }
 
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+            ) {
                 val spaceRoute = remember(item.ownerMid, item.ownerName) {
                     item.ownerMid?.let { mid ->
                         SpaceRoute(

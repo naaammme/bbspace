@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.playback
 
+import android.os.Build
 import androidx.activity.compose.LocalActivity
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
@@ -87,13 +88,16 @@ fun PlaybackHost(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (PipPlayback.isInPip) {
-            // 原生画中画模式：整个窗口只渲染播放器（含播放/暂停与关闭按钮）
+            // 原生画中画模式：整个窗口只渲染播放器画面。
+            // Android 12+ 点击由系统菜单接管（不处理应用内控件），
+            // 12 以下点击呼出应用内控件
             val pipTarget = target
             if (pipTarget != null) {
                 InAppMiniPlayer(
                     player = player,
                     target = pipTarget,
                     sessionState = sessionState,
+                    showControlsOnTap = Build.VERSION.SDK_INT < Build.VERSION_CODES.S,
                     onExpand = onExpand,
                     onTogglePlay = onTogglePlay,
                     onClose = onClose

@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -70,7 +70,7 @@ fun HomeVideoPage(
     onToastShown: () -> Unit
 ) {
     val context = LocalContext.current
-    val gridState = rememberLazyStaggeredGridState()
+    val gridState = rememberLazyListState()
     var wasRefreshing by remember { mutableStateOf(false) }
     LaunchedEffect(toastMessage, context) {
         if (toastMessage.isNotEmpty()) {
@@ -133,9 +133,9 @@ private fun FeedCard(
     Card(
         onClick = onClick,
         enabled = canOpen,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             CoverImage(
                 url = item.cover,
                 contentDescription = item.title,
@@ -180,7 +180,11 @@ private fun FeedCard(
                     }
                 }
             }
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
                 val spaceRoute = remember(item.args, item.target) {
                     item.args?.let { args ->
                         if (args.upId <= 0L && args.upName.isNullOrBlank()) {

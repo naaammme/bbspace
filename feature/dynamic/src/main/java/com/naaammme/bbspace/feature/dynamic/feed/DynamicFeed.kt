@@ -31,7 +31,6 @@ import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.UpListRow
-import com.naaammme.bbspace.core.designsystem.component.scrollTapGuard
 import com.naaammme.bbspace.core.model.DynamicBody
 import com.naaammme.bbspace.core.model.DynamicImage
 import com.naaammme.bbspace.core.model.DynamicItem
@@ -60,9 +59,7 @@ fun DynamicFeed(
 ) {
     LazyColumn(
         state = listState,
-        modifier = modifier
-            .fillMaxSize()
-            .scrollTapGuard(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {

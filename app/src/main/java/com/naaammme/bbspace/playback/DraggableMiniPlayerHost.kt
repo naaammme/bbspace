@@ -4,6 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.rememberSplineBasedDecay
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.draggable2D
 import androidx.compose.foundation.gestures.rememberDraggable2DState
 import androidx.compose.foundation.layout.Box
@@ -11,8 +14,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,10 +29,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -36,7 +47,10 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private val miniPlayerWidth = 192.dp
+private val miniPlayerDefaultWidth = 192.dp
+private val miniPlayerMinWidth = 120.dp
+private val miniPlayerMaxWidth = 340.dp
+private val miniPlayerResizeHandle = 24.dp
 private const val miniPlayerAspectRatio = 16f / 9f
 private val miniPlayerStashPeek = 28.dp
 private const val miniPlayerStashTriggerFraction = 0.5f
@@ -62,7 +76,12 @@ internal fun DraggableMiniPlayerHost(
         val layoutDir = LocalLayoutDirection.current
         val scope = rememberCoroutineScope()
         val decay = rememberSplineBasedDecay<Float>()
-        val playerWidthPx = with(density) { miniPlayerWidth.roundToPx() }
+        // 小窗宽度可拖右下角手柄调整；与小窗位置一样在旋转/重建间保留
+        var playerWidth by rememberSaveable {
+            mutableFloatStateOf(miniPlayerDefaultWidth.value)
+        }
+        val playerWidthDp = playerWidth.dp.coerceIn(miniPlayerMinWidth, miniPlayerMaxWidth)
+        val playerWidthPx = with(density) { playerWidthDp.roundToPx() }
         val playerHeightPx = remember(playerWidthPx) {
             (playerWidthPx / miniPlayerAspectRatio).roundToInt()
         }
@@ -154,7 +173,7 @@ internal fun DraggableMiniPlayerHost(
                         else -> Rect.Zero
                     }
                 }
-                .width(miniPlayerWidth)
+                .width(playerWidthDp)
                 .aspectRatio(miniPlayerAspectRatio)
                 .draggable2D(
                     state = dragState,
@@ -246,6 +265,51 @@ internal fun DraggableMiniPlayerHost(
                 )
         ) {
             content()
+            // 右下角拖拽手柄：左右拖动等比调整小窗大小（视频比例不变）
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(miniPlayerResizeHandle)
+                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            val deltaDp = dragAmount.x.toDp().value
+                            playerWidth = (playerWidth + deltaDp).coerceIn(
+                                miniPlayerMinWidth.value,
+                                miniPlayerMaxWidth.value
+                            )
+                        }
+                    }
+                    .padding(5.dp)
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val w = size.width
+                    val h = size.height
+                    val strokeWidth = 1.6.dp.toPx()
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(w * 0.2f, h * 0.5f),
+                        end = Offset(w * 0.5f, h * 0.2f),
+                        strokeWidth = strokeWidth,
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(w * 0.2f, h * 0.95f),
+                        end = Offset(w * 0.95f, h * 0.2f),
+                        strokeWidth = strokeWidth,
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(w * 0.55f, h * 0.95f),
+                        end = Offset(w * 0.95f, h * 0.55f),
+                        strokeWidth = strokeWidth,
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
         }
     }
 }
