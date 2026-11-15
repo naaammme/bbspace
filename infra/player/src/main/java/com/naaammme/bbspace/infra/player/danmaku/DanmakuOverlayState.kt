@@ -29,6 +29,8 @@ class DanmakuOverlayState internal constructor(
     private var lastSeekEventId = 0L
     private var appliedWindowId: Long? = null
     private var appliedWindowSignature: Int? = null
+    private var blockColored = false
+    private var appendedWindowCount = 0
     private val itemMapper = DefaultDanmakuItemMapper()
 
     fun prepare() {
@@ -186,11 +188,13 @@ class DanmakuOverlayState internal constructor(
         pendingSeek = true
         appliedWindowId = null
         appliedWindowSignature = null
+        appendedWindowCount = 0
         session.clearSegments()
     }
 
     fun appendDanmaku(item: DanmakuItem) {
         if (released.get()) return
+        if (blockColored && item.color != DANMAKU_COLOR_WHITE) return
         val danmaku = itemMapper.map(item, danmakuContext) ?: return
         danmaku.time = danmaku.time.coerceAtLeast(timeProvider.getCurrentTimeMs()) + LIVE_DANMAKU_LEAD_MS
         danmaku.priority = LIVE_DANMAKU_PRIORITY
@@ -205,6 +209,7 @@ class DanmakuOverlayState internal constructor(
         pendingSeek = true
         appliedWindowId = null
         appliedWindowSignature = null
+        appendedWindowCount = 0
         session.clearSegments()
     }
 
@@ -215,6 +220,13 @@ class DanmakuOverlayState internal constructor(
         if (lastCfgState == nextState) return
 
         danmakuContext.applyConfig(config)
+        // 屏蔽彩色开关变化后，当前分段需要按新规则重新过滤
+        if (lastCfgState != null &&
+            lastCfgState?.config?.blockColored != config.blockColored
+        ) {
+            appliedWindowSignature = null
+        }
+        blockColored = config.blockColored
         lastCfgState = nextState
     }
 
@@ -224,8 +236,17 @@ class DanmakuOverlayState internal constructor(
         requireTargetWindow: Boolean
     ) {
         val targetWindow = window?.takeIf { it.id == targetWindowId }
+        val appliedId = appliedWindowId
         if (targetWindow == null) {
-            if (requireTargetWindow || appliedWindowId != null) {
+            // 顺序播放刚跨入下一分段、新分段还在加载时不清屏，
+            // 保留在屏弹幕等窗口到位后平滑追加
+            val awaitingNextWindow = !requireTargetWindow &&
+                appliedId != null &&
+                targetWindowId == appliedId + 1L
+            if (awaitingNextWindow) {
+                return
+            }
+            if (appliedWindowId != null) {
                 appliedWindowId = null
                 appliedWindowSignature = null
                 session.clearSegments()
@@ -233,15 +254,30 @@ class DanmakuOverlayState internal constructor(
             pendingSeek = true
             return
         }
-        val nextSignature = targetWindow.items.windowSignature()
+        val nextItems = filterColored(targetWindow.items)
+        val nextSignature = nextItems.windowSignature()
         if (appliedWindowId == targetWindow.id && appliedWindowSignature == nextSignature) {
             return
         }
-        session.replaceSegments(
-            listOf(DanmakuSegmentData(targetWindow.id, targetWindow.items))
-        )
+        // 顺序推进到相邻分段：用追加代替整段替换，避免把在屏弹幕全部清空
+        val naturalAdvance = !requireTargetWindow &&
+            appliedId != null &&
+            targetWindow.id == appliedId + 1L &&
+            appendedWindowCount < MAX_APPENDED_SEGMENTS
+        if (naturalAdvance) {
+            session.appendSegment(DanmakuSegmentData(targetWindow.id, nextItems))
+            appendedWindowCount++
+        } else {
+            session.replaceSegments(listOf(DanmakuSegmentData(targetWindow.id, nextItems)))
+            appendedWindowCount = 0
+        }
         appliedWindowId = targetWindow.id
         appliedWindowSignature = nextSignature
+    }
+
+    private fun filterColored(items: List<DanmakuItem>): List<DanmakuItem> {
+        if (!blockColored) return items
+        return items.filter { it.color == DANMAKU_COLOR_WHITE }
     }
 
     private fun consumeSeekEvent(seekEventId: Long): Boolean {
@@ -274,3 +310,9 @@ private data class DanmakuPlayState(
 
 private const val LIVE_DANMAKU_LEAD_MS = 1_200L
 private const val LIVE_DANMAKU_PRIORITY: Byte = 1
+
+/** 顺序播放最多连续追加的分段数，超过后整体替换一次以控制内存 */
+private const val MAX_APPENDED_SEGMENTS = 8
+
+/** B 站弹幕默认白色（RGB），屏蔽彩色时只放行这个颜色 */
+private const val DANMAKU_COLOR_WHITE = 0xFFFFFF

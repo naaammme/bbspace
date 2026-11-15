@@ -47,6 +47,8 @@ fun DynamicFeed(
     isLoadingMore: Boolean,
     errorMessage: String?,
     loadMoreError: String?,
+    manualLoadMore: Boolean = false,
+    onManualLoadMore: () -> Unit = {},
     onRetryRefresh: () -> Unit,
     onRetryLoadMore: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
@@ -129,10 +131,23 @@ fun DynamicFeed(
                 contentType = "error"
             ) {
                 StateMessageCard(
-                    text = loadMoreError.ifBlank { "加载动态失败" },
+                    text = loadMoreError.ifBlank { "加载更多动态失败" },
                     isError = true,
                     actionText = "点击重试加载更多",
                     onAction = onRetryLoadMore
+                )
+            }
+        }
+
+        if (manualLoadMore) {
+            item(
+                key = "dynamic_manual_more",
+                contentType = "manual_more"
+            ) {
+                StateMessageCard(
+                    text = "已暂停自动加载，点击加载更多",
+                    actionText = "加载更多",
+                    onAction = onManualLoadMore
                 )
             }
         }

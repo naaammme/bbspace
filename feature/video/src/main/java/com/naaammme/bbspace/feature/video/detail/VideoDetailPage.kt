@@ -95,9 +95,9 @@ internal fun VideoDetailPage(
     var tagOn by rememberSaveable(aidKey) { mutableStateOf(false) }
     var sheet by remember(aidKey) { mutableStateOf<DetailSheet?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val detailListState = remember(aidKey) { LazyListState() }
-    val commentListState = remember(aidKey) { LazyListState() }
-    val commentThreadListState = remember(aidKey) { LazyListState() }
+    val detailListState = rememberSaveable(aidKey, saver = LazyListState.Saver) { LazyListState() }
+    val commentListState = rememberSaveable(aidKey, saver = LazyListState.Saver) { LazyListState() }
+    val commentThreadListState = rememberSaveable(aidKey, saver = LazyListState.Saver) { LazyListState() }
     val pagerState = rememberPagerState(pageCount = { 2 })
     val scope = rememberCoroutineScope()
 

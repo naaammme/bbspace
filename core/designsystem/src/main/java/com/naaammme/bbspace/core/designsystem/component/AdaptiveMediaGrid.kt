@@ -3,18 +3,19 @@ package com.naaammme.bbspace.core.designsystem.component
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridItemScope
-import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -43,7 +44,6 @@ fun rememberAdaptiveGridColumnCount(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> AdaptiveMediaGrid(
     items: List<T>,
@@ -52,7 +52,7 @@ fun <T> AdaptiveMediaGrid(
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
-    state: LazyStaggeredGridState? = null,
+    state: LazyListState? = null,
     errorMessage: String? = null,
     loadMoreEnabled: Boolean = true,
     columns: Int = rememberAdaptiveGridColumnCount(),
@@ -67,22 +67,22 @@ fun <T> AdaptiveMediaGrid(
     ),
     key: (index: Int, item: T) -> Any = { index, _ -> index },
     contentType: (index: Int, item: T) -> Any? = { _, _ -> null },
-    loadingContent: @Composable LazyStaggeredGridItemScope.() -> Unit,
-    headerContent: (@Composable LazyStaggeredGridItemScope.() -> Unit)? = null,
-    emptyContent: (@Composable LazyStaggeredGridItemScope.() -> Unit)? = null,
-    errorContent: @Composable LazyStaggeredGridItemScope.(String) -> Unit = { msg ->
+    loadingContent: @Composable () -> Unit,
+    headerContent: (@Composable () -> Unit)? = null,
+    emptyContent: (@Composable () -> Unit)? = null,
+    errorContent: @Composable (String) -> Unit = { msg ->
         DefaultGridError(msg)
     },
-    loadMoreContent: @Composable LazyStaggeredGridItemScope.() -> Unit = {
+    loadMoreContent: @Composable () -> Unit = {
         DefaultGridLoadMore()
     },
-    itemContent: @Composable LazyStaggeredGridItemScope.(item: T) -> Unit
+    itemContent: @Composable (item: T) -> Unit
 ) {
-    val gridState = state ?: rememberLazyStaggeredGridState()
+    val listState = state ?: rememberLazyListState()
     val currentItems by rememberUpdatedState(items)
-    val shouldLoadMore by remember(gridState, loadMoreEnabled) {
+    val shouldLoadMore by remember(listState, loadMoreEnabled) {
         derivedStateOf {
-            loadMoreEnabled && !gridState.canScrollForward && currentItems.isNotEmpty()
+            loadMoreEnabled && !listState.canScrollForward && currentItems.isNotEmpty()
         }
     }
 
@@ -97,22 +97,27 @@ fun <T> AdaptiveMediaGrid(
         onRefresh = onRefresh,
         modifier = modifier
     ) {
-        LazyVerticalStaggeredGrid(
-            state = gridState,
-            columns = StaggeredGridCells.Fixed(columns),
+        // 按行分组的网格：同一横排的卡片高度对齐到该排最高的一个，
+        // 只有标题/投稿者区域被拉伸，保证整个页面横平竖直
+        LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
-            verticalItemSpacing = verticalSpacing,
-            contentPadding = contentPadding
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
         ) {
             when {
                 items.isEmpty() && isRefreshing -> {
                     items(
-                        count = loadingPlaceholderCount,
-                        key = { index -> "loading_$index" },
-                        contentType = { "loading" }
+                        count = (loadingPlaceholderCount + columns - 1) / columns,
+                        key = { rowIndex -> "loading_row_$rowIndex" },
+                        contentType = { "loading_row" }
                     ) {
-                        loadingContent()
+                        MediaGridRow(
+                            cellCount = columns,
+                            horizontalSpacing = horizontalSpacing
+                        ) {
+                            loadingContent()
+                        }
                     }
                 }
 
@@ -121,7 +126,6 @@ fun <T> AdaptiveMediaGrid(
                         emptyContent != null -> {
                             item(
                                 key = "empty",
-                                span = StaggeredGridItemSpan.FullLine,
                                 contentType = "empty"
                             ) {
                                 emptyContent()
@@ -132,7 +136,6 @@ fun <T> AdaptiveMediaGrid(
                             val err = errorMessage.orEmpty()
                             item(
                                 key = "error",
-                                span = StaggeredGridItemSpan.FullLine,
                                 contentType = "error"
                             ) {
                                 errorContent(err)
@@ -155,19 +158,48 @@ fun <T> AdaptiveMediaGrid(
                     if (headerContent != null) {
                         item(
                             key = "header",
-                            contentType = "header",
-                            span = StaggeredGridItemSpan.FullLine
+                            contentType = "header"
                         ) {
                             headerContent()
                         }
                     }
 
+                    val rowCount = (items.size + columns - 1) / columns
                     items(
-                        count = items.size,
-                        key = { index -> key(index, items[index]) },
-                        contentType = { index -> contentType(index, items[index]) }
-                    ) { index ->
-                        itemContent(items[index])
+                        count = rowCount,
+                        key = { rowIndex ->
+                            val first = rowIndex * columns
+                            val last = minOf(first + columns, items.size)
+                            (first until last).joinToString("|") { key(it, items[it]).toString() }
+                        },
+                        contentType = { rowIndex ->
+                            val first = rowIndex * columns
+                            val last = minOf(first + columns, items.size)
+                            (first until last).map { contentType(it, items[it]) }
+                        }
+                    ) { rowIndex ->
+                        val first = rowIndex * columns
+                        val last = minOf(first + columns, items.size)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
+                            horizontalArrangement = Arrangement.spacedBy(horizontalSpacing)
+                        ) {
+                            for (index in first until last) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                ) {
+                                    itemContent(items[index])
+                                }
+                            }
+                            // 末行不满时用空位补齐，保持各列宽度一致
+                            repeat(columns - (last - first)) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
                     }
 
                     if (isLoadingMore) {
@@ -179,6 +211,30 @@ fun <T> AdaptiveMediaGrid(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaGridRow(
+    cellCount: Int,
+    horizontalSpacing: Dp,
+    cellContent: @Composable () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Max),
+        horizontalArrangement = Arrangement.spacedBy(horizontalSpacing)
+    ) {
+        repeat(cellCount) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                cellContent()
             }
         }
     }

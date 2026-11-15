@@ -77,6 +77,16 @@ class PlaybackHostViewModel @Inject constructor(
         _hostMode.value = PlaybackHostMode.Mini
     }
 
+    /**
+     * 离开应用时是否应进入原生画中画：
+     * 播放宿主可见（全屏或小窗）且有正在播放的目标。
+     */
+    fun shouldEnterPip(): Boolean {
+        return _hostMode.value != PlaybackHostMode.Hidden &&
+            currentTarget.value != null &&
+            sessionState.value.playWhenReady
+    }
+
     fun openLive(route: LiveRoute) {
         viewModelScope.launch {
             livePlaybackController.openLive(route)

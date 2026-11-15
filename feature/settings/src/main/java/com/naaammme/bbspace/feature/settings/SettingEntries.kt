@@ -36,6 +36,8 @@ val feedEntries = listOf(
     SettingEntry("个性化推荐", "基于历史记录推荐内容", FEED_SETTINGS_ROUTE),
     SettingEntry("课堂推荐模式", "只推荐学习相关视频", FEED_SETTINGS_ROUTE),
     SettingEntry("未成年推荐", "按指定年龄请求未成年推荐内容", FEED_SETTINGS_ROUTE),
+    SettingEntry("竖屏首页推荐列数", "竖屏时首页推荐视频每行显示的数量", FEED_SETTINGS_ROUTE),
+    SettingEntry("横屏首页推荐列数", "横屏时首页推荐视频每行显示的数量", FEED_SETTINGS_ROUTE),
 )
 
 val privacyEntries = listOf(

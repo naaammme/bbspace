@@ -2,6 +2,7 @@ package com.naaammme.bbspace.core.designsystem.icon
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
@@ -11,6 +12,30 @@ object AppIcons {
 
     private fun icon(name: String, vw: Float = 24f, vh: Float = 24f, build: ImageVector.Builder.() -> Unit): ImageVector =
         ImageVector.Builder(name, 24.dp, 24.dp, vw, vh).apply(build).build()
+
+    val Fullscreen: ImageVector by lazy {
+        icon("Fullscreen") {
+            path(
+                fill = null,
+                stroke = blackFill,
+                strokeLineWidth = 2.4f,
+                strokeLineCap = StrokeCap.Round
+            ) {
+                moveTo(4f, 9f)
+                lineTo(4f, 4f)
+                lineTo(9f, 4f)
+                moveTo(15f, 4f)
+                lineTo(20f, 4f)
+                lineTo(20f, 9f)
+                moveTo(20f, 15f)
+                lineTo(20f, 20f)
+                lineTo(15f, 20f)
+                moveTo(9f, 20f)
+                lineTo(4f, 20f)
+                lineTo(4f, 15f)
+            }
+        }
+    }
 
     val Pause: ImageVector by lazy {
         icon("Pause", 256f, 256f) {

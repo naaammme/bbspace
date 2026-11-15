@@ -93,6 +93,13 @@ fun DanmakuSettingsSection(
     )
 
     SwitchCard(
+        title = "屏蔽彩色弹幕",
+        subtitle = "只显示白色弹幕，隐藏彩色/渐变等特殊颜色弹幕",
+        checked = config.blockColored,
+        onCheckedChange = { onConfigChange(config.copy(blockColored = it)) }
+    )
+
+    SwitchCard(
         title = "重复弹幕合并",
         subtitle = "合并短时间内重复出现的相同内容",
         checked = config.mergeDuplicates,
