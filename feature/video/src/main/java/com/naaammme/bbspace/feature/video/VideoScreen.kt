@@ -81,6 +81,9 @@ import kotlinx.coroutines.launch
 
 internal val speedOps = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 
+/** 长按临时倍速的可选值，0.25 步进覆盖 0.25x ~ 3x */
+internal val gestureSpeedOps = List(12) { (it + 1) * 0.25f }
+
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi
 @Composable

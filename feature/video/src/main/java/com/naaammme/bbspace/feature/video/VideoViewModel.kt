@@ -99,7 +99,32 @@ class VideoViewModel @Inject constructor(
     }
 
     fun setSpeed(speed: Float) {
+        // 手动选倍速优先于长按临时倍速，选中后松手不再恢复旧值
+        gestureSpeedActive = false
         playbackController.setSpeed(speed)
+    }
+
+    /** 长按临时倍速是否进行中（松手恢复用） */
+    private var gestureSpeedActive = false
+    private var speedBeforeGesture = 1f
+
+    fun startGestureSpeed(gestureSpeed: Float): String {
+        if (!gestureSpeedActive) {
+            gestureSpeedActive = true
+            // 直接读播放器实时倍速作为恢复基准：
+            // 组合里的 state.speed 经过引擎轮询/重组链路有滞后，
+            // 连续快速长按时可能读到上一次的临时倍速，导致松手后倍速卡住
+            speedBeforeGesture = playbackController.player.value
+                ?.playbackParameters?.speed ?: 1f
+        }
+        playbackController.setSpeed(gestureSpeed)
+        return formatSpeed(gestureSpeed)
+    }
+
+    fun stopGestureSpeed() {
+        if (!gestureSpeedActive) return
+        gestureSpeedActive = false
+        playbackController.setSpeed(speedBeforeGesture)
     }
 
     fun updateBackgroundPlayback(enabled: Boolean) {

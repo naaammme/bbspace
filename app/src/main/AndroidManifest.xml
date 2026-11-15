@@ -75,6 +75,10 @@
             android:name=".playback.PlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".playback.PipActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

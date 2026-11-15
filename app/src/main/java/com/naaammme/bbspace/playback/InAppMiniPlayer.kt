@@ -2,10 +2,8 @@ package com.naaammme.bbspace.playback
 
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -28,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -50,12 +49,13 @@ private const val MiniControlsAutoHideMs = 3_000L
 @Composable
 private fun CompactIconButton(
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(34.dp)
+            modifier = modifier.size(34.dp)
         ) {
             content()
         }
@@ -81,7 +81,8 @@ fun InAppMiniPlayer(
             setKeepContentOnPlayerReset(true)
         }
     }
-    // 默认只显示画面；点击小窗才呼出控件，无操作数秒后自动隐藏
+    // 默认只显示画面；点击小窗呼出控件，无操作数秒后自动隐藏；
+    // 双击非按钮区域直接暂停/播放（无论控件是否显示）
     var controlsVisible by remember { mutableStateOf(false) }
     var controlsActivity by remember { mutableIntStateOf(0) }
     LaunchedEffect(controlsVisible, controlsActivity) {
@@ -101,11 +102,14 @@ fun InAppMiniPlayer(
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .clickable(
-                onClick = {
-                    if (showControlsOnTap) controlsVisible = !controlsVisible
-                }
-            ),
+            .pointerInput(showControlsOnTap) {
+                detectTapGestures(
+                    onTap = {
+                        if (showControlsOnTap) controlsVisible = !controlsVisible
+                    },
+                    onDoubleTap = { onTogglePlay() }
+                )
+            },
         shape = MaterialTheme.shapes.large,
         color = Color.Black
     ) {
@@ -133,38 +137,41 @@ fun InAppMiniPlayer(
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.35f))
                 ) {
-                    Row(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    CompactIconButton(
+                        onClick = onClose,
+                        modifier = Modifier.align(Alignment.TopEnd)
                     ) {
-                        CompactIconButton(onClick = {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "关闭",
+                            tint = Color.White
+                        )
+                    }
+                    CompactIconButton(
+                        onClick = {
                             onTogglePlay()
                             controlsActivity++
-                        }) {
-                            Icon(
-                                imageVector = if (sessionState.isPlaying) AppIcons.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (sessionState.isPlaying) "暂停" else "播放",
-                                tint = Color.White
-                            )
-                        }
-                        CompactIconButton(onClick = {
+                        },
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Icon(
+                            imageVector = if (sessionState.isPlaying) AppIcons.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (sessionState.isPlaying) "暂停" else "播放",
+                            tint = Color.White
+                        )
+                    }
+                    CompactIconButton(
+                        onClick = {
                             controlsVisible = false
                             onExpand()
-                        }) {
-                            Icon(
-                                imageVector = AppIcons.Fullscreen,
-                                contentDescription = "全屏",
-                                tint = Color.White
-                            )
-                        }
-                        CompactIconButton(onClick = onClose) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "关闭",
-                                tint = Color.White
-                            )
-                        }
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Fullscreen,
+                            contentDescription = "全屏",
+                            tint = Color.White
+                        )
                     }
                 }
             }

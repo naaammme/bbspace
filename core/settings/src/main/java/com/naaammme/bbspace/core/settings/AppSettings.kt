@@ -269,6 +269,7 @@ class AppSettings @Inject constructor(
     private val danmakuShowTopKey = booleanPreferencesKey("danmaku_show_top")
     private val danmakuShowBottomKey = booleanPreferencesKey("danmaku_show_bottom")
     private val danmakuShowScrollRlKey = booleanPreferencesKey("danmaku_show_scroll_rl")
+    private val danmakuBlockColoredKey = booleanPreferencesKey("danmaku_block_colored")
 
     val enableHdrAnd8k: Flow<Boolean> = context.appSettingsDataStore.data.map { it[enableHdrAnd8kKey] ?: false }
     val defaultVideoQuality: Flow<Int> = context.appSettingsDataStore.data.map { it[defaultVideoQualityKey] ?: 64 }
@@ -319,7 +320,8 @@ class AppSettings @Inject constructor(
                     ?: defaultDanmakuConfig.mergeDuplicates,
                 showTop = prefs[danmakuShowTopKey] ?: defaultDanmakuConfig.showTop,
                 showBottom = prefs[danmakuShowBottomKey] ?: defaultDanmakuConfig.showBottom,
-                showScrollRl = prefs[danmakuShowScrollRlKey] ?: defaultDanmakuConfig.showScrollRl
+                showScrollRl = prefs[danmakuShowScrollRlKey] ?: defaultDanmakuConfig.showScrollRl,
+                blockColored = prefs[danmakuBlockColoredKey] ?: defaultDanmakuConfig.blockColored
             )
         )
     }.distinctUntilChanged()
@@ -411,6 +413,7 @@ class AppSettings @Inject constructor(
             it[danmakuShowTopKey] = config.showTop
             it[danmakuShowBottomKey] = config.showBottom
             it[danmakuShowScrollRlKey] = config.showScrollRl
+            it[danmakuBlockColoredKey] = config.blockColored
         }
     }
 

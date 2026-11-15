@@ -474,7 +474,6 @@ private fun VideoPlayerOverlay(
     var dragMs by remember { mutableStateOf<Long?>(null) }
     var dragStartBrightness by remember { mutableFloatStateOf(0.5f) }
     var dragStartVolumeFrac by remember { mutableFloatStateOf(0f) }
-    var speedBeforeGesture by remember { mutableFloatStateOf(1f) }
     var lastGestureBrightness by remember { mutableFloatStateOf(Float.NaN) }
     var lastGestureVolumeFrac by remember { mutableFloatStateOf(Float.NaN) }
     val audioManager = remember(context) { context.getSystemService(AudioManager::class.java) }
@@ -519,12 +518,9 @@ private fun VideoPlayerOverlay(
                     onTogglePlay = viewModel::togglePlayPause,
                     onSeekTo = viewModel::seekTo,
                     onStartSpeedUp = {
-                        speedBeforeGesture = state.speed
-                        val speed = settingsState.playback.gestureSpeed
-                        viewModel.setSpeed(speed)
-                        formatSpeed(speed)
+                        viewModel.startGestureSpeed(settingsState.playback.gestureSpeed)
                     },
-                    onStopSpeedUp = { viewModel.setSpeed(speedBeforeGesture) },
+                    onStopSpeedUp = viewModel::stopGestureSpeed,
                     sideSeekEnabled = { settingsState.playback.doubleTapSideSeekEnabled },
                     doubleTapSeekMs = { settingsState.playback.doubleTapSeekSeconds * 1000L },
                     locked = { locked },

@@ -64,7 +64,7 @@ import com.naaammme.bbspace.feature.video.formatSpeed
 import com.naaammme.bbspace.feature.video.getAudioName
 import com.naaammme.bbspace.feature.video.getCodecName
 import com.naaammme.bbspace.feature.video.getQualityName
-import com.naaammme.bbspace.feature.video.speedOps
+import com.naaammme.bbspace.feature.video.gestureSpeedOps
 import kotlin.math.roundToInt
 
 private enum class PlaybackSheetSection(
@@ -266,9 +266,9 @@ private fun PlaybackSettingsSection(
 
     SheetChoiceCard(
         title = "长按倍速",
-        subtitle = "长按屏幕时临时切到这个倍速，松手恢复",
+        subtitle = "长按屏幕时临时切到这个倍速，松手恢复，0.25x 步进",
         currentValue = settingsState.playback.gestureSpeed,
-        options = speedOps,
+        options = gestureSpeedOps,
         onSelect = viewModel::updateGestureSpeed
     )
 

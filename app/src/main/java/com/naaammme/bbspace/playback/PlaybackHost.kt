@@ -145,7 +145,17 @@ fun PlaybackHost(
                 miniPlayerAvailable &&
                 curTarget != null
             ) {
+                // 小窗比例跟随视频实际画面（未渲染首帧时由宿主回退 16:9）
+                val videoAspect = if (
+                    sessionState.videoWidth > 0 &&
+                    sessionState.videoHeight > 0
+                ) {
+                    sessionState.videoWidth.toFloat() / sessionState.videoHeight
+                } else {
+                    0f
+                }
                 DraggableMiniPlayerHost(
+                    videoAspectRatio = videoAspect,
                     modifier = modifier
                 ) {
                     InAppMiniPlayer(
