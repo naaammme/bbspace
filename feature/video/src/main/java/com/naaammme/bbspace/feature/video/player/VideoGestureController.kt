@@ -39,15 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.icon.AppIcons
+import com.naaammme.bbspace.infra.player.VideoZoomState
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
 
 @Stable
 class VideoGestureState {
@@ -102,8 +101,9 @@ private val SpeedBadgeTopPadding = 20.dp
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun Modifier.videoGestures(
+internal fun Modifier.videoGestures(
     state: VideoGestureState,
+    zoomState: VideoZoomState?,
     onToggleControls: () -> Unit,
     onTogglePlay: () -> Unit,
     onSeekTo: (Long) -> Unit,
@@ -128,6 +128,7 @@ fun Modifier.videoGestures(
     val curDragEnd by rememberUpdatedState(onDragEnd)
     val curIsPlaying by rememberUpdatedState(isPlaying)
     val curPositionMs by rememberUpdatedState(positionMs)
+    val curZoomState by rememberUpdatedState(zoomState)
     val curDurationMs by rememberUpdatedState(durationMs)
     val visibleStatusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val hiddenStatusBarHeight = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
@@ -145,8 +146,19 @@ fun Modifier.videoGestures(
         val topVerticalDragBlockPx = topVerticalDragBlockHeight.toPx()
 
         awaitPointerEventScope {
+            var pendingTap = false
             while (true) {
-                val down = awaitFirstDown(requireUnconsumed = false)
+                val secondTap = pendingTap
+                pendingTap = false
+                val down = if (secondTap) {
+                    withTimeoutOrNull(doubleTapTimeout) { awaitFirstDown(requireUnconsumed = false) }
+                } else {
+                    awaitFirstDown(requireUnconsumed = false)
+                }
+                if (down == null) {
+                    curToggleControls()
+                    continue
+                }
                 val downTime = down.uptimeMillis
                 val downPos = down.position
                 val w = size.width
@@ -175,23 +187,38 @@ fun Modifier.videoGestures(
                         state.showSpeedBadge = true
                         continue
                     }
-                    val change = event.changes.firstOrNull() ?: break
+
+                    if (phase == Phase.Transform || (curZoomState != null && event.changes.count { it.pressed } > 1)) {
+                        when (phase) {
+                            Phase.Drag -> {
+                                state.resetDrag()
+                                curDragEnd()
+                            }
+                            Phase.LongPress -> {
+                                curStopSpeedUp()
+                                state.showSpeedBadge = false
+                            }
+                            Phase.Press, Phase.Transform -> Unit
+                        }
+                        phase = Phase.Transform
+                        curZoomState?.update(size, event)
+                        event.changes.forEach { it.consume() }
+                        if (event.changes.none { it.pressed }) break
+                        continue
+                    }
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
 
                     if (!change.pressed) {
                         when (phase) {
                             Phase.Press -> {
-                                val second = withTimeoutOrNull(doubleTapTimeout) {
-                                    awaitFirstDown(requireUnconsumed = false)
-                                }
-                                if (second != null) {
-                                    val sndX = second.position.x / w
+                                if (secondTap) {
                                     when {
-                                        sndX < SIDE_GESTURE_ZONE -> {
+                                        zoneX < SIDE_GESTURE_ZONE -> {
                                             val target = (curPositionMs() - DOUBLE_TAP_SEEK_MS).coerceAtLeast(0L)
                                             curSeekTo(target)
                                             state.showDoubleTap(DoubleTapHint.Rewind)
                                         }
-                                        sndX > RIGHT_GESTURE_ZONE_START -> {
+                                        zoneX > RIGHT_GESTURE_ZONE_START -> {
                                             val target = (curPositionMs() + DOUBLE_TAP_SEEK_MS).coerceAtMost(curDurationMs())
                                             curSeekTo(target)
                                             state.showDoubleTap(DoubleTapHint.Forward)
@@ -204,9 +231,8 @@ fun Modifier.videoGestures(
                                             )
                                         }
                                     }
-                                    waitForAllUp()
                                 } else {
-                                    curToggleControls()
+                                    pendingTap = true
                                 }
                             }
                             Phase.Drag -> {
@@ -220,6 +246,7 @@ fun Modifier.videoGestures(
                                 curStopSpeedUp()
                                 state.showSpeedBadge = false
                             }
+                            Phase.Transform -> Unit
                         }
                         break
                     }
@@ -272,8 +299,7 @@ fun Modifier.videoGestures(
                                 DragType.None -> {}
                             }
                         }
-                        Phase.LongPress -> {
-                        }
+                        Phase.LongPress, Phase.Transform -> Unit
                     }
 
                     change.consume()
@@ -401,14 +427,7 @@ fun VideoGestureFeedback(
     }
 }
 
-private enum class Phase { Press, Drag, LongPress }
-
-private suspend fun AwaitPointerEventScope.waitForAllUp() {
-    while (true) {
-        val event = awaitPointerEvent(PointerEventPass.Main)
-        if (event.changes.all { !it.pressed }) return
-    }
-}
+private enum class Phase { Press, Drag, LongPress, Transform }
 
 private fun formatSeekDelta(ms: Long): String {
     val totalSec = ms / 1000

@@ -52,6 +52,10 @@ import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.designsystem.component.DanmakuSettingsSection
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
+import com.naaammme.bbspace.infra.player.pinchVideoZoom
+import com.naaammme.bbspace.infra.player.rememberVideoContentFrame
+import com.naaammme.bbspace.infra.player.rememberVideoZoomState
+import com.naaammme.bbspace.infra.player.resetVideoZoomOnSizeChanged
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import kotlinx.coroutines.delay
@@ -104,10 +108,11 @@ internal fun DownloadPlayerPane(
             setEnableComposeSurfaceSyncWorkaround(true)
         }
     }
+    val zoomState = rememberVideoZoomState(playerView.rememberVideoContentFrame(), isFull, player, state.taskId)
     val danmakuOverlayState = if (danmakuConfig.enabled) {
         rememberDanmakuOverlayState(
             initialConfig = danmakuConfig,
-            initialPositionMs = state.positionMs,
+            initialPositionMs = { state.positionMs },
             initialIsPlaying = state.isPlaying,
             initialSpeed = state.speed
         )
@@ -130,16 +135,16 @@ internal fun DownloadPlayerPane(
                 }
                 view.keepScreenOn = state.playWhenReady
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().resetVideoZoomOnSizeChanged(zoomState)
         )
 
         if (danmakuOverlayState != null) {
             DanmakuLayer(
-                playerView = playerView,
+                host = playerView.overlayFrameLayout ?: playerView,
                 overlayState = danmakuOverlayState,
                 danmakuState = danmakuState,
                 danmakuConfig = danmakuConfig,
-                positionMs = state.positionMs,
+                positionMs = { state.positionMs },
                 isPlaying = state.isPlaying,
                 speed = state.speed,
                 seekEventId = state.seekEventId,
@@ -150,6 +155,7 @@ internal fun DownloadPlayerPane(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .pinchVideoZoom(zoomState)
                 .clickable(
                     interactionSource = tapSource,
                     indication = null

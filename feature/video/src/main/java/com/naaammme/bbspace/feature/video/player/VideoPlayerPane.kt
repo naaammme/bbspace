@@ -56,14 +56,17 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
-import androidx.media3.ui.R as Media3UiR
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
+import com.naaammme.bbspace.infra.player.VideoZoomState
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
-import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
+import com.naaammme.bbspace.infra.player.rememberVideoContentFrame
+import com.naaammme.bbspace.infra.player.rememberVideoZoomState
+import com.naaammme.bbspace.infra.player.resetVideoZoomOnSizeChanged
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.QualityOption
@@ -128,7 +131,7 @@ internal fun VideoPlayerPane(
     val danmakuOverlayState = if (danmakuOn) {
         rememberDanmakuOverlayState(
             initialConfig = settingsState.danmaku,
-            initialPositionMs = viewModel.playbackProgress.value.positionMs,
+            initialPositionMs = { viewModel.playbackProgress.value.positionMs },
             initialIsPlaying = state.isPlaying,
             initialSpeed = state.speed
         )
@@ -158,8 +161,9 @@ internal fun VideoPlayerPane(
             setKeepContentOnPlayerReset(true)
         }
     }
+    val videoFrame = playerView.rememberVideoContentFrame()
     var lastWarmAspect by remember(playerView) { mutableStateOf<Float?>(null) }
-
+    val zoomState = rememberVideoZoomState(videoFrame, isFull, player, state.ids, resizeMode)
     LaunchedEffect(state.playWhenReady) {
         playerView.keepScreenOn = state.playWhenReady
     }
@@ -190,17 +194,16 @@ internal fun VideoPlayerPane(
         ) {
             AndroidView(
                 factory = { playerView },
-                update = { view ->
-                    val content = view.findViewById<AspectRatioFrameLayout>(Media3UiR.id.exo_content_frame)
-                    if (content != null) {
-                        content.resizeMode = resizeMode
+                update = {
+                    if (videoFrame != null) {
+                        videoFrame.resizeMode = resizeMode
                         if (lastWarmAspect != videoAspect) {
-                            content.setAspectRatio(videoAspect ?: 0f)
+                            videoFrame.setAspectRatio(videoAspect ?: 0f)
                             lastWarmAspect = videoAspect
                         }
                     }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().resetVideoZoomOnSizeChanged(zoomState)
             )
 
             if (danmakuOverlayState != null) {
@@ -219,6 +222,7 @@ internal fun VideoPlayerPane(
                 player = player,
                 settingsState = settingsState,
                 isFull = isFull,
+                zoomState = zoomState,
                 showCtrl = showCtrl,
                 activeDialog = activeDialog,
                 showPlaybackSheet = showPlaybackSheet,
@@ -409,11 +413,11 @@ private fun VideoDanmakuLayer(
     val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
 
     DanmakuLayer(
-        playerView = playerView,
+        host = playerView.overlayFrameLayout ?: playerView,
         overlayState = danmakuOverlayState,
         danmakuState = danmakuState,
         danmakuConfig = settingsState.danmaku,
-        positionMs = viewModel.playbackProgress.value.positionMs,
+        positionMs = { viewModel.playbackProgress.value.positionMs },
         isPlaying = state.isPlaying,
         speed = state.speed,
         seekEventId = state.seekEventId,
@@ -428,6 +432,7 @@ private fun VideoPlayerOverlay(
     player: Player?,
     settingsState: PlayerSettingsState,
     isFull: Boolean,
+    zoomState: VideoZoomState?,
     showCtrl: Boolean,
     activeDialog: PlayerDialog?,
     showPlaybackSheet: Boolean,
@@ -477,6 +482,7 @@ private fun VideoPlayerOverlay(
                 .fillMaxSize()
                 .videoGestures(
                     state = gestureState,
+                    zoomState = zoomState,
                     onToggleControls = { onShowCtrlChange(!showCtrl) },
                     onTogglePlay = viewModel::togglePlayPause,
                     onSeekTo = viewModel::seekTo,

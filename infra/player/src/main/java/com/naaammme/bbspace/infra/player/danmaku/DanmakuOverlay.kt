@@ -5,10 +5,11 @@ import android.widget.FrameLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.PlayerView
+import androidx.compose.ui.platform.LocalDensity
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.DanmakuSessionState
 import master.flame.danmaku.api.SegmentDanmakuSession
@@ -24,11 +25,12 @@ enum class DanmakuRenderMode {
 @Composable
 fun rememberDanmakuOverlayState(
     initialConfig: DanmakuConfig,
-    initialPositionMs: Long,
+    initialPositionMs: () -> Long,
     initialIsPlaying: Boolean,
     initialSpeed: Float
 ): DanmakuOverlayState {
     val context = LocalContext.current
+    val density = LocalDensity.current.density
     return remember(context) {
         // 绘制缓存 内存换cpu占用
         val danmakuView = DanmakuSurfaceView(context).apply {
@@ -40,11 +42,11 @@ fun rememberDanmakuOverlayState(
             isFocusable = false
             isFocusableInTouchMode = false
         }
-        val danmakuContext = createDanmakuContext(context.resources.displayMetrics.density).apply {
+        val danmakuContext = createDanmakuContext(density).apply {
             applyConfig(initialConfig)
         }
         val timeProvider = DanmakuPlayerTimeProvider(
-            positionMs = initialPositionMs,
+            positionMs = initialPositionMs(),
             isPlaying = initialIsPlaying,
             speed = initialSpeed
         )
@@ -63,15 +65,13 @@ fun rememberDanmakuOverlayState(
     }
 }
 
-@Suppress("UnsafeOptInUsageError")
-@UnstableApi
 @Composable
 fun DanmakuLayer(
-    playerView: PlayerView,
+    host: FrameLayout,
     overlayState: DanmakuOverlayState,
     danmakuState: DanmakuSessionState,
     danmakuConfig: DanmakuConfig,
-    positionMs: Long,
+    positionMs: () -> Long,
     isPlaying: Boolean,
     speed: Float,
     seekEventId: Long,
@@ -79,6 +79,8 @@ fun DanmakuLayer(
     renderMode: DanmakuRenderMode = DanmakuRenderMode.Segmented,
     manageLifecycle: Boolean = true
 ) {
+    val currentPositionMs by rememberUpdatedState(positionMs)
+
     if (manageLifecycle) {
         DisposableEffect(overlayState) {
             overlayState.prepare()
@@ -88,9 +90,8 @@ fun DanmakuLayer(
         }
     }
 
-    DisposableEffect(playerView, overlayState) {
+    DisposableEffect(host, overlayState) {
         val view = overlayState.danmakuView
-        val host = playerView.overlayFrameLayout ?: playerView
         val parent = view.parent as? ViewGroup
         if (parent !== host) {
             parent?.removeView(view)
@@ -115,7 +116,7 @@ fun DanmakuLayer(
             }
         }
         onDispose {
-            (view.parent as? ViewGroup)?.removeView(view)
+            if (view.parent === host) host.removeView(view)
         }
     }
 
@@ -133,7 +134,7 @@ fun DanmakuLayer(
                 overlayState.sync(
                     danmakuState = danmakuState,
                     config = danmakuConfig,
-                    positionMs = positionMs,
+                    positionMs = currentPositionMs(),
                     isPlaying = isPlaying,
                     speed = speed,
                     seekEventId = seekEventId,

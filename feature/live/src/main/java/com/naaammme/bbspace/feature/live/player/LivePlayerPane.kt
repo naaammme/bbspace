@@ -43,7 +43,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
@@ -65,6 +64,10 @@ import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuOverlayState
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuRenderMode
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
+import com.naaammme.bbspace.infra.player.pinchVideoZoom
+import com.naaammme.bbspace.infra.player.rememberVideoContentFrame
+import com.naaammme.bbspace.infra.player.rememberVideoZoomState
+import com.naaammme.bbspace.infra.player.resetVideoZoomOnSizeChanged
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -108,7 +111,7 @@ internal fun LivePlayerPane(
     val danmakuOverlayState = if (danmakuOn) {
         rememberDanmakuOverlayState(
             initialConfig = settingsState.danmaku,
-            initialPositionMs = 0L,
+            initialPositionMs = { 0L },
             initialIsPlaying = playbackState.isPlaying,
             initialSpeed = 1f
         )
@@ -121,6 +124,7 @@ internal fun LivePlayerPane(
         )
     }
     val roomId = playbackState.playbackSource?.roomId ?: 0L
+    val zoomState = rememberVideoZoomState(playerView.rememberVideoContentFrame(), isFull, player, roomId)
 
     LaunchedEffect(
         showCtrl,
@@ -169,16 +173,16 @@ internal fun LivePlayerPane(
             update = { view ->
                 view.keepScreenOn = playbackState.playWhenReady
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().resetVideoZoomOnSizeChanged(zoomState)
         )
 
         if (danmakuOverlayState != null) {
             DanmakuLayer(
-                playerView = playerView,
+                host = playerView.overlayFrameLayout ?: playerView,
                 overlayState = danmakuOverlayState,
                 danmakuState = liveDanmakuState,
                 danmakuConfig = settingsState.danmaku,
-                positionMs = 0L,
+                positionMs = { 0L },
                 isPlaying = playbackState.isPlaying,
                 speed = 1f,
                 seekEventId = 0L,
@@ -208,6 +212,7 @@ internal fun LivePlayerPane(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .pinchVideoZoom(zoomState)
                 .clickable(
                     interactionSource = tapSrc,
                     indication = null
