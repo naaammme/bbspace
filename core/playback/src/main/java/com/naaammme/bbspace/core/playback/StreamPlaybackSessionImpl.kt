@@ -25,6 +25,7 @@ import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.PlayerSessionState
+import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.ResolvedVideoIds
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
@@ -54,8 +55,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 @Singleton
@@ -84,7 +83,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private val _videoState = MutableStateFlow(VideoPlaybackState(biz = PlayBiz.UGC))
     override val videoState: StateFlow<VideoPlaybackState> = _videoState.asStateFlow()
     override val playbackProgress: StateFlow<PlaybackProgress> = playerEngine.playbackProgress
-    private val prepMu = Mutex()
     private val openId = AtomicLong(0L)
     private var lastDiscontinuitySeq = 0L
     private var nextPlayWhenReady = true
@@ -148,21 +146,25 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
     // StreamPlaybackSession: lifecycle
     override suspend fun prepare() {
-        applyPlayerConfig(lowFps = false)
+        val settings = withContext(Dispatchers.IO) { playerSettings.state.first() }
+        withContext(Dispatchers.Main.immediate) {
+            if (_currentTarget.value == null && player.value == null) {
+                playerEngine.updateConfig(buildPlayerConfig(lowFps = false, settings = settings))
+            }
+        }
     }
 
     private suspend fun applyPlayerConfig(
         lowFps: Boolean,
-        expectedToken: Long? = null
+        expectedToken: Long? = null,
+        settings: PlayerSettingsState? = null
     ) {
-        prepMu.withLock {
-            if (expectedToken != null && openId.get() != expectedToken) return
-            val config = withContext(Dispatchers.IO) { buildPlayerConfig(lowFps) }
-            if (expectedToken != null && openId.get() != expectedToken) return
-            withContext(Dispatchers.Main.immediate) {
-                if (expectedToken == null || openId.get() == expectedToken) {
-                    playerEngine.updateConfig(config)
-                }
+        val resolvedSettings = settings ?: withContext(Dispatchers.IO) {
+            playerSettings.state.first()
+        }
+        withContext(Dispatchers.Main.immediate) {
+            if (expectedToken == null || openId.get() == expectedToken) {
+                playerEngine.updateConfig(buildPlayerConfig(lowFps, resolvedSettings))
             }
         }
     }
@@ -201,7 +203,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
         syncSessionState()
 
         try {
-            prepare()
+            applyPlayerConfig(lowFps = false)
             val source = liveRepository.fetchPlaybackSource(route.roomId, preferredQuality)
             playerEngine.setSource(
                 source = EngineSource.LiveFlv(source.primaryUrl),
@@ -353,17 +355,19 @@ class StreamPlaybackSessionImpl @Inject constructor(
                     request.preferredQuality ?: playerSettings.defaultVideoQuality.first()
                 }
                 val audioJob = async { playerSettings.defaultAudioQuality.first() }
+                val settingsJob = async(Dispatchers.IO) { playerSettings.state.first() }
 
                 val source = sourceJob.await()
                 val preferredQualityValue = qualityJob.await()
                 val preferredAudioId = audioJob.await()
                 val localResume = localResumeJob.await()
+                val settings = settingsJob.await()
                 if (openId.get() != token) return@coroutineScope
 
                 val stream = source.streams.firstOrNull { it.quality == preferredQualityValue }
                     ?: source.streams.firstOrNull()
                 val audio = selectAudio(stream, source.audios, preferredAudioId)
-                val cdnMode = playerSettings.state.first().playback.videoCdnMode
+                val cdnMode = settings.playback.videoCdnMode
                 currentVideoCdnMode = cdnMode
                 val engineSource = buildVideoEngineSource(
                     stream = stream,
@@ -375,7 +379,8 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 val startMs = resolveStartMs(request, source, localResume)
                 applyPlayerConfig(
                     lowFps = isLowFrameRateStream(stream),
-                    expectedToken = token
+                    expectedToken = token,
+                    settings = settings
                 )
                 if (openId.get() != token) return@coroutineScope
 
@@ -571,15 +576,20 @@ class StreamPlaybackSessionImpl @Inject constructor(
         val token = openId.get()
         runtimeScope.launch {
             try {
+                val settings = withContext(Dispatchers.IO) { playerSettings.state.first() }
+                if (openId.get() != token) return@launch
+                val resumePositionMs = currentPlaybackPositionMs()
+                val playWhenReady = currentPlayWhenReady()
                 applyPlayerConfig(
                     lowFps = isLowFrameRateStream(state.currentStream),
-                    expectedToken = token
+                    expectedToken = token,
+                    settings = settings
                 )
                 if (openId.get() != token) return@launch
                 playerEngine.setSource(
                     source,
-                    currentPlaybackPositionMs(),
-                    currentPlayWhenReady()
+                    resumePositionMs,
+                    playWhenReady
                 )
                 vodSession.value = state
                 refreshVideoState()
@@ -662,8 +672,10 @@ class StreamPlaybackSessionImpl @Inject constructor(
     }
 
     // vod: config & history
-    private suspend fun buildPlayerConfig(lowFps: Boolean = false): PlayerConfig {
-        val settings = playerSettings.state.first()
+    private fun buildPlayerConfig(
+        lowFps: Boolean,
+        settings: PlayerSettingsState
+    ): PlayerConfig {
         val buffer = settings.buffer.profile
         val playback = settings.playback
         return PlayerConfig(
