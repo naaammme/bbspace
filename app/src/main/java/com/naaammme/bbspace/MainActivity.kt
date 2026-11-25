@@ -1,6 +1,8 @@
 package com.naaammme.bbspace
 
+import android.app.PictureInPictureParams
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.hardware.display.DisplayManager
 import android.os.Build
@@ -10,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,11 +35,17 @@ import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
 import com.naaammme.bbspace.core.designsystem.theme.BiliTheme
 import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
 import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
+import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.WebLinkParser
 import com.naaammme.bbspace.core.model.WebLinkTarget
 import com.naaammme.bbspace.navigation.AppNavHost
+import com.naaammme.bbspace.playback.PipPlayback
+import com.naaammme.bbspace.playback.PlaybackHostViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.abs
@@ -50,17 +59,66 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var updateChecker: AppUpdateChecker
 
+    private val playbackHostViewModel: PlaybackHostViewModel by viewModels()
+
     private var updateDialog by mutableStateOf<AppUpdateDialogState?>(null)
 
     private var cachedDisplayModes: Array<Display.Mode>? = null
 
     private var pendingAppLink by mutableStateOf<WebLinkTarget?>(null)
 
+    /** 画中画按钮用的跳转时长（秒），缓存自设置，保证 onUserLeaveHint 能同步读取 */
+    @Volatile
+    private var pipSeekSeconds: Int = 10
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // 正在播放视频/直播时离开应用（回桌面等），进入原生画中画继续播放
+        if (PipPlayback.isSupported() && playbackHostViewModel.shouldEnterPip()) {
+            buildCurrentPipParams()?.let { enterPictureInPictureMode(it) }
+        }
+    }
+
+    /**
+     * 构建当前画中画参数（宽高比 + 自定义按钮：快退/快进/暂停播放，
+     * 跳转时长同步设置的"双击侧边跳转时长"）。
+     */
+    private fun buildCurrentPipParams(): PictureInPictureParams? {
+        val sessionState = playbackHostViewModel.sessionState.value
+        return PipPlayback.buildParams(
+            this,
+            sessionState.videoWidth,
+            sessionState.videoHeight,
+            PipPlayback.buildActions(
+                context = this,
+                isPlaying = sessionState.isPlaying,
+                isLive = sessionState.target is StreamPlaybackTarget.Live,
+                seekMs = pipSeekSeconds * 1_000L
+            )
+        )
+    }
+
+    /** 画中画期间按钮状态（如暂停/播放图标）变化时刷新参数 */
+    private fun refreshPipParamsIfActive() {
+        if (!PipPlayback.isSupported() || !PipPlayback.isInPip) return
+        if (playbackHostViewModel.sessionState.value.target == null) return
+        buildCurrentPipParams()?.let { setPictureInPictureParams(it) }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        PipPlayback.updateInPip(isInPictureInPictureMode)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             autoCheckUpdate()
         }
+        observePipState()
         pendingAppLink = toAppLink(intent)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
@@ -111,6 +169,23 @@ class MainActivity : ComponentActivity() {
             val result = updateChecker.check().getOrNull() ?: return@launch
             if (result is AppUpdateCheckResult.HasUpdate) {
                 updateDialog = result.toDialogState()
+            }
+        }
+    }
+
+    /** 跟踪画中画需要的播放状态与设置（跳转时长），在画中画中刷新按钮 */
+    private fun observePipState() {
+        lifecycleScope.launch {
+            combine(
+                playbackHostViewModel.sessionState,
+                appSettings.state
+                    .map { it.playback.doubleTapSeekSeconds }
+                    .distinctUntilChanged()
+            ) { state, seekSeconds ->
+                state to seekSeconds
+            }.collect { (_, seekSeconds) ->
+                pipSeekSeconds = seekSeconds
+                refreshPipParamsIfActive()
             }
         }
     }

@@ -66,6 +66,8 @@ class VideoGestureState {
         internal set
     var doubleTapHint by mutableStateOf<DoubleTapHint?>(null)
         internal set
+    var doubleTapHintText by mutableStateOf("")
+        internal set
 
     internal var doubleTapToken by mutableLongStateOf(0L)
     internal var dragStartPosMs by mutableLongStateOf(0L)
@@ -77,19 +79,20 @@ class VideoGestureState {
         seekLabel = null
     }
 
-    internal fun showDoubleTap(hint: DoubleTapHint) {
+    internal fun showDoubleTap(hint: DoubleTapHint, text: String) {
         doubleTapHint = hint
+        doubleTapHintText = text
         doubleTapToken++
     }
 }
 
 enum class DragType { None, Seek, Brightness, Volume }
 
-enum class DoubleTapHint(val text: String) {
-    Play("播放"),
-    Pause("暂停"),
-    Rewind("-10s"),
-    Forward("+10s")
+enum class DoubleTapHint {
+    Play,
+    Pause,
+    Rewind,
+    Forward
 }
 
 private const val SEEK_MAX_MS = 60_000L
@@ -113,6 +116,9 @@ fun Modifier.videoGestures(
     onVolumeDelta: (Float) -> Float,
     onDragStart: (DragType) -> Unit = {},
     onDragEnd: () -> Unit = {},
+    sideSeekEnabled: () -> Boolean = { true },
+    doubleTapSeekMs: () -> Long = { DOUBLE_TAP_SEEK_MS },
+    locked: () -> Boolean = { false },
     isPlaying: () -> Boolean,
     positionMs: () -> Long,
     durationMs: () -> Long
@@ -126,6 +132,9 @@ fun Modifier.videoGestures(
     val curVolumeDelta by rememberUpdatedState(onVolumeDelta)
     val curDragStart by rememberUpdatedState(onDragStart)
     val curDragEnd by rememberUpdatedState(onDragEnd)
+    val curSideSeekEnabled by rememberUpdatedState(sideSeekEnabled)
+    val curDoubleTapSeekMs by rememberUpdatedState(doubleTapSeekMs)
+    val curLocked by rememberUpdatedState(locked)
     val curIsPlaying by rememberUpdatedState(isPlaying)
     val curPositionMs by rememberUpdatedState(positionMs)
     val curDurationMs by rememberUpdatedState(durationMs)
@@ -158,6 +167,7 @@ fun Modifier.videoGestures(
                 var phase = Phase.Press
                 var totalDelta = Offset.Zero
                 var lastPos = downPos
+                var speedActive = false
 
                 while (true) {
                     val event = if (phase == Phase.Press) {
@@ -171,8 +181,11 @@ fun Modifier.videoGestures(
                     }
                     if (event == null) {
                         phase = Phase.LongPress
-                        state.speedBadgeText = curStartSpeedUp()
-                        state.showSpeedBadge = true
+                        if (!curLocked()) {
+                            state.speedBadgeText = curStartSpeedUp()
+                            state.showSpeedBadge = true
+                            speedActive = true
+                        }
                         continue
                     }
                     val change = event.changes.firstOrNull() ?: break
@@ -184,24 +197,35 @@ fun Modifier.videoGestures(
                                     awaitFirstDown(requireUnconsumed = false)
                                 }
                                 if (second != null) {
-                                    val sndX = second.position.x / w
-                                    when {
-                                        sndX < SIDE_GESTURE_ZONE -> {
-                                            val target = (curPositionMs() - DOUBLE_TAP_SEEK_MS).coerceAtLeast(0L)
-                                            curSeekTo(target)
-                                            state.showDoubleTap(DoubleTapHint.Rewind)
-                                        }
-                                        sndX > RIGHT_GESTURE_ZONE_START -> {
-                                            val target = (curPositionMs() + DOUBLE_TAP_SEEK_MS).coerceAtMost(curDurationMs())
-                                            curSeekTo(target)
-                                            state.showDoubleTap(DoubleTapHint.Forward)
-                                        }
-                                        else -> {
-                                            curTogglePlay()
-                                            state.showDoubleTap(
-                                                if (curIsPlaying()) DoubleTapHint.Play
-                                                else DoubleTapHint.Pause
-                                            )
+                                    if (!curLocked()) {
+                                        val sndX = second.position.x / w
+                                        when {
+                                            curSideSeekEnabled() && sndX < SIDE_GESTURE_ZONE -> {
+                                                val seekMs = curDoubleTapSeekMs()
+                                                val target = (curPositionMs() - seekMs).coerceAtLeast(0L)
+                                                curSeekTo(target)
+                                                state.showDoubleTap(
+                                                    DoubleTapHint.Rewind,
+                                                    formatSeekDelta(-seekMs)
+                                                )
+                                            }
+                                            curSideSeekEnabled() && sndX > RIGHT_GESTURE_ZONE_START -> {
+                                                val seekMs = curDoubleTapSeekMs()
+                                                val target = (curPositionMs() + seekMs).coerceAtMost(curDurationMs())
+                                                curSeekTo(target)
+                                                state.showDoubleTap(
+                                                    DoubleTapHint.Forward,
+                                                    formatSeekDelta(seekMs)
+                                                )
+                                            }
+                                            else -> {
+                                                val willPlay = !curIsPlaying()
+                                                curTogglePlay()
+                                                state.showDoubleTap(
+                                                    if (willPlay) DoubleTapHint.Play else DoubleTapHint.Pause,
+                                                    if (willPlay) "播放" else "暂停"
+                                                )
+                                            }
                                         }
                                     }
                                     waitForAllUp()
@@ -217,8 +241,11 @@ fun Modifier.videoGestures(
                                 curDragEnd()
                             }
                             Phase.LongPress -> {
-                                curStopSpeedUp()
-                                state.showSpeedBadge = false
+                                if (speedActive) {
+                                    curStopSpeedUp()
+                                    state.showSpeedBadge = false
+                                }
+                                speedActive = false
                             }
                         }
                         break
@@ -233,12 +260,16 @@ fun Modifier.videoGestures(
                             if (totalDelta.getDistance() >= slop) {
                                 val isHorizontal = abs(totalDelta.x) > abs(totalDelta.y)
                                 phase = Phase.Drag
-                                val dragType = when {
-                                    isHorizontal -> DragType.Seek
-                                    downPos.y <= topVerticalDragBlockPx -> DragType.None
-                                    zoneX < SIDE_GESTURE_ZONE -> DragType.Brightness
-                                    zoneX > RIGHT_GESTURE_ZONE_START -> DragType.Volume
-                                    else -> DragType.None
+                                val dragType = if (curLocked()) {
+                                    DragType.None
+                                } else {
+                                    when {
+                                        isHorizontal -> DragType.Seek
+                                        downPos.y <= topVerticalDragBlockPx -> DragType.None
+                                        zoneX < SIDE_GESTURE_ZONE -> DragType.Brightness
+                                        zoneX > RIGHT_GESTURE_ZONE_START -> DragType.Volume
+                                        else -> DragType.None
+                                    }
                                 }
                                 state.dragStartPosMs = curPositionMs()
                                 state.dragType = dragType
@@ -372,7 +403,7 @@ fun VideoGestureFeedback(
                     }
                 } else {
                     Text(
-                        text = hint.text,
+                        text = state.doubleTapHintText,
                         color = Color.White,
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier

@@ -36,6 +36,7 @@ import com.naaammme.bbspace.core.model.article.ArticleRecommendItem
 @Composable
 fun HomeArticlePage(
     isActive: Boolean,
+    columns: Int,
     onOpenArticle: (String, Int) -> Unit,
     onOpenSpace: (SpaceRoute) -> Unit,
     viewModel: HomeArticleViewModel = hiltViewModel()
@@ -54,6 +55,7 @@ fun HomeArticlePage(
         modifier = Modifier.fillMaxSize(),
         errorMessage = state.errorMessage,
         loadMoreEnabled = isActive,
+        columns = columns,
         key = { _, item -> item.id },
         loadingContent = {
             VideoGridCardSkeleton()
@@ -84,9 +86,9 @@ private fun ArticleRecommendCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             CoverImage(
                 url = item.cover,
                 contentDescription = item.title,
@@ -96,7 +98,9 @@ private fun ArticleRecommendCard(
                     .aspectRatio(16f / 10f)
             )
             Column(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 val statLine = remember(

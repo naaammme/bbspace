@@ -460,6 +460,7 @@ private fun MainTabsScaffold(
     val useStartAlignedBottomToolbar = windowSizeClass.isWidthAtLeastBreakpoint(600)
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val fixBottomBar by settingsViewModel.fixBottomBar.collectAsStateWithLifecycle()
+    val dynamicUpList by settingsViewModel.dynamicUpList.collectAsStateWithLifecycle()
     val navVisibilityController = rememberTopLevelNavVisibilityController(fixBottomBar)
 
     Box(
@@ -487,7 +488,8 @@ private fun MainTabsScaffold(
                             onOpenVideo = onNavigateToVideo,
                             onOpenSpace = onNavigateToSpace,
                             onOpenLive = onNavigateToLive,
-                            onOpenDynamic = onNavigateToDynamicDetail
+                            onOpenDynamic = onNavigateToDynamicDetail,
+                            showUpList = dynamicUpList
                         )
                         TopLevelRoute.MESSAGE -> ImScreen(
                             onOpenConversation = onNavigateToImConversation,

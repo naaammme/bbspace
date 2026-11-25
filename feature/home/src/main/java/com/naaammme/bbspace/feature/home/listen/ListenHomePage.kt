@@ -29,6 +29,7 @@ import com.naaammme.bbspace.core.model.listen.ListenItem
 @Composable
 fun ListenHomePage(
     isActive: Boolean,
+    columns: Int,
     onItemClick: (ListenItem) -> Unit,
     viewModel: ListenHomeViewModel = hiltViewModel()
 ) {
@@ -47,6 +48,7 @@ fun ListenHomePage(
         modifier = Modifier.fillMaxSize(),
         errorMessage = state.errorMessage,
         loadMoreEnabled = state.hasMore,
+        columns = columns,
         key = { _, item -> item.actionKey() },
         loadingContent = {
             VideoGridCardSkeleton()
@@ -70,9 +72,9 @@ private fun ListenCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             CoverImage(
                 url = item.cover,
                 contentDescription = item.title,
@@ -81,7 +83,11 @@ private fun ListenCard(
                     .fillMaxWidth()
                     .aspectRatio(16f / 10f)
             )
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
                 Text(
                     text = item.title,
                     maxLines = 2,

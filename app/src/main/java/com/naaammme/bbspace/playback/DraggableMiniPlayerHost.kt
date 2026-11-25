@@ -4,6 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.rememberSplineBasedDecay
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.draggable2D
 import androidx.compose.foundation.gestures.rememberDraggable2DState
 import androidx.compose.foundation.layout.Box
@@ -21,12 +24,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -36,13 +40,26 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private val miniPlayerWidth = 192.dp
-private const val miniPlayerAspectRatio = 16f / 9f
+private val miniPlayerDefaultWidth = 192.dp
+private val miniPlayerMinWidth = 120.dp
+private const val miniPlayerDefaultAspectRatio = 16f / 9f
+private const val miniPlayerAspectRatioMin = 1f / 3f
+private const val miniPlayerAspectRatioMax = 3f
 private val miniPlayerStashPeek = 28.dp
 private const val miniPlayerStashTriggerFraction = 0.5f
 private const val miniPlayerSettleVelocityThreshold = 1800f
 private val miniPlayerBottomGap = 12.dp
 private val miniPlayerEdgePullHandle = 32.dp
+
+/**
+ * 进程级记忆小窗几何状态：小窗关闭/回到播放页后再次出现时，
+ * 恢复上一次的宽度和位置（坐标为像素，方向切换等场景由夹取逻辑兜底）
+ */
+private object MiniPlayerGeometryMemory {
+    val widthDp = mutableFloatStateOf(miniPlayerDefaultWidth.value)
+    val offsetX = mutableFloatStateOf(Float.NaN)
+    val offsetY = mutableFloatStateOf(Float.NaN)
+}
 
 private class SettleJobHolder {
     var job: Job? = null
@@ -50,9 +67,16 @@ private class SettleJobHolder {
 
 @Composable
 internal fun DraggableMiniPlayerHost(
+    videoAspectRatio: Float,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    // 小窗比例跟随视频实际画面比例（未渲染首帧或异常值时回退 16:9）
+    val aspectRatio = if (videoAspectRatio.isFinite() && videoAspectRatio > 0f) {
+        videoAspectRatio.coerceIn(miniPlayerAspectRatioMin, miniPlayerAspectRatioMax)
+    } else {
+        miniPlayerDefaultAspectRatio
+    }
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -62,9 +86,16 @@ internal fun DraggableMiniPlayerHost(
         val layoutDir = LocalLayoutDirection.current
         val scope = rememberCoroutineScope()
         val decay = rememberSplineBasedDecay<Float>()
-        val playerWidthPx = with(density) { miniPlayerWidth.roundToPx() }
-        val playerHeightPx = remember(playerWidthPx) {
-            (playerWidthPx / miniPlayerAspectRatio).roundToInt()
+        // 小窗宽度可双指缩放调整；宽高位置在进程内保留，小窗重新出现时恢复
+        var playerWidth by MiniPlayerGeometryMemory.widthDp
+        var offsetX by MiniPlayerGeometryMemory.offsetX
+        var offsetY by MiniPlayerGeometryMemory.offsetY
+        // 上限随屏幕方向与视频比例重算：宽、高都不能超过宿主（屏幕）尺寸
+        val maxPlayerWidthDp = minOf(maxWidth, maxHeight * aspectRatio)
+        val playerWidthDp = playerWidth.dp.coerceIn(miniPlayerMinWidth, maxPlayerWidthDp)
+        val playerWidthPx = with(density) { playerWidthDp.roundToPx() }
+        val playerHeightPx = remember(playerWidthPx, aspectRatio) {
+            (playerWidthPx / aspectRatio).roundToInt()
         }
         val hostWidthPx = with(density) { maxWidth.roundToPx() }
         val hostHeightPx = with(density) { maxHeight.roundToPx() }
@@ -93,8 +124,6 @@ internal fun DraggableMiniPlayerHost(
         val stashTriggerPx = playerWidthPx * miniPlayerStashTriggerFraction
         val minXPx = minVisibleXPx - stashOffsetPx
         val maxStashedXPx = maxVisibleXPx + stashOffsetPx
-        var offsetX by rememberSaveable { mutableFloatStateOf(Float.NaN) }
-        var offsetY by rememberSaveable { mutableFloatStateOf(Float.NaN) }
         var isSettling by remember { mutableStateOf(false) }
         val settleJobHolder = remember { SettleJobHolder() }
         val dragState = rememberDraggable2DState { delta ->
@@ -154,8 +183,46 @@ internal fun DraggableMiniPlayerHost(
                         else -> Rect.Zero
                     }
                 }
-                .width(miniPlayerWidth)
-                .aspectRatio(miniPlayerAspectRatio)
+                .width(playerWidthDp)
+                .aspectRatio(aspectRatio)
+                .pointerInput(maxPlayerWidthDp) {
+                    // 双指捏合缩放小窗（视频比例不变），以两指中心为锚点
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var zooming = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val pressedCount = event.changes.count { it.pressed }
+                            if (pressedCount < 2) {
+                                if (zooming && pressedCount > 0) {
+                                    // 缩放结束但仍有手指残留，吞掉事件避免触发拖动
+                                    event.changes.forEach { it.consume() }
+                                }
+                                if (pressedCount == 0) break
+                                continue
+                            }
+                            val zoom = event.calculateZoom()
+                            if (zooming || zoom != 1f) {
+                                zooming = true
+                                val minPx = miniPlayerMinWidth.toPx()
+                                val maxPx = maxPlayerWidthDp.toPx()
+                                // 注意读取实时状态，避免闭包捕获旧尺寸
+                                val oldWidthPx = playerWidth.dp
+                                    .coerceIn(miniPlayerMinWidth, maxPlayerWidthDp)
+                                    .toPx()
+                                val oldHeightPx = oldWidthPx / aspectRatio
+                                val newWidthPx = (oldWidthPx * zoom).coerceIn(minPx, maxPx)
+                                val scale = newWidthPx / oldWidthPx
+                                offsetX = (offsetX - oldWidthPx * (scale - 1f) / 2f)
+                                    .coerceIn(minXPx, maxStashedXPx)
+                                offsetY = (offsetY - oldHeightPx * (scale - 1f) / 2f)
+                                    .coerceIn(minYPx, maxYPxFloat)
+                                playerWidth = newWidthPx.toDp().value
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    }
+                }
                 .draggable2D(
                     state = dragState,
                     startDragImmediately = isSettling,

@@ -14,5 +14,6 @@ data class DanmakuConfig(
     val mergeDuplicates: Boolean = true,
     val showTop: Boolean = true,
     val showBottom: Boolean = true,
-    val showScrollRl: Boolean = true
+    val showScrollRl: Boolean = true,
+    val blockColored: Boolean = false
 )

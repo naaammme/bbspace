@@ -1,8 +1,10 @@
 package com.naaammme.bbspace.feature.user.collage
 
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -29,6 +31,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.User
@@ -87,6 +90,59 @@ internal fun UserCollageSection(
     BoxWithConstraints(
         modifier = modifier.fillMaxSize()
     ) {
+        if (maxWidth > maxHeight) {
+            // 横屏（如 3:2 平板）：拼贴坐标按竖向容器设计，若沿用宽容器
+            // 所有块会挤到中带互相遮挡；限制为居中竖向区域，保持设计布局
+            val contentWidth = (maxHeight * 0.72f)
+                .coerceAtLeast(280.dp)
+                .coerceAtMost(maxWidth)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .width(contentWidth)
+                    .fillMaxHeight()
+            ) {
+                UserCollageLayout(
+                    spaceRoute = spaceRoute,
+                    user = user,
+                    collageOffsets = collageOffsets,
+                    onCollageOffsetChange = onCollageOffsetChange,
+                    onOpenSpace = onOpenSpace,
+                    onNavigateToBbSpace = onNavigateToBbSpace,
+                    onNavigate = onNavigate,
+                    onNavigateToDownload = onNavigateToDownload,
+                    palette = palette
+                )
+            }
+        } else {
+            UserCollageLayout(
+                spaceRoute = spaceRoute,
+                user = user,
+                collageOffsets = collageOffsets,
+                onCollageOffsetChange = onCollageOffsetChange,
+                onOpenSpace = onOpenSpace,
+                onNavigateToBbSpace = onNavigateToBbSpace,
+                onNavigate = onNavigate,
+                onNavigateToDownload = onNavigateToDownload,
+                palette = palette
+            )
+        }
+    }
+}
+
+@Composable
+private fun UserCollageLayout(
+    spaceRoute: SpaceRoute?,
+    user: User?,
+    collageOffsets: Map<String, Offset>,
+    onCollageOffsetChange: (String, Offset) -> Unit,
+    onOpenSpace: (SpaceRoute) -> Unit,
+    onNavigateToBbSpace: () -> Unit,
+    onNavigate: (UserDest) -> Unit,
+    onNavigateToDownload: () -> Unit,
+    palette: UserCollagePalette
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val base = minOf(maxWidth, maxHeight)
         val extraLarge = MaterialTheme.shapes.extraLarge
 

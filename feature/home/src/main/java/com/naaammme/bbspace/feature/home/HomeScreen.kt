@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.feature.home
 
+import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -28,12 +29,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -72,6 +75,10 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+    val feedGridColumnsPortrait by viewModel.feedGridColumnsPortrait.collectAsStateWithLifecycle()
+    val feedGridColumnsLandscape by viewModel.feedGridColumnsLandscape.collectAsStateWithLifecycle()
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val feedGridColumns = if (isLandscape) feedGridColumnsLandscape else feedGridColumnsPortrait
     LaunchedEffect(Unit) {
         viewModel.refreshPageAction()
     }
@@ -110,6 +117,7 @@ fun HomeScreen(
             when (page) {
                 0 -> ListenHomePage(
                     isActive = pagerState.currentPage == page,
+                    columns = feedGridColumns,
                     onItemClick = { item ->
                         onOpenListenItem(
                             item.oid,
@@ -129,6 +137,7 @@ fun HomeScreen(
                     errorMessage = state.errorMessage,
                     toastMessage = state.toastMessage,
                     dislikedReasons = state.dislikedReasons,
+                    columns = feedGridColumns,
                     onRefresh = viewModel::refresh,
                     onLoadMore = viewModel::loadMore,
                     onOpenVideo = onOpenVideo,
@@ -142,12 +151,14 @@ fun HomeScreen(
 
                 2 -> HomeLivePage(
                     isActive = pagerState.currentPage == page,
+                    columns = feedGridColumns,
                     onOpenLive = onOpenLive,
                     onOpenSpace = onOpenSpace
                 )
 
                 else -> HomeArticlePage(
                     isActive = pagerState.currentPage == page,
+                    columns = feedGridColumns,
                     onOpenArticle = onOpenArticle,
                     onOpenSpace = onOpenSpace
                 )

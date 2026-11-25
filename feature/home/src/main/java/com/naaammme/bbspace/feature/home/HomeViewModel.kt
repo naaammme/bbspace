@@ -12,8 +12,10 @@ import com.naaammme.bbspace.core.model.ThreePointReason
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,6 +35,18 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
+
+    val feedGridColumnsPortrait = appSettings.feedGridColumnsPortrait.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        2
+    )
+
+    val feedGridColumnsLandscape = appSettings.feedGridColumnsLandscape.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        4
+    )
 
     private var flush = 0
 
