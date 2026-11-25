@@ -250,7 +250,7 @@ class DownloadViewModel @Inject constructor(
                     epId = epId ?: 0L,
                     seasonId = seasonId ?: 0L
                 ),
-                src = VideoTargetTool.feed()
+                src = VideoTargetTool.default()
             )
             val detail = result.detail
             val ids = result.ids
@@ -285,7 +285,7 @@ class DownloadViewModel @Inject constructor(
                 cid = cid ?: 0L,
                 bvid = bvid
             ),
-            src = VideoTargetTool.feed()
+            src = VideoTargetTool.default()
         )
         val detail = result.detail
         val targetCid = cid?.takeIf { it > 0L }

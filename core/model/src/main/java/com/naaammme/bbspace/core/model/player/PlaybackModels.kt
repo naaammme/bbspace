@@ -107,7 +107,7 @@ enum class PlaybackControlMode {
 @Immutable
 data class PlaybackRequest(
     val ids: VideoRequestIds,
-    val src: VideoSrc = VideoTargetTool.feed(),
+    val src: VideoSrc = VideoTargetTool.default(),
     val biz: PlayBizInfo,
     val fromScene: String = DEFAULT_FROM_SCENE,
     val adExtra: String? = null,

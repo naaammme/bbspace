@@ -47,7 +47,7 @@ object WebLinkParser {
                 aid = aid ?: 0L,
                 cid = cid,
                 bvid = bvid,
-                src = VideoTargetTool.feed()
+                src = VideoTargetTool.default()
             )
         )
     }
@@ -59,7 +59,7 @@ object WebLinkParser {
         val epId = VideoTargetTool.epId(uri.toString())
         if (epId != null) {
             return WebLinkTarget.ToVideo(
-                VideoTarget.Pgc(epId = epId, src = VideoTargetTool.feed())
+                VideoTarget.Pgc(epId = epId, src = VideoTargetTool.default())
             )
         }
         val seasonId = path.substringAfterLast('/')
@@ -68,7 +68,7 @@ object WebLinkParser {
         return WebLinkTarget.ToVideo(
             VideoTarget.Pgc(
                 seasonId = seasonId,
-                src = VideoTargetTool.feed()
+                src = VideoTargetTool.default()
             )
         )
     }

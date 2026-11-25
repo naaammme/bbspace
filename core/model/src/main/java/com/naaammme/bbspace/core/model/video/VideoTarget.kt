@@ -12,7 +12,7 @@ sealed interface VideoTarget {
         val aid: Long,
         val cid: Long,
         val bvid: String? = null,
-        override val src: VideoSrc = VideoTargetTool.feed()
+        override val src: VideoSrc = VideoTargetTool.default()
     ) : VideoTarget
 
     @Immutable
@@ -22,7 +22,7 @@ sealed interface VideoTarget {
         val epId: Long = 0L,
         val seasonId: Long? = null,
         val subType: Int? = null,
-        override val src: VideoSrc = VideoTargetTool.feed()
+        override val src: VideoSrc = VideoTargetTool.default()
     ) : VideoTarget
 
     @Immutable
@@ -30,7 +30,7 @@ sealed interface VideoTarget {
         val aid: Long = 0L,
         val epId: Long = 0L,
         val seasonId: Long? = null,
-        override val src: VideoSrc = VideoTargetTool.feed()
+        override val src: VideoSrc = VideoTargetTool.default()
     ) : VideoTarget
 }
 
@@ -98,8 +98,8 @@ fun VideoTarget.toPlaybackRequest(): PlaybackRequest {
 
 @Immutable
 data class VideoSrc(
-    val from: String = VideoTargetTool.FROM_FEED,
-    val fromSpmid: String = VideoTargetTool.FROM_SPMID_FEED,
+    val from: String = VideoTargetTool.FROM_DEFAULT,
+    val fromSpmid: String = VideoTargetTool.FROM_SPMID_DEFAULT,
     val trackId: String? = null,
     val reportFlowData: String? = null
 )
