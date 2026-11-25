@@ -76,7 +76,7 @@ class RemotePlaybackReporter @Inject constructor(
         active: PlaybackReportSession,
         startPacket: Boolean
     ): Map<String, String> {
-        val src = active.request.playable.src
+        val src = active.request.src
         val report = active.report
         val now = nowSec()
         val common = buildCommonParams(now)
@@ -168,14 +168,14 @@ class RemotePlaybackReporter @Inject constructor(
     }
 
     private fun playType(request: PlaybackRequest): Int {
-        return request.playable.biz.playType ?: when (request.playable.biz.biz) {
+        return request.biz.playType ?: when (request.biz.biz) {
             PlayBiz.PGC -> 2
             else -> 1
         }
     }
 
     private fun playStatus(request: PlaybackRequest): Int {
-        return when (request.playable.biz.biz) {
+        return when (request.biz.biz) {
             PlayBiz.PGC -> 1
             else -> 0
         }

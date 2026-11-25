@@ -26,11 +26,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:model"))
     implementation(project(":core:listen"))
-    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
-    implementation(project(":infra:player"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

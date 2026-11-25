@@ -45,7 +45,7 @@ class VideoWebPlaybackResolver @Inject constructor(
         if (streams.isEmpty()) error("web 取流没有可用视频流")
 
         return PlaybackSource(
-            biz = request.playable.biz.biz,
+            biz = request.biz.biz,
             durationMs = data.optLong("timelength"),
             streams = streams,
             audios = audios,

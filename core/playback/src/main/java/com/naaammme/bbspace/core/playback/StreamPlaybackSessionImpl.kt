@@ -21,7 +21,6 @@ import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlayReportParams
 import com.naaammme.bbspace.core.model.PlaybackAudio
-import com.naaammme.bbspace.core.model.PlaybackControlMode
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlaybackHistory
 import com.naaammme.bbspace.core.model.PlaybackHistoryKey
@@ -38,7 +37,7 @@ import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoCdnMode
 import com.naaammme.bbspace.core.model.selectPlaybackCdn
 import com.naaammme.bbspace.core.model.toReportParams
-import com.naaammme.bbspace.core.model.toPlayableParams
+import com.naaammme.bbspace.core.model.toPlaybackRequest
 import com.naaammme.bbspace.infra.player.DecoderMode
 import com.naaammme.bbspace.infra.player.EngineSource
 import com.naaammme.bbspace.infra.player.PlayerPlaybackState
@@ -68,7 +67,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private val videoRepository: VideoPlayerRepository,
     private val detailRepository: VideoDetailRepository,
     danmakuRepository: VodDanmakuRepository,
-    private val appSettings: AppSettings,
     private val playerSettings: AppSettings,
     private val reporter: PlaybackReporter,
     private val authProvider: AuthProvider,
@@ -292,16 +290,9 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
     // vod: open & state
     private suspend fun openVideoInternal(
-        target: VideoTarget,
-        seekToMs: Long? = null,
-        preferredQuality: Int? = null,
-        controlMode: PlaybackControlMode = PlaybackControlMode.Default
+        target: VideoTarget
     ) {
-        val request = target.toPlayableParams().getResolveParams(
-            seekToMs = seekToMs,
-            preferredQuality = preferredQuality,
-            controlMode = controlMode
-        )
+        val request = target.toPlaybackRequest()
         val currentVideoTarget = (_currentTarget.value as? StreamPlaybackTarget.Video)?.target
         val currentState = vodSession.value
         if (
@@ -325,7 +316,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
         reporter.bindOwner(token)
         val initState = PlayerSessionState(
             request = request,
-            biz = reuseDetail?.biz ?: request.playable.biz.biz,
+            biz = reuseDetail?.biz ?: request.biz.biz,
             ids = ResolvedVideoIds(
                 aid = request.ids.aid,
                 cid = request.ids.cid,
@@ -351,9 +342,9 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 val sourceJob = async { videoRepository.fetchPlaybackSource(request) }
                 val localResumeJob = async(Dispatchers.IO) { readLocalResumeIfResolvable(request) }
                 val qualityJob = async {
-                    request.preferredQuality ?: appSettings.defaultVideoQuality.first()
+                    request.preferredQuality ?: playerSettings.defaultVideoQuality.first()
                 }
-                val audioJob = async { appSettings.defaultAudioQuality.first() }
+                val audioJob = async { playerSettings.defaultAudioQuality.first() }
 
                 prepareJob.await()
                 val source = sourceJob.await()
@@ -442,7 +433,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
             nextPlayWhenReady = true
             Logger.e(TAG, t) {
-                "load playback source failed biz=${request.playable.biz.biz} " +
+                "load playback source failed biz=${request.biz.biz} " +
                     "aid=${request.ids.aid} cid=${request.ids.cid} " +
                     "epId=${request.ids.epId} seasonId=${request.ids.seasonId} " +
                     "q=${request.preferredQuality} msg=${t.message}"
@@ -699,8 +690,8 @@ class StreamPlaybackSessionImpl @Inject constructor(
         )
         if (!resolved.danmakuReady) return null
         return resolved.toReportParams(
-            biz = playable.biz.biz,
-            subType = playable.biz.subType
+            biz = this.biz.biz,
+            subType = this.biz.subType
         )
     }
 
@@ -715,7 +706,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
             state = state,
             report = ids.toReportParams(
                 biz = biz,
-                subType = request.playable.biz.subType
+                subType = request.biz.subType
             ),
             startPositionMs = currentPlaybackPositionMs()
         )

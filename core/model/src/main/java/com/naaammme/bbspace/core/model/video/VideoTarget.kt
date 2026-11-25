@@ -53,7 +53,7 @@ fun VideoTarget.isSameEntry(other: VideoTarget?): Boolean {
     }
 }
 
-fun VideoTarget.toPlayableParams(): PlayableParams {
+fun VideoTarget.toPlaybackRequest(): PlaybackRequest {
     val ids = when (this) {
         is VideoTarget.Ugc -> VideoRequestIds(
             aid = aid,
@@ -89,15 +89,11 @@ fun VideoTarget.toPlayableParams(): PlayableParams {
             epId = epId.takeIf { it > 0L }
         )
     }
-    return when (this) {
-        is VideoTarget.Ugc,
-        is VideoTarget.Pgc,
-        is VideoTarget.Pugv -> PlayableParams(
-            ids = ids,
-            src = src,
-            biz = biz
-        )
-    }
+    return PlaybackRequest(
+        ids = ids,
+        src = src,
+        biz = biz
+    )
 }
 
 @Immutable

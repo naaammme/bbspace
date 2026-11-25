@@ -22,7 +22,10 @@ android {
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:common"))
+    implementation(project(":infra:player"))
     implementation(project(":infra:network-grpc"))
     implementation(libs.hilt.android)
+    implementation(libs.media3.common)
     ksp(libs.hilt.compiler)
 }

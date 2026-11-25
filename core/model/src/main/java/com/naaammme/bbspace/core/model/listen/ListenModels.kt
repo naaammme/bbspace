@@ -1,5 +1,7 @@
 package com.naaammme.bbspace.core.model.listen
 
+import androidx.compose.runtime.Immutable
+
 data class ListenItem(
     val itemType: Int,
     val oid: Long,
@@ -25,4 +27,15 @@ data class ListenPlayInfo(
     val playable: Boolean,
     val audioUrl: String?,
     val durationMs: Long
+)
+
+@Immutable
+data class ListenPlaybackState(
+    val isLoading: Boolean = false,
+    val isPreparing: Boolean = false,
+    val audioUrl: String? = null,
+    val durationMs: Long = 0L,
+    val positionMs: Long = 0L,
+    val isPlaying: Boolean = false,
+    val errorMessage: String? = null
 )

@@ -62,8 +62,7 @@ class VideoPlayerRepositoryImpl @Inject constructor(
     }
 
     private suspend fun buildRequest(request: PlaybackRequest): PlayViewUniteReq {
-        val playable = request.playable
-        val ids = playable.ids
+        val ids = request.ids
         val enableHdrAnd8k = appSettings.enableHdrAnd8k.first()
         val needTrial = appSettings.needTrial.first()
         val preferredCodec = appSettings.preferredCodec.first()
@@ -96,11 +95,11 @@ class VideoPlayerRepositoryImpl @Inject constructor(
         val builder = PlayViewUniteReq.newBuilder()
             .setVod(vod)
             .setSpmid(VideoTargetTool.SPMID)
-            .setFromSpmid(playable.src.fromSpmid)
-            .setFromScene(playable.fromScene)
+            .setFromSpmid(request.src.fromSpmid)
+            .setFromScene(request.fromScene)
             .setPlayCtrl(playCtrl)
             .putAllExtraContent(
-                playable.getResolveExtraContent() + mapOf(
+                request.getResolveExtraContent() + mapOf(
                     "short_edge" to SHORT_EDGE,
                     "long_edge" to LONG_EDGE
                 )
@@ -109,7 +108,7 @@ class VideoPlayerRepositoryImpl @Inject constructor(
         ids.epId.takeIf { it > 0L }?.let { builder.putExtraContent("ep_id", it.toString()) }
         ids.seasonId.takeIf { it > 0L }?.let { builder.putExtraContent("season_id", it.toString()) }
 
-        playable.adExtra
+        request.adExtra
             ?.takeIf(String::isNotBlank)
             ?.let(builder::setAdExtra)
 
@@ -122,7 +121,7 @@ class VideoPlayerRepositoryImpl @Inject constructor(
 
     private fun mapReply(request: PlaybackRequest, reply: PlayViewUniteReply): PlaybackSource {
         val vodInfo = reply.vodInfo
-        val biz = request.playable.biz.biz
+        val biz = request.biz.biz
         val audios = buildList {
             addAll(vodInfo.dashAudioList.map(::mapAudio))
             if (vodInfo.hasDolby() && vodInfo.dolby.type != DolbyItem.Type.NONE) {

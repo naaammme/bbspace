@@ -105,27 +105,17 @@ enum class PlaybackControlMode {
 }
 
 @Immutable
-data class PlayableParams(
+data class PlaybackRequest(
     val ids: VideoRequestIds,
     val src: VideoSrc = VideoTargetTool.feed(),
     val biz: PlayBizInfo,
     val fromScene: String = DEFAULT_FROM_SCENE,
     val adExtra: String? = null,
-    val extraResolve: Map<String, String> = emptyMap()
+    val extraResolve: Map<String, String> = emptyMap(),
+    val seekToMs: Long? = null,
+    val preferredQuality: Int? = null,
+    val controlMode: PlaybackControlMode = PlaybackControlMode.Default
 ) {
-    fun getResolveParams(
-        seekToMs: Long? = null,
-        preferredQuality: Int? = null,
-        controlMode: PlaybackControlMode = PlaybackControlMode.Default
-    ): PlaybackRequest {
-        return PlaybackRequest(
-            playable = this,
-            seekToMs = seekToMs,
-            preferredQuality = preferredQuality,
-            controlMode = controlMode
-        )
-    }
-
     fun getResolveExtraContent(): Map<String, String> {
         return buildMap {
             src.trackId?.takeIf(String::isNotBlank)?.let { put("track_id", it) }
@@ -147,17 +137,6 @@ data class PlayableParams(
         const val DEFAULT_FROM_SCENE = "normal"
         const val PUGV_BIZ_TYPE = "3"
     }
-}
-
-@Immutable
-data class PlaybackRequest(
-    val playable: PlayableParams,
-    val seekToMs: Long? = null,
-    val preferredQuality: Int? = null,
-    val controlMode: PlaybackControlMode = PlaybackControlMode.Default
-) {
-    val ids: VideoRequestIds
-        get() = playable.ids
 }
 
 @Immutable
