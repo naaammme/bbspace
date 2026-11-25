@@ -152,9 +152,22 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
     // StreamPlaybackSession: lifecycle
     override suspend fun prepare() {
+        applyPlayerConfig(lowFps = false)
+    }
+
+    private suspend fun applyPlayerConfig(
+        lowFps: Boolean,
+        expectedToken: Long? = null
+    ) {
         prepMu.withLock {
-            val config = withContext(Dispatchers.IO) { buildPlayerConfig() }
-            withContext(Dispatchers.Main.immediate) { playerEngine.updateConfig(config) }
+            if (expectedToken != null && openId.get() != expectedToken) return
+            val config = withContext(Dispatchers.IO) { buildPlayerConfig(lowFps) }
+            if (expectedToken != null && openId.get() != expectedToken) return
+            withContext(Dispatchers.Main.immediate) {
+                if (expectedToken == null || openId.get() == expectedToken) {
+                    playerEngine.updateConfig(config)
+                }
+            }
         }
     }
 
@@ -338,7 +351,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
         try {
             coroutineScope {
-                val prepareJob = async { prepare() }
                 val sourceJob = async { videoRepository.fetchPlaybackSource(request) }
                 val localResumeJob = async(Dispatchers.IO) { readLocalResumeIfResolvable(request) }
                 val qualityJob = async {
@@ -346,7 +358,6 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 }
                 val audioJob = async { playerSettings.defaultAudioQuality.first() }
 
-                prepareJob.await()
                 val source = sourceJob.await()
                 val preferredQualityValue = qualityJob.await()
                 val preferredAudioId = audioJob.await()
@@ -366,6 +377,10 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 )
                     ?: throw NoPlayableStreamException("暂无可用播放流")
                 val startMs = resolveStartMs(request, source, localResume)
+                applyPlayerConfig(
+                    lowFps = isLowFrameRateStream(stream),
+                    expectedToken = token
+                )
                 if (openId.get() != token) return@coroutineScope
 
                 val playbackState = vodSession.value.copy(
@@ -557,8 +572,14 @@ class StreamPlaybackSessionImpl @Inject constructor(
             cdnMode = currentVideoCdnMode,
             durationMs = state.playbackSource?.durationMs
         ) ?: return
+        val token = openId.get()
         runtimeScope.launch {
             try {
+                applyPlayerConfig(
+                    lowFps = isLowFrameRateStream(state.currentStream),
+                    expectedToken = token
+                )
+                if (openId.get() != token) return@launch
                 playerEngine.setSource(
                     source,
                     currentPlaybackPositionMs(),
@@ -631,14 +652,27 @@ class StreamPlaybackSessionImpl @Inject constructor(
         else -> MimeTypes.AUDIO_AAC
     }
 
+    // TODO: 当前仅通过放大低帧率缓冲窗口规避卡死，后续改由播放器底层控制解码管线喂帧与按字节缓冲判定
+    private fun isLowFrameRateStream(stream: PlaybackStream?): Boolean {
+        val raw = (stream as? PlaybackStream.Dash)?.frameRate?.trim() ?: return false
+        val fps = if ('/' in raw) {
+            val num = raw.substringBefore('/').toFloatOrNull() ?: return false
+            val den = raw.substringAfter('/').toFloatOrNull()?.takeIf { it > 0f } ?: return false
+            num / den
+        } else {
+            raw.toFloatOrNull() ?: return false
+        }
+        return fps > 0f && fps <= 2f
+    }
+
     // vod: config & history
-    private suspend fun buildPlayerConfig(): PlayerConfig {
+    private suspend fun buildPlayerConfig(lowFps: Boolean = false): PlayerConfig {
         val settings = playerSettings.state.first()
         val buffer = settings.buffer.profile
         val playback = settings.playback
         return PlayerConfig(
-            minBufferMs = buffer.minBufferMs,
-            maxBufferMs = buffer.maxBufferMs,
+            minBufferMs = if (lowFps) maxOf(buffer.minBufferMs, 35_000) else buffer.minBufferMs,
+            maxBufferMs = if (lowFps) maxOf(buffer.maxBufferMs, 50_000) else buffer.maxBufferMs,
             playBufferMs = buffer.playBufferMs,
             rebufferMs = buffer.rebufferMs,
             backBufferMs = buffer.backBufferMs,
