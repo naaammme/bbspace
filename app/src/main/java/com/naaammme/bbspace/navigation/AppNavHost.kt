@@ -106,6 +106,8 @@ import com.naaammme.bbspace.feature.space.navigation.navigateToSpace
 import com.naaammme.bbspace.feature.space.navigation.spaceScreen
 import com.naaammme.bbspace.feature.space.navigation.spaceRelationScreen
 import com.naaammme.bbspace.feature.space.navigation.navigateToSpaceRelation
+import com.naaammme.bbspace.feature.space.navigation.spaceSearchScreen
+import com.naaammme.bbspace.feature.space.navigation.navigateToSpaceSearch
 import com.naaammme.bbspace.feature.home.interest.InterestScreen
 import com.naaammme.bbspace.feature.settings.SettingsViewModel
 import com.naaammme.bbspace.feature.settings.navigation.HOME_INTEREST_ROUTE
@@ -408,11 +410,16 @@ fun AppNavHost(
                 },
                 onOpenRelation = { vmid, initialTab ->
                     rootNavController.navigateToSpaceRelation(vmid, initialTab)
-                }
+                },
+                onOpenSearch = rootNavController::navigateToSpaceSearch
             )
             spaceRelationScreen(
                 onBack = { rootNavController.popBackStack() },
                 onOpenSpace = rootNavController::navigateToSpace
+            )
+            spaceSearchScreen(
+                onBack = { rootNavController.popBackStack() },
+                onOpenVideo = openVideo
             )
             downloadScreen(
                 navController = rootNavController,

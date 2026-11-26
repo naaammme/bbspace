@@ -18,6 +18,11 @@ import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
+import com.bapis.bilibili.app.archive.middleware.v1.PlayerArgs
+import com.bapis.bilibili.app.archive.middleware.v1.QnPolicy
+import com.bapis.bilibili.app.interfaces.v1.Arc as SpaceSearchArc
+import com.bapis.bilibili.app.interfaces.v1.SearchArchiveReply
+import com.bapis.bilibili.app.interfaces.v1.SearchArchiveReq
 import com.bapis.bilibili.relation.interfaces.Act
 import com.bapis.bilibili.relation.interfaces.FollowingReq
 import com.bapis.bilibili.relation.interfaces.ModifyRelationReply
@@ -87,6 +92,63 @@ class SpaceRepository @Inject constructor(
         return withContext(Dispatchers.Default) {
             parseArchivePage(json)
         }
+    }
+
+    suspend fun searchArchive(
+        mid: Long,
+        keyword: String,
+        page: Int = 1
+    ): SpaceArchivePage {
+        val req = SearchArchiveReq.newBuilder()
+            .setKeyword(keyword)
+            .setMid(mid)
+            .setPn(page.toLong())
+            .setPs(PAGE_SIZE.toLong())
+            .setPlayerArgs(SEARCH_PLAYER_ARGS)
+            .build()
+        val resp = grpcClient.call(
+            endpoint = SEARCH_ARCHIVE_ENDPOINT,
+            requestBytes = req.toByteArray(),
+            parser = SearchArchiveReply.parser()
+        )
+        return withContext(Dispatchers.Default) {
+            SpaceArchivePage(
+                videos = resp.archivesList.mapNotNull(::mapSearchArchive),
+                orders = emptyList(),
+                hasMore = resp.archivesList.isNotEmpty() && page.toLong() * PAGE_SIZE < resp.total
+            )
+        }
+    }
+
+    private fun mapSearchArchive(item: SpaceSearchArc): SpaceVideo? {
+        if (!item.hasArchive()) return null
+        val arc = item.archive
+        val uri = item.uri
+        val aid = arc.aid.takeIf { it > 0L } ?: VideoTargetTool.aid(uri) ?: return null
+        val cid = arc.firstCid.takeIf { it > 0L } ?: VideoTargetTool.cid(uri) ?: return null
+        val title = arc.title.ifBlank { return null }
+        val cover = arc.pic.httpsImageUrl().ifBlank { return null }
+        return SpaceVideo(
+            aid = aid,
+            cid = cid,
+            target = VideoTarget.Ugc(
+                aid = aid,
+                cid = cid,
+                bvid = VideoTargetTool.bvid(arc.shortLinkV2) ?: VideoTargetTool.bvid(uri),
+                src = VideoTargetTool.space()
+            ),
+            title = title,
+            cover = cover,
+            author = arc.author.name.ifBlank { null },
+            categoryName = arc.typeName.ifBlank { null },
+            durationSec = arc.duration.coerceAtLeast(0L),
+            viewText = item.viewContent.ifBlank { arc.stat.view.toString() },
+            danmakuText = arc.stat.danmaku.takeIf { it > 0 }?.toString(),
+            publishTimeText = item.publishTimeText.ifBlank {
+                arc.pubdate.takeIf { it > 0L }?.let(::formatPubDate)
+                    ?: arc.ctime.takeIf { it > 0L }?.let(::formatPubDate)
+            }
+        )
     }
 
     private fun buildHomeParams(route: SpaceRoute): Map<String, String> {
@@ -335,7 +397,7 @@ class SpaceRepository @Inject constructor(
                 val face = item.optString("face").orEmpty().httpsImageUrl()
                 val sign = item.optString("sign").orEmpty()
                 val vipObj = item.optJSONObject("vip")
-                val isVip = vipObj?.optInt("vipStatus") ?: 0 > 0
+                val isVip = (vipObj?.optInt("vipStatus") ?: 0) > 0
                 val vipLabel = vipObj
                     ?.takeIf { isVip }
                     ?.optJSONObject("label")
@@ -360,7 +422,19 @@ class SpaceRepository @Inject constructor(
         const val FOLLOWINGS_ENDPOINT = "/x/relation/followings"
         const val FANS_ENDPOINT = "/x/relation/fans"
         const val MODIFY_RELATION_ENDPOINT = "bilibili.relation.interface.v1.RelationInterface/ModifyRelation"
+        const val SEARCH_ARCHIVE_ENDPOINT = "bilibili.app.interface.v1.Space/SearchArchive"
         const val PAGE_SIZE = 20
+        val SEARCH_PLAYER_ARGS: PlayerArgs = PlayerArgs.newBuilder()
+            .setQn(32L)
+            .setFnver(0L)
+            .setFnval(272L)
+            .setForceHost(0L)
+            .setVoiceBalance(1L)
+            .setQnPolicy(QnPolicy.QN_POLICY_AUTO_QN_ENABLE)
+            .setClientAttr(0L)
+            .putExtraContent("short_edge", "1080")
+            .putExtraContent("long_edge", "1920")
+            .build()
         const val DEFAULT_ORDER = "pubdate"
         const val SORT_DESC = "desc"
         const val FALSE = "false"

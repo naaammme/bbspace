@@ -11,6 +11,7 @@ import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.SpaceRouteTool
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.SpaceScreen
+import com.naaammme.bbspace.feature.space.search.SpaceSearchScreen
 
 const val SPACE_MID_ARG = "mid"
 const val SPACE_NAME_ARG = "name"
@@ -32,13 +33,20 @@ fun NavController.navigateToSpace(route: SpaceRoute) {
     )
 }
 
+fun NavController.navigateToSpaceSearch(mid: Long) {
+    navigate("space_search/$mid") {
+        launchSingleTop = true
+    }
+}
+
 fun NavGraphBuilder.spaceScreen(
     onBack: () -> Unit,
     onOpenVideo: (VideoTarget) -> Unit,
     onOpenDynamic: (String) -> Unit = {},
     onOpenLive: (LiveRoute) -> Unit = {},
     onOpenIm: ((Long, String, String?) -> Unit)? = null,
-    onOpenRelation: (Long, Int) -> Unit = { _, _ -> }
+    onOpenRelation: (Long, Int) -> Unit = { _, _ -> },
+    onOpenSearch: (Long) -> Unit = {}
 ) {
     composable(
         route = SPACE_ROUTE,
@@ -67,7 +75,28 @@ fun NavGraphBuilder.spaceScreen(
             onOpenDynamic = onOpenDynamic,
             onOpenLive = onOpenLive,
             onOpenIm = onOpenIm,
-            onOpenRelation = onOpenRelation
+            onOpenRelation = onOpenRelation,
+            onOpenSearch = onOpenSearch
+        )
+    }
+}
+
+fun NavGraphBuilder.spaceSearchScreen(
+    onBack: () -> Unit,
+    onOpenVideo: (VideoTarget) -> Unit
+) {
+    composable(
+        route = "space_search/{$SPACE_MID_ARG}",
+        arguments = listOf(
+            navArgument(SPACE_MID_ARG) {
+                type = NavType.LongType
+                defaultValue = 0L
+            }
+        )
+    ) {
+        SpaceSearchScreen(
+            onBack = onBack,
+            onOpenVideo = onOpenVideo
         )
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +42,7 @@ fun SpaceScreen(
     onOpenLive: (LiveRoute) -> Unit = {},
     onOpenIm: ((Long, String, String?) -> Unit)? = null,
     onOpenRelation: (Long, Int) -> Unit = { _, _ -> },
+    onOpenSearch: (Long) -> Unit = {},
     viewModel: SpaceViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -104,20 +106,28 @@ fun SpaceScreen(
                     }
                 },
                 actions = {
-                    if (header != null && header.profile.mid > 0L && onOpenIm != null) {
-                        IconButton(
-                            onClick = {
-                                onOpenIm.invoke(
-                                    header.profile.mid,
-                                    header.profile.name,
-                                    header.profile.face
+                    if (header != null && header.profile.mid > 0L) {
+                        IconButton(onClick = { onOpenSearch(header.profile.mid) }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "搜索"
+                            )
+                        }
+                        if (onOpenIm != null) {
+                            IconButton(
+                                onClick = {
+                                    onOpenIm.invoke(
+                                        header.profile.mid,
+                                        header.profile.name,
+                                        header.profile.face
+                                    )
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.MailOutline,
+                                    contentDescription = "聊天"
                                 )
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.MailOutline,
-                                contentDescription = "聊天"
-                            )
                         }
                     }
                 },

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
+import com.naaammme.bbspace.core.designsystem.component.rememberHighlightedTitle
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceVideo
 import com.naaammme.bbspace.core.model.VideoTarget
@@ -131,16 +132,10 @@ private fun LazyListScope.videoSection(
             }
         }
         else -> {
-            items(
-                items = state.videos,
-                key = { "${it.aid}_${it.cid}" },
-                contentType = { "video" }
-            ) { video ->
-                SpaceVideoCard(
-                    video = video,
-                    onClick = { onOpenVideo(video.target) }
-                )
-            }
+            spaceVideoItems(
+                videos = state.videos,
+                onOpenVideo = onOpenVideo
+            )
         }
     }
 
@@ -163,11 +158,31 @@ private fun LazyListScope.videoSection(
     }
 }
 
+internal fun LazyListScope.spaceVideoItems(
+    videos: List<SpaceVideo>,
+    onOpenVideo: (VideoTarget) -> Unit
+) {
+    items(
+        items = videos,
+        key = { "${it.aid}_${it.cid}" },
+        contentType = { "video" }
+    ) { video ->
+        SpaceVideoCard(
+            video = video,
+            onClick = { onOpenVideo(video.target) }
+        )
+    }
+}
+
 @Composable
-private fun SpaceVideoCard(
+internal fun SpaceVideoCard(
     video: SpaceVideo,
     onClick: () -> Unit
 ) {
+    val titleText = rememberHighlightedTitle(
+        text = video.title,
+        highlightColor = MaterialTheme.colorScheme.primary
+    )
     val meta = remember(video.author, video.categoryName, video.publishTimeText) {
         listOfNotNull(video.author, video.categoryName, video.publishTimeText).joinToString(" · ")
     }
@@ -223,7 +238,7 @@ private fun SpaceVideoCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = video.title,
+                    text = titleText,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
