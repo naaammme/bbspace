@@ -32,6 +32,7 @@ import com.naaammme.bbspace.core.model.CommentReplyDetailPage
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentUser
+import com.naaammme.bbspace.core.model.CommentWebLink
 import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_COMMENT
 import com.naaammme.bbspace.core.model.PublishedRecord
 import com.naaammme.bbspace.core.model.PublishedRecordKeyTool
@@ -412,19 +413,21 @@ class CommentRepository @Inject constructor(
                 level = user.fansMedalLevel.toInt()
             )
         }
-        val emotes = info.content.emotesMap.entries.mapNotNull { (token, emote) ->
+        val content = info.content
+        val parent = info.parentReplyMember
+        val emotes = content.emotesMap.entries.mapNotNull { (token, emote) ->
             emote.toModel(token)
         }
         return CommentReply(
             rpid = info.id,
-            message = info.content.message.trim(),
+            message = content.message.trim(),
             likeCount = info.like,
             replyCount = info.count,
             timeText = formatReplyTime(info.ctime),
             locationText = formatReplyLocation(info.replyControl.location),
             topLabel = topLabel ?: info.topLabel(),
             replyEntryText = info.replyControl.subReplyEntryText.ifBlank { null },
-            parentName = info.parentReplyMember.name.ifBlank { null },
+            parentUser = parent.name.takeIf(String::isNotBlank)?.let { CommentUser(parent.mid, it) },
             user = CommentUser(
                 mid = info.mid,
                 name = name,
@@ -434,13 +437,22 @@ class CommentRepository @Inject constructor(
                 medal = medal
             ),
             emotes = emotes,
-            pictures = pictures
+            pictures = pictures,
+            mentions = content.atNameToMidMap,
+            webLinks = content.urlsMap.mapNotNull { (token, link) ->
+                if (link.extra.isWordSearch) return@mapNotNull null
+                val url = link.appUrlSchema.ifBlank { link.pcUrl }.ifBlank {
+                    if (BV_AV_REGEX.matches(token)) "https://www.bilibili.com/video/$token" else token
+                }
+                token to CommentWebLink(url = url, title = link.title)
+            }.toMap()
         )
     }
 
     private fun mapPublishedReply(reply: JSONObject): CommentReply {
         val member = reply.optJSONObject("member")
         val content = reply.optJSONObject("content")
+        val parent = reply.optJSONObject("parent_reply_member")
         val replyControl = reply.optJSONObject("reply_control")
         val vip = member?.optJSONObject("vip")
         val emotes = mapReplyEmotes(content?.optJSONObject("emotes"))
@@ -461,9 +473,11 @@ class CommentRepository @Inject constructor(
             replyCount = reply.optLong("count"),
             timeText = formatReplyTime(reply.optLong("ctime")),
             locationText = formatReplyLocation(replyControl?.optString("location").orEmpty()),
-            parentName = reply.optJSONObject("parent_reply_member")
-                ?.optString("name")
-                ?.ifBlank { null },
+            parentUser = parent?.let { parentObj ->
+                parentObj.optString("name").takeIf(String::isNotBlank)?.let { parentName ->
+                    CommentUser(parentObj.optString("mid").toLongOrNull() ?: 0L, parentName)
+                }
+            },
             user = CommentUser(
                 mid = mid,
                 name = name,
@@ -475,7 +489,24 @@ class CommentRepository @Inject constructor(
                     ?.optString("text")
                     ?.takeIf(String::isNotBlank)
             ),
-            emotes = emotes
+            emotes = emotes,
+            mentions = content?.optJSONObject("at_name_to_mid")?.let { atMap ->
+                buildMap {
+                    atMap.keys().forEach { atName ->
+                        atMap.optString(atName).toLongOrNull()?.let { put(atName, it) }
+                    }
+                }
+            }.orEmpty(),
+            webLinks = content?.optJSONObject("jump_url")?.let { jumpMap ->
+                buildMap {
+                    jumpMap.keys().forEach { token ->
+                        val link = jumpMap.optJSONObject(token) ?: return@forEach
+                        val url = link.optString("app_url_schema").ifBlank { link.optString("pc_url") }
+                            .ifBlank { if (BV_AV_REGEX.matches(token)) "https://www.bilibili.com/video/$token" else token }
+                        put(token, CommentWebLink(url, link.optString("title")))
+                    }
+                }
+            }.orEmpty()
         )
     }
 
@@ -707,5 +738,6 @@ class CommentRepository @Inject constructor(
         const val DEL_ENDPOINT = "/x/v2/reply/del"
         const val UPLOAD_ENDPOINT = "/x/dynamic/feed/draw/upload_bfs"
         const val TAG = "CommentRepo"
+        val BV_AV_REGEX = Regex("""^(?:BV[0-9A-Za-z]+|av\d+)$""")
     }
 }

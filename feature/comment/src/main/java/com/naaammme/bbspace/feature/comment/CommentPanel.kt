@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -75,6 +76,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+val LocalCommentWebOpener = compositionLocalOf<((String) -> Unit)?> { null }
+
 @Composable
 fun CommentPanel(
     subject: CommentSubject?,
@@ -107,6 +110,7 @@ fun CommentPanel(
     val replyThread = uiState.threadPane
     val isInitLoading = !isDetailMode && subject != null && uiState.loading && uiState.items.isEmpty()
     val context = LocalContext.current
+    val openWeb = LocalCommentWebOpener.current
     val appCtx = context.applicationContext
     val scope = rememberCoroutineScope()
     val listContentPadding = PaddingValues(
@@ -173,6 +177,7 @@ fun CommentPanel(
         routeSubject,
         detailRecord?.key,
         onOpenSpace,
+        openWeb,
         onOpenLiveDetail,
         onOpenVideoDetail,
         onOpenDynamicDetail
@@ -186,6 +191,9 @@ fun CommentPanel(
                 is CommentReplyAction.OpenReplies -> viewModel.openReplyThread(action.reply)
                 is CommentReplyAction.OpenUser -> {
                     action.user.toSpaceRoute(routeSubject)?.let(onOpenSpace)
+                }
+                is CommentReplyAction.OpenWeb -> {
+                    openWeb?.invoke(action.url)
                 }
                 is CommentReplyAction.OpenOriginalContent -> {
                     val oid = detailRecord?.targetId ?: routeSubject?.oid ?: 0L
@@ -311,7 +319,7 @@ fun CommentPanel(
                             CommentCard(
                                 reply = reply,
                                 currentMid = uiState.currentMid,
-                                busyReplyIds = uiState.busyReplyIds,
+                                isBusy = reply.rpid in uiState.busyReplyIds,
                                 onAction = onReplyAction
                             )
                         }

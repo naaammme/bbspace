@@ -1,5 +1,6 @@
 package com.naaammme.bbspace.navigation
 
+import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -39,7 +41,9 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,6 +66,7 @@ import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoTarget
 
 import com.naaammme.bbspace.core.model.VideoTargetTool
+import com.naaammme.bbspace.core.model.WebLinkParser
 import com.naaammme.bbspace.core.model.WebLinkTarget
 import com.naaammme.bbspace.feature.dynamic.DynamicScreen
 import com.naaammme.bbspace.feature.dynamic.navigation.dynamicDetailScreen
@@ -74,6 +79,7 @@ import com.naaammme.bbspace.feature.auth.navigation.loginScreen
 import com.naaammme.bbspace.feature.auth.navigation.smsLoginScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.bbSpaceScreen
 import com.naaammme.bbspace.feature.bbspace.navigation.navigateToBbSpace
+import com.naaammme.bbspace.feature.comment.LocalCommentWebOpener
 import com.naaammme.bbspace.feature.download.navigation.downloadScreen
 import com.naaammme.bbspace.feature.download.navigation.navigateToDownload
 import com.naaammme.bbspace.feature.favorite.navigation.favoriteScreen
@@ -110,6 +116,8 @@ import com.naaammme.bbspace.feature.user.UserScreen
 import com.naaammme.bbspace.feature.user.UserDest
 import com.naaammme.bbspace.feature.user.UserViewModel
 import com.naaammme.bbspace.feature.video.VideoViewModel
+import com.naaammme.bbspace.feature.webview.navigation.navigateToWebView
+import com.naaammme.bbspace.feature.webview.navigation.webViewScreen
 import com.naaammme.bbspace.playback.PlaybackHost
 import com.naaammme.bbspace.playback.PlaybackHostMode
 import com.naaammme.bbspace.playback.PlaybackHostViewModel
@@ -126,6 +134,8 @@ fun AppNavHost(
     onAppLinkConsumed: () -> Unit = {}
 ) {
     val rootNavController = rememberNavController()
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val roundSafePadding = roundScreenSafePadding(themeConfig.roundScreenSafePaddingScale)
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val downloadViewModel: DownloadViewModel = hiltViewModel()
@@ -189,6 +199,34 @@ fun AppNavHost(
         playbackHostViewModel.openLive(route)
         playbackHostViewModel.expand()
     }
+    val currentOpenCommentWeb by rememberUpdatedState<(String) -> Unit> { url ->
+        when (val target = WebLinkParser.parse(url)) {
+            is WebLinkTarget.ToVideo -> {
+                if (hostMode == PlaybackHostMode.Expanded &&
+                    playbackHostViewModel.currentTarget.value is StreamPlaybackTarget.Video
+                ) {
+                    videoViewModel.openTarget(target.target)
+                } else {
+                    openVideo(target.target)
+                }
+            }
+            is WebLinkTarget.ToLive -> openLive(LiveRoute(roomId = target.roomId))
+            else -> {
+                if (hostMode == PlaybackHostMode.Expanded) {
+                    collapseExpandedPlayback()
+                    dismissPlaybackHost()
+                }
+                if (target is WebLinkTarget.ToSpace) {
+                    rootNavController.navigateToSpace(SpaceRoute(mid = target.mid))
+                } else {
+                    rootNavController.navigateToWebView(url)
+                }
+            }
+        }
+    }
+    val openCommentWeb: (String) -> Unit = remember {
+        { url -> currentOpenCommentWeb(url) }
+    }
     val openHistoryTarget: (HistoryTarget?) -> Unit = { target ->
         when (target) {
             is HistoryTarget.Video -> openVideo(target.target)
@@ -239,7 +277,8 @@ fun AppNavHost(
         onAppLinkConsumed()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    CompositionLocalProvider(LocalCommentWebOpener provides openCommentWeb) {
+        Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             modifier = Modifier
                 .fillMaxSize()
@@ -407,6 +446,17 @@ fun AppNavHost(
                 onOpenDynamicDetail = rootNavController::navigateToDynamicDetail,
                 onOpenLiveDetail = openLive
             )
+            webViewScreen(
+                onBack = { rootNavController.popBackStack() },
+                onOpenVideo = { openVideo(it.target) },
+                onOpenSpace = rootNavController::navigateToSpace,
+                onOpenLive = openLive,
+                onOpenExternal = { url ->
+                    runCatching { uriHandler.openUri(url) }.onFailure {
+                        Toast.makeText(context, "无法打开链接", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
         }
 
         PlaybackHost(
@@ -431,6 +481,7 @@ fun AppNavHost(
             videoViewModel = videoViewModel,
             liveViewModel = liveViewModel
         )
+        }
     }
 }
 

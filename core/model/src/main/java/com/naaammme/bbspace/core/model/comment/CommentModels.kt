@@ -92,10 +92,18 @@ data class CommentReply(
     val locationText: String = "",
     val topLabel: String? = null,
     val replyEntryText: String? = null,
-    val parentName: String? = null,
+    val parentUser: CommentUser? = null,
     val user: CommentUser,
     val emotes: List<CommentEmote> = emptyList(),
-    val pictures: List<CommentPicture> = emptyList()
+    val pictures: List<CommentPicture> = emptyList(),
+    val mentions: Map<String, Long> = emptyMap(),
+    val webLinks: Map<String, CommentWebLink> = emptyMap()
+)
+
+@Immutable
+data class CommentWebLink(
+    val url: String,
+    val title: String = ""
 )
 
 @Immutable

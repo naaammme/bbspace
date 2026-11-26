@@ -32,10 +32,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
@@ -50,6 +58,7 @@ internal sealed interface CommentReplyAction {
     data class Reply(val reply: CommentReply) : CommentReplyAction
     data class OpenReplies(val reply: CommentReply) : CommentReplyAction
     data class OpenUser(val user: CommentUser) : CommentReplyAction
+    data class OpenWeb(val url: String) : CommentReplyAction
     data class OpenOriginalContent(val reply: CommentReply) : CommentReplyAction
 }
 
@@ -58,7 +67,7 @@ internal sealed interface CommentReplyAction {
 internal fun CommentCard(
     reply: CommentReply,
     currentMid: Long,
-    busyReplyIds: Set<Long>,
+    isBusy: Boolean,
     onAction: (CommentReplyAction) -> Unit
 ) {
     Card(
@@ -70,7 +79,7 @@ internal fun CommentCard(
             ReplyBody(
                 reply = reply,
                 currentMid = currentMid,
-                busyReplyIds = busyReplyIds,
+                isBusy = isBusy,
                 onAction = onAction,
                 modifier = Modifier.padding(16.dp)
             )
@@ -101,7 +110,7 @@ internal fun CommentCard(
 internal fun ThreadReplyCard(
     reply: CommentReply,
     currentMid: Long,
-    busyReplyIds: Set<Long>,
+    isBusy: Boolean,
     onAction: (CommentReplyAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -113,7 +122,7 @@ internal fun ThreadReplyCard(
         ReplyBody(
             reply = reply,
             currentMid = currentMid,
-            busyReplyIds = busyReplyIds,
+            isBusy = isBusy,
             onAction = onAction,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
         )
@@ -125,7 +134,7 @@ internal fun ThreadReplyCard(
 private fun ReplyBody(
     reply: CommentReply,
     currentMid: Long,
-    busyReplyIds: Set<Long>,
+    isBusy: Boolean,
     onAction: (CommentReplyAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -211,7 +220,7 @@ private fun ReplyBody(
                 }
             }
 
-            ReplyMessage(reply)
+            ReplyMessage(reply, onAction)
 
             if (previewImages.isNotEmpty()) {
                 PreviewImageGrid(
@@ -251,7 +260,7 @@ private fun ReplyBody(
                     Text("回复")
                 }
                 ReplyMenuButton(
-                    busy = reply.rpid in busyReplyIds,
+                    busy = isBusy,
                     showCheck = isSelf,
                     canDelete = isSelf,
                     onCheck = { onAction(CommentReplyAction.Check(reply.rpid)) },
@@ -264,16 +273,38 @@ private fun ReplyBody(
 }
 
 @Composable
-private fun ReplyMessage(reply: CommentReply) {
+private fun ReplyMessage(reply: CommentReply, onAction: (CommentReplyAction) -> Unit) {
     val message = reply.message.takeIf(String::isNotBlank)
     val translated = reply.translatedMessage?.takeIf(String::isNotBlank)
     if (message == null && translated == null) return
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        reply.parentName?.takeIf(String::isNotBlank)?.let { name ->
+        reply.parentUser?.let { user ->
+            val accentColor = MaterialTheme.colorScheme.primary
+            val currentOnAction by rememberUpdatedState(onAction)
+            val replyHeaderText = remember(user, accentColor) {
+                buildAnnotatedString {
+                    append("回复 ")
+                    val mention = "@${user.name}"
+                    val mentionStyle = SpanStyle(color = accentColor, textDecoration = TextDecoration.None)
+                    if (user.mid > 0L) {
+                        withLink(
+                            LinkAnnotation.Clickable(user.name, TextLinkStyles(style = mentionStyle)) {
+                                currentOnAction(CommentReplyAction.OpenUser(user))
+                            }
+                        ) {
+                            append(mention)
+                        }
+                    } else {
+                        withStyle(mentionStyle) {
+                            append(mention)
+                        }
+                    }
+                }
+            }
             Text(
-                text = "回复 @$name",
+                text = replyHeaderText,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -282,7 +313,9 @@ private fun ReplyMessage(reply: CommentReply) {
             CommentRichText(
                 text = it,
                 emotes = reply.emotes,
-                style = MaterialTheme.typography.bodyMedium
+                mentions = reply.mentions,
+                webLinks = reply.webLinks,
+                onAction = onAction
             )
         }
         translated?.let {

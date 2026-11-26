@@ -171,7 +171,7 @@ private fun CommentThreadContent(
                 ThreadReplyCard(
                     reply = state.root,
                     currentMid = currentMid,
-                    busyReplyIds = busyReplyIds,
+                    isBusy = state.root.rpid in busyReplyIds,
                     onAction = onReplyAction
                 )
             }
@@ -215,7 +215,7 @@ private fun CommentThreadContent(
                         ThreadReplyCard(
                             reply = reply,
                             currentMid = currentMid,
-                            busyReplyIds = busyReplyIds,
+                            isBusy = reply.rpid in busyReplyIds,
                             onAction = onReplyAction
                         )
                     }
