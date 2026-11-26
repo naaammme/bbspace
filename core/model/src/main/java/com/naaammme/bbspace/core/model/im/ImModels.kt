@@ -84,7 +84,12 @@ data class ImMessage(
     val noticeDetailText: String? = null
 )
 
-enum class MsgFeedFilter(val index: Int) {
-    ALL(0),
-    FOLLOWING(1)
+enum class MsgFeedFilter {
+    ALL,
+    FOLLOWING
+}
+
+enum class MsgFeedTab {
+    COMMENTS,
+    LIKES
 }

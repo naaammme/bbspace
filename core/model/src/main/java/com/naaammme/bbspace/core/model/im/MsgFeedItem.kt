@@ -7,7 +7,9 @@ import com.naaammme.bbspace.core.model.User
 data class MsgFeedItem(
     val msgId: Long,
     val msgTime: Long,
-    val msgType: String,
+    val isUnread: Boolean,
+    val canOpenDetail: Boolean,
+    val actionText: String,
     val users: List<User>,
     val coverImage: String?,
 

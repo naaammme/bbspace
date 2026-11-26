@@ -25,6 +25,7 @@ import com.bapis.bilibili.im.interfaces.v1.RspSessionMsg
 import com.bapis.bilibili.im.type.Msg
 import com.google.protobuf.MessageLite
 import com.google.protobuf.Parser
+import com.bapis.bilibili.app.dynamic.v2.TextNode
 import com.bapis.bilibili.im.gateway.interfaces.v1.Cursor
 import com.bapis.bilibili.im.gateway.interfaces.v1.MsgFeedFilterType
 import com.bapis.bilibili.im.gateway.interfaces.v1.MsgListReq
@@ -34,6 +35,8 @@ import com.naaammme.bbspace.core.model.User
 import com.naaammme.bbspace.core.model.im.MsgFeedCursor
 import com.naaammme.bbspace.core.model.im.MsgFeedItem
 import com.naaammme.bbspace.core.model.im.MsgFeedPage
+import com.naaammme.bbspace.core.model.MsgFeedFilter
+import com.naaammme.bbspace.core.model.MsgFeedTab
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.media.httpsImageUrlOrNull
 import com.naaammme.bbspace.core.model.ImConversationPage
@@ -193,18 +196,23 @@ class ImRepository @Inject constructor(
     }
 
     suspend fun fetchMsgFeedList(
-        filterType: com.naaammme.bbspace.core.model.MsgFeedFilter = com.naaammme.bbspace.core.model.MsgFeedFilter.ALL,
+        tab: MsgFeedTab = MsgFeedTab.COMMENTS,
+        filterType: MsgFeedFilter = MsgFeedFilter.ALL,
         cursor: MsgFeedCursor? = null,
         pageSize: Long = 20
     ): MsgFeedPage {
         val mid = authProvider.mid
         require(mid > 0L) { "请先登录" }
         val req = MsgListReq.newBuilder()
-            .setTabType(MsgTabType.ReceiveReply)
+            .setTabType(if (tab == MsgFeedTab.LIKES) MsgTabType.ReceiveLike else MsgTabType.ReceiveReply)
             .setFilterType(
-                when (filterType) {
-                    com.naaammme.bbspace.core.model.MsgFeedFilter.ALL -> MsgFeedFilterType.MsgFeed_All
-                    com.naaammme.bbspace.core.model.MsgFeedFilter.FOLLOWING -> MsgFeedFilterType.MsgFeed_Following
+                if (tab == MsgFeedTab.LIKES) {
+                    MsgFeedFilterType.MsgFeed_All
+                } else {
+                    when (filterType) {
+                        MsgFeedFilter.ALL -> MsgFeedFilterType.MsgFeed_All
+                        MsgFeedFilter.FOLLOWING -> MsgFeedFilterType.MsgFeed_Following
+                    }
                 }
             )
             .setPagesize(pageSize)
@@ -225,35 +233,54 @@ class ImRepository @Inject constructor(
         )
         return withContext(Dispatchers.Default) {
             val mappedCards = reply.msgCardsList.mapNotNull { card ->
-                val type = card.msgType.name
                 val id = card.msgId
                 val time = card.msgTime
                 val item = card.msgItem
-                if (item.hasReplyCard()) {
-                    val replyCard = item.replyCard
-                    val msg = replyCard.replyMsg
-                    val biz = replyCard.replyBiz
-                    MsgFeedItem(
-                        msgId = id,
-                        msgTime = time,
-                        msgType = type,
-                        users = msg.usersList.map { u ->
-                            User(
-                                mid = u.mid,
-                                name = u.nickname,
-                                avatar = u.avatar.httpsImageUrlOrNull() ?: ""
-                            )
-                        },
-                        coverImage = msg.coverImage.httpsImageUrlOrNull(),
-                        subjectId = extractSubjectId(msg.nativeUri),
-                        rootId = biz.rootId,
-                        sourceId = biz.sourceId,
-                        businessId = msg.businessId,
-                        sourceContent = biz.sourceContent,
-                        rootReplyContent = biz.rootReplyContent,
-                        targetReplyContent = biz.targetReplyContent
-                    )
-                } else null
+                val msg = when {
+                    item.hasReplyCard() -> item.replyCard.replyMsg
+                    item.hasLikeCard() -> item.likeCard.likeMsg
+                    item.hasFavoriteCard() -> item.favoriteCard.favMsg
+                    item.hasCoinCard() -> item.coinCard.coinMsg
+                    else -> return@mapNotNull null
+                }
+                val biz = if (item.hasReplyCard()) item.replyCard.replyBiz else null
+                val isCommentLike = item.hasLikeCard() && msg.bizType == "reply"
+                val isComment = item.hasReplyCard() || isCommentLike
+                val actionText = msg.richTextContent.paragraphsList
+                    .firstOrNull { it.hasText() }
+                    ?.text
+                    ?.nodesList
+                    ?.lastOrNull()
+                    ?.takeIf { it.nodeType == TextNode.TextNodeType.WORDS }
+                    ?.rawText
+                    ?.trim()
+                    .orEmpty()
+                MsgFeedItem(
+                    msgId = id,
+                    msgTime = time,
+                    isUnread = msg.isUnread,
+                    canOpenDetail = isComment,
+                    actionText = actionText,
+                    users = msg.usersList.map { u ->
+                        User(
+                            mid = u.mid,
+                            name = u.nickname,
+                            avatar = u.avatar.httpsImageUrlOrNull() ?: ""
+                        )
+                    },
+                    coverImage = msg.coverImage.httpsImageUrlOrNull(),
+                    subjectId = biz?.subjectId?.takeIf { it > 0L }
+                        ?: msg.originId.takeIf { isComment && it > 0L }
+                        ?: extractSubjectId(msg.nativeUri),
+                    rootId = biz?.rootId ?: extractCommentRootId(msg.nativeUri, msg.itemId),
+                    sourceId = biz?.sourceId ?: msg.itemId,
+                    businessId = if (isCommentLike) {
+                        extractCommentType(msg.nativeUri) ?: if (msg.nativeUri.startsWith("bilibili://video/")) 1L else 17L
+                    } else msg.businessId,
+                    sourceContent = biz?.sourceContent?.takeIf { it.isNotBlank() } ?: msg.coverText,
+                    rootReplyContent = biz?.rootReplyContent.orEmpty(),
+                    targetReplyContent = biz?.targetReplyContent.orEmpty()
+                )
             }
             MsgFeedPage(
                 cursor = if (reply.hasCursor()) {
@@ -688,10 +715,23 @@ class ImRepository @Inject constructor(
         )
 
         private val SUBJECT_ID_REGEX = """bilibili://(?:opus/detail|video)/(\d+)""".toRegex()
+        private val COMMENT_URI_REGEX = """bilibili://comment/detail/(\d+)/(\d+)/""".toRegex()
+        private val COMMENT_ROOT_ID_REGEX = """[?&]comment_root_id=(\d+)""".toRegex()
 
         private fun extractSubjectId(nativeUri: String): Long = SUBJECT_ID_REGEX
             .find(nativeUri)
             ?.groupValues?.get(1)?.toLongOrNull()
+            ?: COMMENT_URI_REGEX.find(nativeUri)?.groupValues?.get(2)?.toLongOrNull()
+            ?: 0L
+
+        private fun extractCommentType(nativeUri: String): Long? = COMMENT_URI_REGEX
+            .find(nativeUri)
+            ?.groupValues?.get(1)?.toLongOrNull()
+
+        private fun extractCommentRootId(nativeUri: String, itemId: Long): Long = COMMENT_ROOT_ID_REGEX
+            .find(nativeUri)
+            ?.groupValues?.get(1)?.toLongOrNull()
+            ?: itemId.takeIf { nativeUri.contains("comment") }
             ?: 0L
     }
 }

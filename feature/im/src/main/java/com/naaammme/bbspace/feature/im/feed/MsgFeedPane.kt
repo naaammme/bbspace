@@ -4,6 +4,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,6 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,19 +90,16 @@ fun MsgFeedPane(
         }
 
         val listState = rememberLazyListState()
-        LaunchedEffect(
-            listState,
-            state.items.size,
-            state.canLoadMore,
-            state.isLoadingMore,
-            state.loadMoreError
-        ) {
+        val latestState by rememberUpdatedState(state)
+        LaunchedEffect(listState) {
             snapshotFlow {
+                val cur = latestState
                 val total = listState.layoutInfo.totalItemsCount
                 val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-                state.canLoadMore &&
-                    !state.isLoadingMore &&
-                    state.loadMoreError.isNullOrBlank() &&
+                cur.canLoadMore &&
+                    !cur.isRefreshing &&
+                    !cur.isLoadingMore &&
+                    cur.loadMoreError.isNullOrBlank() &&
                     total > 0 &&
                     last >= total - 4
             }
@@ -121,12 +122,7 @@ fun MsgFeedPane(
                 items(state.items, key = { it.msgId }) { item ->
                     MsgFeedCard(
                         item = item,
-                        onClick = {
-                            val record = item.toPublishedRecord()
-                            if (record != null) {
-                                onOpenCommentDetail(record)
-                            }
-                        }
+                        onOpenCommentDetail = onOpenCommentDetail
                     )
                 }
 
@@ -158,66 +154,104 @@ fun MsgFeedPane(
 @Composable
 private fun MsgFeedCard(
     item: MsgFeedItem,
-    onClick: () -> Unit
+    onOpenCommentDetail: (PublishedRecord) -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    val timeText = remember(item.msgTime) {
+        item.msgTime
+            .takeIf { it > 0L }
+            ?.let { DateFormat.format("MM-dd HH:mm", it * 1000L).toString() }
+            .orEmpty()
+    }
+    val headerTitle = remember(item.users) {
+        item.users.take(2).joinToString("、") { it.name }
+    }
+
+    val cardContent: @Composable ColumnScope.() -> Unit = {
         Column(modifier = Modifier.padding(16.dp)) {
             val user = item.users.firstOrNull()
             Row(verticalAlignment = Alignment.Top) {
                 if (user != null) {
-                    AvatarImage(
-                        url = user.avatar,
-                        contentDescription = user.name,
-                        modifier = Modifier.size(40.dp),
-                        fallbackText = user.name.take(1)
-                    )
+                    Box(modifier = Modifier.size(40.dp)) {
+                        AvatarImage(
+                            url = user.avatar,
+                            contentDescription = user.name,
+                            modifier = Modifier.fillMaxSize(),
+                            fallbackText = user.name.take(1)
+                        )
+                        if (item.isUnread) {
+                            Badge(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .size(12.dp),
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = user.name,
+                            text = headerTitle,
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Text(
-                            text = "回复了你的评论",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (item.actionText.isNotBlank()) {
+                            Text(
+                                text = item.actionText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 } else {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (item.isUnread) {
+                            Badge(
+                                modifier = Modifier.size(12.dp),
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = item.actionText.ifBlank { "未知用户回复了你" },
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (timeText.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "未知用户回复了你",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        text = timeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = item.msgTime
-                        .takeIf { it > 0L }
-                        ?.let { DateFormat.format("MM-dd HH:mm", it * 1000L).toString() }
-                        .orEmpty(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.sourceContent,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                if (!item.coverImage.isNullOrBlank()) {
-                    CoverImage(
-                        url = item.coverImage,
-                        contentDescription = null,
-                        modifier = Modifier.size(width = 96.dp, height = 54.dp)
-                    )
+            if (item.sourceContent.isNotBlank() || !item.coverImage.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (item.sourceContent.isNotBlank()) {
+                            Text(
+                                text = item.sourceContent,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    if (!item.coverImage.isNullOrBlank()) {
+                        CoverImage(
+                            url = item.coverImage,
+                            contentDescription = null,
+                            modifier = Modifier.size(width = 96.dp, height = 54.dp)
+                        )
+                    }
                 }
             }
             if (item.rootReplyContent.isNotBlank() || item.targetReplyContent.isNotBlank()) {
@@ -241,9 +275,21 @@ private fun MsgFeedCard(
             }
         }
     }
+    if (item.canOpenDetail) {
+        Card(
+            onClick = { onOpenCommentDetail(item.toPublishedRecord()) },
+            modifier = Modifier.fillMaxWidth(),
+            content = cardContent
+        )
+    } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            content = cardContent
+        )
+    }
 }
 
-private fun MsgFeedItem.toPublishedRecord(): PublishedRecord? {
+private fun MsgFeedItem.toPublishedRecord(): PublishedRecord {
     val user = users.firstOrNull()
     return PublishedRecord(
         key = "feed_${msgId}",

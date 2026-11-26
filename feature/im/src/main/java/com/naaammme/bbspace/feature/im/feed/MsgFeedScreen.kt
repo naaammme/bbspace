@@ -22,16 +22,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.model.MsgFeedFilter
+import com.naaammme.bbspace.core.model.MsgFeedTab
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.PublishedRecord
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.comment.CommentPanel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+
+private val FEED_TABS = listOf("收到回复", "收到赞", "关注的人")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +47,17 @@ fun MsgFeedScreen(
     onOpenLiveDetail: (LiveRoute) -> Unit = {},
     vm: MsgFeedViewModel = hiltViewModel()
 ) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
+    val selectedTabIndex by remember(vm) {
+        vm.uiState
+            .map {
+                when {
+                    it.tab == MsgFeedTab.LIKES -> 1
+                    it.filterType == MsgFeedFilter.FOLLOWING -> 2
+                    else -> 0
+                }
+            }
+            .distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = 0)
     var detailRecord by remember { mutableStateOf<PublishedRecord?>(null) }
 
     BackHandler(enabled = detailRecord != null) {
@@ -54,7 +68,7 @@ fun MsgFeedScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("通知评论") },
+                    title = { Text("通知消息") },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -69,20 +83,15 @@ fun MsgFeedScreen(
                     .padding(padding)
             ) {
                 FilledTabRow(
-                    tabs = listOf("全部", "关注的人"),
-                    selectedIndex = state.filterType.index,
-                    onSelect = { index ->
-                        when (index) {
-                            0 -> vm.changeFilter(MsgFeedFilter.ALL)
-                            1 -> vm.changeFilter(MsgFeedFilter.FOLLOWING)
-                        }
-                    },
-                    modifier = Modifier
+                    tabs = FEED_TABS,
+                    selectedIndex = selectedTabIndex,
+                    onSelect = vm::selectTab
                 )
+                val openCommentDetail = remember {
+                    { record: PublishedRecord -> detailRecord = record }
+                }
                 MsgFeedPane(
-                    onOpenCommentDetail = { record ->
-                        detailRecord = record
-                    },
+                    onOpenCommentDetail = openCommentDetail,
                     modifier = Modifier.weight(1f)
                 )
             }
