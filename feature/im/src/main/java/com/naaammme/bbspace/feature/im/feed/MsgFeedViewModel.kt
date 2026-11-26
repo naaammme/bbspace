@@ -118,7 +118,7 @@ class MsgFeedViewModel @Inject constructor(
                 cursor = cursor
             )
             if (callId != reqId) return
-            _uiState.update { it ->
+            _uiState.update {
                 val newItems = if (reset) {
                     page.msgCards
                 } else {

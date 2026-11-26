@@ -116,12 +116,8 @@ class CommentRepository @Inject constructor(
                 subject.source.goTo?.takeIf(String::isNotBlank)?.let { value ->
                     put("goto", value)
                 }
-                subject.source.spmid.takeIf(String::isNotBlank)?.let { value ->
-                    put("spmid", value)
-                }
-                subject.source.fromSpmid?.takeIf(String::isNotBlank)?.let { value ->
-                    put("from_spmid", value)
-                }
+                put("spmid", subject.source.spmid)
+                put("from_spmid", subject.source.fromSpmid.orEmpty())
                 subject.source.trackId?.takeIf(String::isNotBlank)?.let { value ->
                     put("track_id", value)
                 }
@@ -576,22 +572,10 @@ class CommentRepository @Inject constructor(
     }
 
     private fun buildExtra(subject: CommentSubject): String {
-        val items = buildList {
-            subject.source.spmid.takeIf(String::isNotBlank)?.let { value ->
-                add("\"spmid\":\"${value.jsonEscape()}\"")
-            }
-            subject.source.fromSpmid?.takeIf(String::isNotBlank)?.let { value ->
-                add("\"from_spmid\":\"${value.jsonEscape()}\"")
-            }
-            subject.source.trackId?.takeIf(String::isNotBlank)?.let { value ->
-                add("\"track_id\":\"${value.jsonEscape()}\"")
-            }
-        }
-        return if (items.isEmpty()) {
-            ""
-        } else {
-            "{${items.joinToString(",")}}"
-        }
+        val spmid = subject.source.spmid.jsonEscape()
+        val fromSpmid = subject.source.fromSpmid.orEmpty().jsonEscape()
+        val trackId = subject.source.trackId.orEmpty().jsonEscape()
+        return "{\"spmid\":\"$spmid\",\"from_spmid\":\"$fromSpmid\",\"track_id\":\"$trackId\"}"
     }
 
     private fun String.jsonEscape(): String {
