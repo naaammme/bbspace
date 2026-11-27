@@ -27,8 +27,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -156,6 +159,7 @@ private fun MsgFeedCard(
     item: MsgFeedItem,
     onOpenCommentDetail: (PublishedRecord) -> Unit
 ) {
+    var showUnread by rememberSaveable(item.msgId, item.isUnread) { mutableStateOf(item.isUnread) }
     val timeText = remember(item.msgTime) {
         item.msgTime
             .takeIf { it > 0L }
@@ -178,7 +182,7 @@ private fun MsgFeedCard(
                             modifier = Modifier.fillMaxSize(),
                             fallbackText = user.name.take(1)
                         )
-                        if (item.isUnread) {
+                        if (showUnread) {
                             Badge(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
@@ -210,7 +214,7 @@ private fun MsgFeedCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        if (item.isUnread) {
+                        if (showUnread) {
                             Badge(
                                 modifier = Modifier.size(12.dp),
                                 containerColor = MaterialTheme.colorScheme.primary
@@ -275,9 +279,12 @@ private fun MsgFeedCard(
             }
         }
     }
-    if (item.canOpenDetail) {
+    if (item.canOpenDetail || showUnread) {
         Card(
-            onClick = { onOpenCommentDetail(item.toPublishedRecord()) },
+            onClick = {
+                showUnread = false
+                if (item.canOpenDetail) onOpenCommentDetail(item.toPublishedRecord())
+            },
             modifier = Modifier.fillMaxWidth(),
             content = cardContent
         )
