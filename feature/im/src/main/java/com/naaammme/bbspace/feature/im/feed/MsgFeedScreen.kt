@@ -24,13 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.MsgFeedFilter
 import com.naaammme.bbspace.core.model.MsgFeedTab
-import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.PublishedRecord
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.comment.CommentPanel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -41,10 +38,6 @@ private val FEED_TABS = listOf("收到回复", "收到赞", "关注的人")
 @Composable
 fun MsgFeedScreen(
     onBack: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit = {},
-    onOpenVideoDetail: (VideoTarget) -> Unit = {},
-    onOpenDynamicDetail: (String) -> Unit = {},
-    onOpenLiveDetail: (LiveRoute) -> Unit = {},
     vm: MsgFeedViewModel = hiltViewModel()
 ) {
     val selectedTabIndex by remember(vm) {
@@ -106,10 +99,6 @@ fun MsgFeedScreen(
                 subject = null,
                 detailRecord = detailRecord,
                 onDismissDetail = { detailRecord = null },
-                onOpenSpace = onOpenSpace,
-                onOpenVideoDetail = onOpenVideoDetail,
-                onOpenDynamicDetail = onOpenDynamicDetail,
-                onOpenLiveDetail = onOpenLiveDetail,
                 modifier = Modifier.fillMaxSize()
             )
         }

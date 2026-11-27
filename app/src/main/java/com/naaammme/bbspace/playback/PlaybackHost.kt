@@ -17,12 +17,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
-import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
 import com.naaammme.bbspace.feature.live.LiveScreen
@@ -40,7 +39,6 @@ fun PlaybackHost(
     onClose: () -> Unit,
     onDismissExpanded: () -> Unit,
     onGoHome: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
     onOpenDownloadCache: () -> Unit,
     onStartDownload: (VideoDownloadRequest) -> Unit,
     videoViewModel: VideoViewModel,
@@ -86,7 +84,6 @@ fun PlaybackHost(
             VideoScreen(
                 onBack = onDismissExpanded,
                 onGoHome = onGoHome,
-                onOpenSpace = onOpenSpace,
                 onOpenDownloadCache = onOpenDownloadCache,
                 onStartDownload = onStartDownload,
                 viewModel = videoViewModel,

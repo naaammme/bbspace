@@ -30,6 +30,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:navigation"))
     implementation(project(":core:history"))
     implementation(project(":core:published"))
     implementation(project(":core:model"))

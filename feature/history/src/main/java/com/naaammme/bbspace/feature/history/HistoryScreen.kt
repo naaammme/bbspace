@@ -29,7 +29,8 @@ import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
 import com.naaammme.bbspace.core.model.HistoryTab
-import com.naaammme.bbspace.core.model.HistoryTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
+import com.naaammme.bbspace.core.navigation.open
 import com.naaammme.bbspace.feature.history.component.HistoryItemCard
 import com.naaammme.bbspace.feature.history.component.HistoryListLoading
 import com.naaammme.bbspace.feature.history.component.LOAD_MORE_SKELETON_COUNT
@@ -40,9 +41,9 @@ import com.naaammme.bbspace.feature.history.component.LoadMoreTrigger
 fun HistoryScreen(
     onBack: () -> Unit,
     onSearch: (HistoryTab) -> Unit,
-    onOpenHistoryTarget: (HistoryTarget?) -> Unit,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     LoadMoreTrigger(
@@ -141,7 +142,7 @@ fun HistoryScreen(
                             ) { item ->
                                 HistoryItemCard(
                                     item = item,
-                                    onClick = { onOpenHistoryTarget(item.target) }
+                                    onClick = { item.target?.let(navigator::open) }
                                 )
                             }
 

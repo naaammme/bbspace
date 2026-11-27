@@ -26,6 +26,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:navigation"))
     implementation(project(":core:history"))
     implementation(project(":core:model"))
     implementation(project(":core:common"))

@@ -6,8 +6,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.naaammme.bbspace.core.model.HistoryTab
-import com.naaammme.bbspace.core.model.HistoryTarget
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.history.HistoryScreen
 import com.naaammme.bbspace.feature.history.search.HistorySearchScreen
 import com.naaammme.bbspace.feature.history.watchlater.WatchLaterScreen
@@ -33,21 +31,18 @@ fun NavController.navigateToWatchLater() {
 
 fun NavGraphBuilder.historyScreen(
     onBack: () -> Unit,
-    onSearch: (HistoryTab) -> Unit,
-    onOpenHistoryTarget: (HistoryTarget?) -> Unit
+    onSearch: (HistoryTab) -> Unit
 ) {
     composable(HISTORY_ROUTE) {
         HistoryScreen(
             onBack = onBack,
-            onSearch = onSearch,
-            onOpenHistoryTarget = onOpenHistoryTarget
+            onSearch = onSearch
         )
     }
 }
 
 fun NavGraphBuilder.historySearchScreen(
-    onBack: () -> Unit,
-    onOpenHistoryTarget: (HistoryTarget?) -> Unit
+    onBack: () -> Unit
 ) {
     composable(
         route = "$HISTORY_SEARCH_ROUTE/{$HISTORY_SEARCH_TAB_ARG}",
@@ -58,20 +53,17 @@ fun NavGraphBuilder.historySearchScreen(
         )
     ) {
         HistorySearchScreen(
-            onBack = onBack,
-            onOpenHistoryTarget = onOpenHistoryTarget
+            onBack = onBack
         )
     }
 }
 
 fun NavGraphBuilder.watchLaterScreen(
-    onBack: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit
+    onBack: () -> Unit
 ) {
     composable(WATCH_LATER_ROUTE) {
         WatchLaterScreen(
-            onBack = onBack,
-            onOpenVideo = onOpenVideo
+            onBack = onBack
         )
     }
 }

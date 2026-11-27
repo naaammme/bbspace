@@ -25,8 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.archive.spaceArchiveSection
 import com.naaammme.bbspace.feature.space.header.spaceHeaderSection
 import com.naaammme.bbspace.feature.space.note.SpaceNoteTitleButton
@@ -37,9 +35,6 @@ import kotlinx.coroutines.flow.filter
 @Composable
 fun SpaceScreen(
     onBack: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenDynamic: (String) -> Unit = {},
-    onOpenLive: (LiveRoute) -> Unit = {},
     onOpenIm: ((Long, String, String?) -> Unit)? = null,
     onOpenRelation: (Long, Int) -> Unit = { _, _ -> },
     onOpenSearch: (Long) -> Unit = {},
@@ -161,11 +156,8 @@ fun SpaceScreen(
                     videoCount = header.profile.videoCount,
                     dynamics = state.dynamics,
                     section = state.selectedSection,
-                    onOpenVideo = onOpenVideo,
                     onSelectOrder = viewModel::selectOrder,
                     onSelectSection = viewModel::selectSection,
-                    onOpenDynamic = onOpenDynamic,
-                    onOpenLive = onOpenLive,
                     onRefresh = viewModel::refresh,
                     onLoadMore = viewModel::loadMore
                 )

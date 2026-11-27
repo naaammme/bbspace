@@ -1,20 +1,19 @@
 package com.naaammme.bbspace.feature.dynamic.detail
 
-import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -33,16 +32,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
@@ -56,17 +52,12 @@ import com.naaammme.bbspace.core.model.DynamicDetailParagraph
 import com.naaammme.bbspace.core.model.DynamicForwardItem
 import com.naaammme.bbspace.core.model.DynamicImage
 import com.naaammme.bbspace.core.model.DynamicStats
-import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.feature.comment.CommentPanel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DynamicDetailScreen(
     onBack: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
     isExpanded: Boolean = false,
     viewModel: DynamicDetailViewModel = hiltViewModel()
 ) {
@@ -139,7 +130,6 @@ fun DynamicDetailScreen(
                         }
                         CommentPanel(
                             subject = commentSubject,
-                            onOpenSpace = onOpenSpace,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -152,7 +142,6 @@ fun DynamicDetailScreen(
                 } else if (commentSubject != null) {
                     CommentPanel(
                         subject = commentSubject,
-                        onOpenSpace = onOpenSpace,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),

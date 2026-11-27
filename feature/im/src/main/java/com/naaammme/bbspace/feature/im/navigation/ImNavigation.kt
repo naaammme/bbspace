@@ -9,9 +9,6 @@ import androidx.navigation.navArgument
 import com.naaammme.bbspace.core.model.ImSessionItem
 import com.naaammme.bbspace.feature.im.conversation.ImConversationScreen
 import com.naaammme.bbspace.feature.im.feed.MsgFeedScreen
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.VideoTarget
 
 const val IM_ROUTE = "im"
 
@@ -35,9 +32,7 @@ fun NavController.navigateToImConversation(
 }
 
 fun NavGraphBuilder.imConversationScreen(
-    onBack: () -> Unit,
-    onOpenSpace: ((SpaceRoute) -> Unit)? = null,
-    onOpenVideo: ((VideoTarget) -> Unit)? = null
+    onBack: () -> Unit
 ) {
     composable(
         route = IM_CONVERSATION_ROUTE,
@@ -55,9 +50,7 @@ fun NavGraphBuilder.imConversationScreen(
         )
     ) {
         ImConversationScreen(
-            onBack = onBack,
-            onOpenSpace = onOpenSpace,
-            onOpenVideo = onOpenVideo
+            onBack = onBack
         )
     }
 }
@@ -67,19 +60,11 @@ fun NavController.navigateToMsgFeed() {
 }
 
 fun NavGraphBuilder.imMsgFeedScreen(
-    onBack: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit = {},
-    onOpenVideoDetail: (VideoTarget) -> Unit = {},
-    onOpenDynamicDetail: (String) -> Unit = {},
-    onOpenLiveDetail: (LiveRoute) -> Unit = {}
+    onBack: () -> Unit
 ) {
     composable(route = IM_MSG_FEED_ROUTE) {
         MsgFeedScreen(
-            onBack = onBack,
-            onOpenSpace = onOpenSpace,
-            onOpenVideoDetail = onOpenVideoDetail,
-            onOpenDynamicDetail = onOpenDynamicDetail,
-            onOpenLiveDetail = onOpenLiveDetail
+            onBack = onBack
         )
     }
 }

@@ -1,8 +1,6 @@
 package com.naaammme.bbspace.feature.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,7 +29,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
@@ -40,17 +37,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.VideoTarget
-import com.naaammme.bbspace.core.model.listen.ListenItem
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import com.naaammme.bbspace.feature.home.article.HomeArticlePage
 import com.naaammme.bbspace.feature.home.interest.InterestDialog
 import com.naaammme.bbspace.feature.home.listen.ListenHomePage
 import com.naaammme.bbspace.feature.home.live.HomeLivePage
 import com.naaammme.bbspace.feature.home.video.HomeVideoPage
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 private val homeTabs = listOf("FM", "推荐", "直播", "专栏")
 private val homeProfileAvatarSize = 38.dp
@@ -63,14 +57,9 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     profileAvatar: String? = null,
-    onOpenVideo: (VideoTarget) -> Unit = {},
-    onOpenSpace: (SpaceRoute) -> Unit = {},
-    onOpenLive: (LiveRoute) -> Unit = {},
-    onOpenDynamic: (String) -> Unit = {},
-    onOpenArticle: (String, Int) -> Unit = { _, _ -> },
-    onOpenListenItem: (Long, Int, Long, String, String, String) -> Unit = { _, _, _, _, _, _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     LaunchedEffect(Unit) {
         viewModel.refreshPageAction()
@@ -110,16 +99,7 @@ fun HomeScreen(
             when (page) {
                 0 -> ListenHomePage(
                     isActive = pagerState.currentPage == page,
-                    onItemClick = { item ->
-                        onOpenListenItem(
-                            item.oid,
-                            item.itemType,
-                            item.subId,
-                            item.title,
-                            item.author,
-                            item.cover
-                        )
-                    }
+                    onItemClick = navigator::openListen
                 )
 
                 1 -> HomeVideoPage(
@@ -131,25 +111,17 @@ fun HomeScreen(
                     dislikedReasons = state.dislikedReasons,
                     onRefresh = viewModel::refresh,
                     onLoadMore = viewModel::loadMore,
-                    onOpenVideo = onOpenVideo,
-                    onOpenSpace = onOpenSpace,
-                    onOpenLive = onOpenLive,
-                    onOpenDynamic = onOpenDynamic,
                     onDislike = viewModel::submitDislike,
                     onCancelDislike = viewModel::cancelDislike,
                     onToastShown = viewModel::consumeToast
                 )
 
                 2 -> HomeLivePage(
-                    isActive = pagerState.currentPage == page,
-                    onOpenLive = onOpenLive,
-                    onOpenSpace = onOpenSpace
+                    isActive = pagerState.currentPage == page
                 )
 
                 else -> HomeArticlePage(
-                    isActive = pagerState.currentPage == page,
-                    onOpenArticle = onOpenArticle,
-                    onOpenSpace = onOpenSpace
+                    isActive = pagerState.currentPage == page
                 )
             }
         }

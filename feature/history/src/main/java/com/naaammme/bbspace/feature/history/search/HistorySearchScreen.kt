@@ -19,8 +19,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -38,7 +38,8 @@ import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleField
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
-import com.naaammme.bbspace.core.model.HistoryTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
+import com.naaammme.bbspace.core.navigation.open
 import com.naaammme.bbspace.feature.history.component.HistoryItemCard
 import com.naaammme.bbspace.feature.history.component.HistoryListLoading
 import com.naaammme.bbspace.feature.history.component.LOAD_MORE_SKELETON_COUNT
@@ -48,9 +49,9 @@ import com.naaammme.bbspace.feature.history.component.LoadMoreTrigger
 @Composable
 fun HistorySearchScreen(
     onBack: () -> Unit,
-    onOpenHistoryTarget: (HistoryTarget?) -> Unit,
     viewModel: HistorySearchViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
@@ -183,7 +184,7 @@ fun HistorySearchScreen(
                         ) { item ->
                             HistoryItemCard(
                                 item = item,
-                                onClick = { onOpenHistoryTarget(item.target) }
+                                onClick = { item.target?.let(navigator::open) }
                             )
                         }
 

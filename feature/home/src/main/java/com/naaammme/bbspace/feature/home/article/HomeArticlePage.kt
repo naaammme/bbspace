@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,14 +31,14 @@ import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.article.ArticleRecommendItem
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 
 @Composable
 fun HomeArticlePage(
     isActive: Boolean,
-    onOpenArticle: (String, Int) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
     viewModel: HomeArticleViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
 
     LaunchedEffect(isActive) {
@@ -70,8 +69,8 @@ fun HomeArticlePage(
     ) { item ->
         ArticleRecommendCard(
             item = item,
-            onClick = { onOpenArticle(item.id.toString(), 1) },
-            onOpenSpace = onOpenSpace
+            onClick = { navigator.openDynamic(item.id.toString(), 1) },
+            onOpenSpace = navigator::openSpace
         )
     }
 }

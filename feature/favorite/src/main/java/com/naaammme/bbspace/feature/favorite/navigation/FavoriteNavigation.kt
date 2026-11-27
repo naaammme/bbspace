@@ -4,7 +4,6 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.naaammme.bbspace.core.model.FavoriteContentTarget
 import com.naaammme.bbspace.feature.favorite.FavoriteScreen
 import com.naaammme.bbspace.feature.favorite.folderdetail.FavoriteFolderDetailScreen
 
@@ -22,13 +21,11 @@ fun NavController.navigateToFavoriteFolder(fid: Long) {
 
 fun NavGraphBuilder.favoriteScreen(
     onBack: () -> Unit,
-    onOpenContent: (FavoriteContentTarget) -> Unit,
     onOpenFolder: (Long) -> Unit
 ) {
     composable(FAVORITE_ROUTE) {
         FavoriteScreen(
             onBack = onBack,
-            onOpenContent = onOpenContent,
             onOpenFolder = onOpenFolder
         )
     }
@@ -40,8 +37,7 @@ fun NavGraphBuilder.favoriteScreen(
     ) { entry ->
         FavoriteFolderDetailScreen(
             onBack = onBack,
-            fid = entry.arguments?.getLong(FAVORITE_FOLDER_FID_ARG) ?: 0L,
-            onOpenContent = onOpenContent
+            fid = entry.arguments?.getLong(FAVORITE_FOLDER_FID_ARG) ?: 0L
         )
     }
 }

@@ -25,7 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -44,8 +43,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.BiliPullToRefreshBox
+import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.model.RelationUser
 import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -53,9 +54,9 @@ import kotlinx.coroutines.flow.filter
 @Composable
 fun RelationScreen(
     onBack: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
     viewModel: RelationViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val followingsListState = rememberLazyListState()
     val fansListState = rememberLazyListState()
@@ -78,9 +79,9 @@ fun RelationScreen(
             .collect { viewModel.loadMore() }
     }
 
-    val onUserClick = remember(onOpenSpace) {
+    val onUserClick = remember(navigator) {
         { user: RelationUser ->
-            onOpenSpace(SpaceRoute(mid = user.mid, name = user.uname))
+            navigator.openSpace(SpaceRoute(mid = user.mid, name = user.uname))
         }
     }
 

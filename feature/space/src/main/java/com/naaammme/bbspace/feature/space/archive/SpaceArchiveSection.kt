@@ -25,9 +25,8 @@ import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.rememberHighlightedTitle
-import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceVideo
-import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import com.naaammme.bbspace.feature.space.SpaceArchiveUiState
 import com.naaammme.bbspace.feature.space.SpaceDynamicUiState
 import com.naaammme.bbspace.feature.space.SpaceSection
@@ -39,11 +38,8 @@ internal fun LazyListScope.spaceArchiveSection(
     videoCount: Int,
     dynamics: SpaceDynamicUiState,
     section: SpaceSection,
-    onOpenVideo: (VideoTarget) -> Unit,
     onSelectOrder: (String) -> Unit,
     onSelectSection: (SpaceSection) -> Unit,
-    onOpenDynamic: (String) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit
 ) {
@@ -65,15 +61,11 @@ internal fun LazyListScope.spaceArchiveSection(
         SpaceSection.VIDEO -> videoSection(
             state = state,
             videoCount = videoCount,
-            onOpenVideo = onOpenVideo,
             onSelectOrder = onSelectOrder,
             onRetryLoadMore = onLoadMore
         )
         SpaceSection.DYNAMIC -> spaceDynamicSection(
             state = dynamics,
-            onOpenDynamic = onOpenDynamic,
-            onOpenLive = onOpenLive,
-            onOpenVideo = onOpenVideo,
             onRetry = onRefresh,
             onLoadMore = onLoadMore
         )
@@ -83,7 +75,6 @@ internal fun LazyListScope.spaceArchiveSection(
 private fun LazyListScope.videoSection(
     state: SpaceArchiveUiState,
     videoCount: Int,
-    onOpenVideo: (VideoTarget) -> Unit,
     onSelectOrder: (String) -> Unit,
     onRetryLoadMore: () -> Unit
 ) {
@@ -133,8 +124,7 @@ private fun LazyListScope.videoSection(
         }
         else -> {
             spaceVideoItems(
-                videos = state.videos,
-                onOpenVideo = onOpenVideo
+                videos = state.videos
             )
         }
     }
@@ -159,17 +149,17 @@ private fun LazyListScope.videoSection(
 }
 
 internal fun LazyListScope.spaceVideoItems(
-    videos: List<SpaceVideo>,
-    onOpenVideo: (VideoTarget) -> Unit
+    videos: List<SpaceVideo>
 ) {
     items(
         items = videos,
         key = { "${it.aid}_${it.cid}" },
         contentType = { "video" }
     ) { video ->
+        val navigator = LocalContentNavigator.current
         SpaceVideoCard(
             video = video,
-            onClick = { onOpenVideo(video.target) }
+            onClick = { navigator.openVideo(video.target) }
         )
     }
 }

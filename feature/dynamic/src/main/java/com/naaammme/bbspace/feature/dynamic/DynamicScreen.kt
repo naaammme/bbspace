@@ -22,18 +22,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.BiliPullToRefreshBox
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.dynamic.feed.DynamicFeed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DynamicScreen(
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenDynamic: (String) -> Unit,
     viewModel: DynamicViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -116,10 +109,6 @@ fun DynamicScreen(
                         loadMoreError = state.loadMoreError,
                         onRetryRefresh = viewModel::refresh,
                         onRetryLoadMore = viewModel::loadMore,
-                        onOpenVideo = onOpenVideo,
-                        onOpenSpace = onOpenSpace,
-                        onOpenLive = onOpenLive,
-                        onOpenDynamic = onOpenDynamic,
                         modifier = Modifier.fillMaxSize()
                     )
                 }

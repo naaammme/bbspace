@@ -44,20 +44,18 @@ import com.naaammme.bbspace.core.common.UserAgentBuilder
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.LiveRouteTool
 import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.SpaceRouteTool
 import com.naaammme.bbspace.core.model.WebLinkParser
 import com.naaammme.bbspace.core.model.WebLinkTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebViewScreen(
     url: String,
     onBack: () -> Unit,
-    onOpenVideo: (WebLinkTarget.ToVideo) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
     onOpenExternal: (String) -> Unit
 ) {
+    val navigator = LocalContentNavigator.current
     val context = LocalContext.current
     var title by remember { mutableStateOf("") }
     var progress by remember { mutableIntStateOf(0) }
@@ -66,9 +64,7 @@ fun WebViewScreen(
     var showMenu by remember { mutableStateOf(false) }
     val currentUrl by rememberUpdatedState(url)
     val currentOnBack by rememberUpdatedState(onBack)
-    val currentOnOpenVideo by rememberUpdatedState(onOpenVideo)
-    val currentOnOpenSpace by rememberUpdatedState(onOpenSpace)
-    val currentOnOpenLive by rememberUpdatedState(onOpenLive)
+    val currentNavigator by rememberUpdatedState(navigator)
     val currentOnOpenExternal by rememberUpdatedState(onOpenExternal)
 
     val webView = remember(context) {
@@ -109,19 +105,19 @@ fun WebViewScreen(
             return when (val target = WebLinkParser.parse(requestUrl)) {
                 is WebLinkTarget.Stay -> false
                 is WebLinkTarget.ToVideo -> {
-                    currentOnOpenVideo(target)
+                    currentNavigator.openVideo(target.target)
                     true
                 }
 
                 is WebLinkTarget.ToSpace -> {
-                    currentOnOpenSpace(
+                    currentNavigator.openSpace(
                         SpaceRoute(mid = target.mid)
                     )
                     true
                 }
 
                 is WebLinkTarget.ToLive -> {
-                    currentOnOpenLive(
+                    currentNavigator.openLive(
                         LiveRoute(
                             roomId = target.roomId,
                             jumpFrom = LiveRouteTool.JUMP_FROM_UNKNOWN

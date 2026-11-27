@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,14 +36,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.BiliAsyncImage
 import com.naaammme.bbspace.core.designsystem.component.BiliImageVariant
@@ -52,6 +52,7 @@ import com.naaammme.bbspace.core.model.ImMsgType
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoTargetTool
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -60,10 +61,9 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ImConversationScreen(
     onBack: () -> Unit,
-    onOpenSpace: ((SpaceRoute) -> Unit)? = null,
-    onOpenVideo: ((VideoTarget) -> Unit)? = null,
     vm: ImConversationViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val state by vm.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val messageItems = remember(state.messages) { state.messages.toConversationMessageItems() }
@@ -156,8 +156,8 @@ fun ImConversationScreen(
                                 item = item,
                                 avatar = state.avatar,
                                 title = state.title,
-                                onOpenSpace = onOpenSpace,
-                                onOpenVideo = onOpenVideo
+                                onOpenSpace = navigator::openSpace,
+                                onOpenVideo = navigator::openVideo
                             )
                         }
                     }
@@ -172,8 +172,8 @@ private fun ImMessageBubble(
     item: ConversationMessageItem,
     avatar: String?,
     title: String?,
-    onOpenSpace: ((SpaceRoute) -> Unit)?,
-    onOpenVideo: ((VideoTarget) -> Unit)?
+    onOpenSpace: (SpaceRoute) -> Unit,
+    onOpenVideo: (VideoTarget) -> Unit
 ) {
     val message = item.message
     if (message.msgType == ImMsgType.SYSTEM_NOTICE) {
@@ -200,7 +200,7 @@ private fun ImMessageBubble(
                     modifier = Modifier
                         .size(32.dp)
                         .then(
-                            if (item.showAvatar && onOpenSpace != null && message.senderUid > 0L) {
+                            if (item.showAvatar && message.senderUid > 0L) {
                                 Modifier.clickable { onOpenSpace(SpaceRoute(mid = message.senderUid)) }
                             } else Modifier
                         )
@@ -223,7 +223,7 @@ private fun ImMessageBubble(
 @Composable
 private fun MessageContent(
     item: ConversationMessageItem,
-    onOpenVideo: ((VideoTarget) -> Unit)?
+    onOpenVideo: (VideoTarget) -> Unit
 ) {
     val message = item.message
     Column(
@@ -309,14 +309,14 @@ private fun MessageContent(
             }
 
             !message.shareCoverUrl.isNullOrBlank() -> {
-                val clickable = onOpenVideo != null && message.shareAid > 0L
+                val clickable = message.shareAid > 0L
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .widthIn(max = 220.dp)
                         .then(if (clickable) Modifier.clickable {
-                            onOpenVideo!!(
+                            onOpenVideo(
                                 VideoTarget.Ugc(
                                     aid = message.shareAid,
                                     cid = 0L,
@@ -555,4 +555,3 @@ private const val CONTENT_TYPE_NOTICE = "notice"
 private const val CONTENT_TYPE_SHARE = "share"
 private const val CONTENT_TYPE_TEXT = "text"
 private const val CONTENT_TYPE_IMAGE = "image"
-

@@ -1,9 +1,9 @@
 package com.naaammme.bbspace.feature.bbspace
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,14 +38,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
+import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_LIVE_DANMAKU
 import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_VIDEO_DANMAKU
-import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PublishedRecord
-import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoTarget
-import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoTargetTool
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import com.naaammme.bbspace.feature.bbspace.commentsearch.CommentSearchPane
 import com.naaammme.bbspace.feature.bbspace.playback.PlaybackHistoryPane
 import com.naaammme.bbspace.feature.bbspace.playback.PlaybackHistoryViewModel
@@ -60,12 +58,9 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BbSpaceScreen(
-    onBack: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit = {},
-    onOpenVideoDetail: (VideoTarget) -> Unit = {},
-    onOpenDynamicDetail: (String) -> Unit = {},
-    onOpenLiveDetail: (LiveRoute) -> Unit = {}
+    onBack: () -> Unit
 ) {
+    val navigator = LocalContentNavigator.current
     val playbackHistoryVm: PlaybackHistoryViewModel = hiltViewModel()
     val playbackHistoryState by playbackHistoryVm.uiState.collectAsStateWithLifecycle()
     val publishedRecordVm: PublishedRecordViewModel = hiltViewModel()
@@ -90,12 +85,12 @@ fun BbSpaceScreen(
             pushPage(BbSpacePage.COMMENT_DETAIL)
         }
     }
-    val openPublishedRecordTarget: (PublishedRecord) -> Unit = remember(onOpenVideoDetail, onOpenLiveDetail) {
+    val openPublishedRecordTarget: (PublishedRecord) -> Unit = remember(navigator) {
         { record ->
             record.targetId.takeIf { it > 0L }?.let { targetId ->
                 when (record.kind) {
                     PUBLISHED_RECORD_KIND_VIDEO_DANMAKU -> {
-                        onOpenVideoDetail(
+                        navigator.openVideo(
                             VideoTarget.Ugc(
                                 aid = targetId,
                                 cid = 0L,
@@ -104,7 +99,7 @@ fun BbSpaceScreen(
                         )
                     }
                     PUBLISHED_RECORD_KIND_LIVE_DANMAKU -> {
-                        onOpenLiveDetail(LiveRoute(roomId = targetId))
+                        navigator.openLive(LiveRoute(roomId = targetId))
                     }
                 }
             }
@@ -237,10 +232,6 @@ fun BbSpaceScreen(
                     CommentPanel(
                         subject = null,
                         detailRecord = selectedCommentRecord,
-                        onOpenSpace = onOpenSpace,
-                        onOpenVideoDetail = onOpenVideoDetail,
-                        onOpenDynamicDetail = onOpenDynamicDetail,
-                        onOpenLiveDetail = onOpenLiveDetail,
                         onDismissDetail = handleBack,
                     )
                 }

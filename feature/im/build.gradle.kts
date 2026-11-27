@@ -26,6 +26,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:navigation"))
     implementation(project(":feature:comment"))
     implementation(project(":core:auth"))
     implementation(project(":core:im"))

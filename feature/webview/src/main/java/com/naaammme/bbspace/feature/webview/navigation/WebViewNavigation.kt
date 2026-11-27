@@ -6,10 +6,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.WebLinkTarget
-import com.naaammme.bbspace.feature.webview.WebViewRoute
 import com.naaammme.bbspace.feature.webview.WebViewScreen
 
 const val WEBVIEW_ROUTE = "webview"
@@ -22,9 +18,6 @@ fun NavController.navigateToWebView(url: String) {
 
 fun NavGraphBuilder.webViewScreen(
     onBack: () -> Unit,
-    onOpenVideo: (WebLinkTarget.ToVideo) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
     onOpenExternal: (String) -> Unit
 ) {
     composable(
@@ -37,9 +30,6 @@ fun NavGraphBuilder.webViewScreen(
         WebViewScreen(
             url = url,
             onBack = onBack,
-            onOpenVideo = onOpenVideo,
-            onOpenSpace = onOpenSpace,
-            onOpenLive = onOpenLive,
             onOpenExternal = onOpenExternal
         )
     }

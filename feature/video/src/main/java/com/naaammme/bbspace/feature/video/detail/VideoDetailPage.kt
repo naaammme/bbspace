@@ -4,23 +4,22 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -37,9 +36,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,13 +65,15 @@ import com.naaammme.bbspace.core.model.VideoDetail
 import com.naaammme.bbspace.core.model.VideoOwner
 import com.naaammme.bbspace.core.model.VideoPagePart
 import com.naaammme.bbspace.core.model.VideoRelate
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoSeason
 import com.naaammme.bbspace.core.model.VideoSeasonEpisode
 import com.naaammme.bbspace.core.model.VideoStat
+import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import com.naaammme.bbspace.feature.comment.CommentPanel
 import com.naaammme.bbspace.feature.video.formatDuration
 import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun VideoDetailPage(
@@ -83,12 +84,11 @@ internal fun VideoDetailPage(
     detailError: String?,
     commentSubject: CommentSubject?,
     contentHorizontalPad: Dp,
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
     onDownloadClick: () -> Unit,
     onOpenEpisode: (VideoTarget) -> Unit,
     onSwitchPage: (Long) -> Unit
 ) {
+    val navigator = LocalContentNavigator.current
     val aidKey = ids.aid.takeIf { it > 0L }
     val curCid = ids.cid.takeIf { it > 0L }
     var descOn by rememberSaveable(aidKey) { mutableStateOf(false) }
@@ -144,8 +144,8 @@ internal fun VideoDetailPage(
                         pagerState.animateScrollToPage(1)
                     }
                 },
-                onOpenVideo = onOpenVideo,
-                onOpenSpace = onOpenSpace,
+                onOpenVideo = navigator::openVideo,
+                onOpenSpace = navigator::openSpace,
                 onDownloadClick = onDownloadClick
             )
 
@@ -153,7 +153,6 @@ internal fun VideoDetailPage(
                 CommentPanel(
                     subject = commentSubject,
                     isActive = pagerState.currentPage == page,
-                    onOpenSpace = onOpenSpace,
                     modifier = Modifier.fillMaxSize(),
                     listState = commentListState,
                     threadListState = commentThreadListState,

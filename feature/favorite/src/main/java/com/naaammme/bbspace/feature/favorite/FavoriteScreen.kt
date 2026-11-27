@@ -26,7 +26,6 @@ import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.FilledTabRow
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
-import com.naaammme.bbspace.core.model.FavoriteContentTarget
 import com.naaammme.bbspace.feature.favorite.folder.FavoriteFolderList
 import com.naaammme.bbspace.feature.favorite.item.FavoriteContentList
 
@@ -34,7 +33,6 @@ import com.naaammme.bbspace.feature.favorite.item.FavoriteContentList
 @Composable
 fun FavoriteScreen(
     onBack: () -> Unit,
-    onOpenContent: (FavoriteContentTarget) -> Unit,
     onOpenFolder: (Long) -> Unit,
     viewModel: FavoriteViewModel = hiltViewModel()
 ) {
@@ -79,7 +77,6 @@ fun FavoriteScreen(
                     state = state,
                     contentListState = contentListState,
                     folderListState = folderListState,
-                    onOpenContent = onOpenContent,
                     onOpenFolder = onOpenFolder,
                     onRetry = viewModel::refresh,
                     onLoadMore = viewModel::loadMore
@@ -94,7 +91,6 @@ private fun FavoriteBody(
     state: FavoriteUiState,
     contentListState: LazyListState,
     folderListState: LazyListState,
-    onOpenContent: (FavoriteContentTarget) -> Unit,
     onOpenFolder: (Long) -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit
@@ -144,7 +140,6 @@ private fun FavoriteBody(
                 canLoadMore = content.canLoadMore,
                 onLoadMore = onLoadMore,
                 onRetry = if (content.errorOnLoadMore) onLoadMore else onRetry,
-                onOpenContent = onOpenContent,
                 listState = contentListState
             )
         }

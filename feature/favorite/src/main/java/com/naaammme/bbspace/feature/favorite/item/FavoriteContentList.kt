@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +32,8 @@ import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
 import com.naaammme.bbspace.core.model.FavoriteContentItem
 import com.naaammme.bbspace.core.model.FavoriteContentTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
+import com.naaammme.bbspace.core.navigation.open
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -44,10 +46,10 @@ fun FavoriteContentList(
     canLoadMore: Boolean,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
-    onOpenContent: (FavoriteContentTarget) -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier
 ) {
+    val navigator = LocalContentNavigator.current
     val shouldLoadMore by rememberUpdatedState(canLoadMore)
     val hasLoadMoreError by rememberUpdatedState(errorOnLoadMore)
 
@@ -82,7 +84,7 @@ fun FavoriteContentList(
         ) { item ->
             FavoriteContentCard(
                 item = item,
-                onOpenContent = onOpenContent
+                onOpenContent = navigator::open
             )
         }
 

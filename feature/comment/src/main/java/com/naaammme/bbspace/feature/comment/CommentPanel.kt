@@ -12,9 +12,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -32,51 +32,42 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.designsystem.component.CommentCardSkeleton
 import com.naaammme.bbspace.core.designsystem.component.CommentHeaderSkeleton
-import com.naaammme.bbspace.core.designsystem.component.PreviewImage
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
-import com.naaammme.bbspace.core.model.PublishedRecord
-import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.CommentSort
 import com.naaammme.bbspace.core.model.CommentSubject
+import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.CommentUser
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_COMMENT
 import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_LIVE_DANMAKU
 import com.naaammme.bbspace.core.model.PUBLISHED_RECORD_KIND_VIDEO_DANMAKU
+import com.naaammme.bbspace.core.model.PublishedRecord
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoTarget
-import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoTargetTool
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import com.naaammme.bbspace.feature.comment.component.CommentCard
 import com.naaammme.bbspace.feature.comment.component.CommentReplyAction
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorFab
 import com.naaammme.bbspace.feature.comment.editor.CommentEditorSheet
 import com.naaammme.bbspace.feature.comment.thread.CommentThreadPane
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
-val LocalCommentWebOpener = compositionLocalOf<((String) -> Unit)?> { null }
 
 @Composable
 fun CommentPanel(
@@ -84,10 +75,6 @@ fun CommentPanel(
     modifier: Modifier = Modifier,
     isActive: Boolean = true,
     detailRecord: PublishedRecord? = null,
-    onOpenSpace: (SpaceRoute) -> Unit = {},
-    onOpenVideoDetail: (VideoTarget) -> Unit = {},
-    onOpenDynamicDetail: (String) -> Unit = {},
-    onOpenLiveDetail: (LiveRoute) -> Unit = {},
     onDismissDetail: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     threadListState: LazyListState = rememberLazyListState(),
@@ -95,6 +82,7 @@ fun CommentPanel(
     header: (@Composable () -> Unit)? = null,
     viewModel: CommentViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     LaunchedEffect(isActive, subject, detailRecord?.key) {
         if (isActive) {
             if (detailRecord != null) {
@@ -110,9 +98,6 @@ fun CommentPanel(
     val replyThread = uiState.threadPane
     val isInitLoading = !isDetailMode && subject != null && uiState.loading && uiState.items.isEmpty()
     val context = LocalContext.current
-    val openWeb = LocalCommentWebOpener.current
-    val appCtx = context.applicationContext
-    val scope = rememberCoroutineScope()
     val listContentPadding = PaddingValues(
         start = contentPadding.calculateStartPadding(layoutDirection),
         top = contentPadding.calculateTopPadding(),
@@ -174,13 +159,10 @@ fun CommentPanel(
 
     val routeSubject = uiState.subject ?: subject
     val onReplyAction: (CommentReplyAction) -> Unit = remember(
+        viewModel,
         routeSubject,
-        detailRecord?.key,
-        onOpenSpace,
-        openWeb,
-        onOpenLiveDetail,
-        onOpenVideoDetail,
-        onOpenDynamicDetail
+        detailRecord,
+        navigator
     ) {
         { action ->
             when (action) {
@@ -190,10 +172,10 @@ fun CommentPanel(
                 is CommentReplyAction.Reply -> viewModel.replyTo(action.reply)
                 is CommentReplyAction.OpenReplies -> viewModel.openReplyThread(action.reply)
                 is CommentReplyAction.OpenUser -> {
-                    action.user.toSpaceRoute(routeSubject)?.let(onOpenSpace)
+                    action.user.toSpaceRoute(routeSubject)?.let(navigator::openSpace)
                 }
                 is CommentReplyAction.OpenWeb -> {
-                    openWeb?.invoke(action.url)
+                    navigator.openWeb(action.url)
                 }
                 is CommentReplyAction.OpenOriginalContent -> {
                     val oid = detailRecord?.targetId ?: routeSubject?.oid ?: 0L
@@ -202,11 +184,11 @@ fun CommentPanel(
                     if (oid > 0L) {
                         when {
                             kind == PUBLISHED_RECORD_KIND_LIVE_DANMAKU -> {
-                                onOpenLiveDetail(LiveRoute(roomId = oid))
+                                navigator.openLive(LiveRoute(roomId = oid))
                             }
                             kind == PUBLISHED_RECORD_KIND_VIDEO_DANMAKU ||
                             (kind == PUBLISHED_RECORD_KIND_COMMENT || kind == null) && type == CommentSubjectTool.TYPE_VIDEO -> {
-                                onOpenVideoDetail(
+                                navigator.openVideo(
                                     VideoTarget.Ugc(
                                         aid = oid,
                                         cid = 0L,
@@ -214,7 +196,7 @@ fun CommentPanel(
                                     )
                                 )
                             }
-                            else -> onOpenDynamicDetail(oid.toString())
+                            else -> navigator.openDynamic(oid.toString())
                         }
                     }
                 }

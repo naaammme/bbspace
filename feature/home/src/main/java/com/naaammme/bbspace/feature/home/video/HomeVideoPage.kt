@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,11 +42,11 @@ import com.naaammme.bbspace.core.designsystem.component.AdaptiveMediaGrid
 import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.FeedItem
-import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.ThreePointItem
 import com.naaammme.bbspace.core.model.ThreePointReason
 import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,14 +59,11 @@ fun HomeVideoPage(
     dislikedReasons: Map<String, String>,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenDynamic: (String) -> Unit,
     onDislike: (FeedItem, ThreePointReason) -> Unit,
     onCancelDislike: (FeedItem) -> Unit,
     onToastShown: () -> Unit
 ) {
+    val navigator = LocalContentNavigator.current
     val context = LocalContext.current
     val gridState = rememberLazyStaggeredGridState()
     var wasRefreshing by remember { mutableStateOf(false) }
@@ -100,16 +96,16 @@ fun HomeVideoPage(
     ) { item ->
         FeedCard(
             item = item,
-            onOpenSpace = onOpenSpace,
+            onOpenSpace = navigator::openSpace,
             dislikedReason = dislikedReasons[item.actionKey()],
             onDislike = onDislike,
             onCancelDislike = onCancelDislike,
             onClick = {
                 if (item.cardGoto == "dynamic") {
-                    onOpenDynamic(item.param)
+                    navigator.openDynamic(item.param)
                 } else {
-                    item.liveRoute?.let(onOpenLive)
-                        ?: item.target?.let(onOpenVideo)
+                    item.liveRoute?.let(navigator::openLive)
+                        ?: item.target?.let(navigator::openVideo)
                 }
             }
         )

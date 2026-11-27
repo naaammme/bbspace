@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.naaammme.bbspace.core.designsystem.component.SearchCapsuleField
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.archive.spaceVideoItems
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -43,7 +42,6 @@ import kotlinx.coroutines.flow.filter
 @Composable
 fun SpaceSearchScreen(
     onBack: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
     viewModel: SpaceSearchViewModel = hiltViewModel()
 ) {
     val listState = rememberLazyListState()
@@ -123,8 +121,7 @@ fun SpaceSearchScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             spaceVideoItems(
-                videos = viewModel.videos,
-                onOpenVideo = onOpenVideo
+                videos = viewModel.videos
             )
             if (viewModel.isLoading) {
                 item(key = "loading", contentType = "loading") {

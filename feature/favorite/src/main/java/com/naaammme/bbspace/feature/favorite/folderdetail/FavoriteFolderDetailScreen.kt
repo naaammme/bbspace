@@ -18,7 +18,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.BiliPullToRefreshBox
 import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
-import com.naaammme.bbspace.core.model.FavoriteContentTarget
 import com.naaammme.bbspace.feature.favorite.FavoriteLoading
 import com.naaammme.bbspace.feature.favorite.item.FavoriteContentList
 
@@ -27,7 +26,6 @@ import com.naaammme.bbspace.feature.favorite.item.FavoriteContentList
 fun FavoriteFolderDetailScreen(
     onBack: () -> Unit,
     fid: Long,
-    onOpenContent: (FavoriteContentTarget) -> Unit,
     viewModel: FavoriteFolderDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -95,7 +93,6 @@ fun FavoriteFolderDetailScreen(
                         canLoadMore = state.canLoadMore,
                         onLoadMore = viewModel::loadMore,
                         onRetry = if (state.errorOnLoadMore) viewModel::loadMore else viewModel::refresh,
-                        onOpenContent = onOpenContent,
                         listState = listState
                     )
                 }

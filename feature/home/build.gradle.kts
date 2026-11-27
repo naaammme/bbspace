@@ -26,6 +26,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:navigation"))
     implementation(project(":core:article"))
     implementation(project(":core:feed"))
     implementation(project(":core:listen"))

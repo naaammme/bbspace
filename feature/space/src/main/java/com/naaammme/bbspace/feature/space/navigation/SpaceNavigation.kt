@@ -6,10 +6,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.SpaceRouteTool
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.space.SpaceScreen
 import com.naaammme.bbspace.feature.space.search.SpaceSearchScreen
 
@@ -41,9 +39,6 @@ fun NavController.navigateToSpaceSearch(mid: Long) {
 
 fun NavGraphBuilder.spaceScreen(
     onBack: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenDynamic: (String) -> Unit = {},
-    onOpenLive: (LiveRoute) -> Unit = {},
     onOpenIm: ((Long, String, String?) -> Unit)? = null,
     onOpenRelation: (Long, Int) -> Unit = { _, _ -> },
     onOpenSearch: (Long) -> Unit = {}
@@ -71,9 +66,6 @@ fun NavGraphBuilder.spaceScreen(
     ) {
         SpaceScreen(
             onBack = onBack,
-            onOpenVideo = onOpenVideo,
-            onOpenDynamic = onOpenDynamic,
-            onOpenLive = onOpenLive,
             onOpenIm = onOpenIm,
             onOpenRelation = onOpenRelation,
             onOpenSearch = onOpenSearch
@@ -82,8 +74,7 @@ fun NavGraphBuilder.spaceScreen(
 }
 
 fun NavGraphBuilder.spaceSearchScreen(
-    onBack: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit
+    onBack: () -> Unit
 ) {
     composable(
         route = "space_search/{$SPACE_MID_ARG}",
@@ -95,8 +86,7 @@ fun NavGraphBuilder.spaceSearchScreen(
         )
     ) {
         SpaceSearchScreen(
-            onBack = onBack,
-            onOpenVideo = onOpenVideo
+            onBack = onBack
         )
     }
 }
@@ -106,8 +96,7 @@ fun NavController.navigateToSpaceRelation(vmid: Long, initialTab: Int) {
 }
 
 fun NavGraphBuilder.spaceRelationScreen(
-    onBack: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit
+    onBack: () -> Unit
 ) {
     composable(
         route = "space_relation/{vmid}?initialTab={initialTab}",
@@ -123,8 +112,7 @@ fun NavGraphBuilder.spaceRelationScreen(
         )
     ) {
         com.naaammme.bbspace.feature.space.relation.RelationScreen(
-            onBack = onBack,
-            onOpenSpace = onOpenSpace
+            onBack = onBack
         )
     }
 }

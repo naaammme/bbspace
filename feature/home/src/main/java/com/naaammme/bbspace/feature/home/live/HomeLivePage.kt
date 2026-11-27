@@ -3,7 +3,6 @@ package com.naaammme.bbspace.feature.home.live
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,17 +30,16 @@ import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.designsystem.component.UpListRow
 import com.naaammme.bbspace.core.designsystem.component.VideoGridCardSkeleton
 import com.naaammme.bbspace.core.model.LiveRecommendItem
-import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeLivePage(
     isActive: Boolean,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
     viewModel: HomeLiveViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
 
     LaunchedEffect(isActive) {
@@ -70,7 +67,7 @@ fun HomeLivePage(
                     name = { it.name },
                     face = { it.face },
                     onClick = { item ->
-                        onOpenLive(item.route)
+                        navigator.openLive(item.route)
                     }
                 )
             }
@@ -87,8 +84,8 @@ fun HomeLivePage(
     ) { item ->
         LiveRecommendCard(
             item = item,
-            onClick = { onOpenLive(item.route) },
-            onOpenSpace = onOpenSpace
+            onClick = { navigator.openLive(item.route) },
+            onOpenSpace = navigator::openSpace
         )
     }
 }

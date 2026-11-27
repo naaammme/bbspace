@@ -39,20 +39,19 @@ import com.naaammme.bbspace.core.designsystem.component.VideoListCardSkeleton
 import com.naaammme.bbspace.core.model.SearchFilter
 import com.naaammme.bbspace.core.model.SearchTime
 import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.VideoTarget
-import com.naaammme.bbspace.feature.search.result.SearchAuthorCard
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
 import com.naaammme.bbspace.feature.search.filter.SearchFiltersSheet
 import com.naaammme.bbspace.feature.search.history.SearchHistoryPanel
+import com.naaammme.bbspace.feature.search.result.SearchAuthorCard
 import com.naaammme.bbspace.feature.search.result.SearchCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
+    val navigator = LocalContentNavigator.current
     val authors by viewModel.authors.collectAsStateWithLifecycle()
     val videos by viewModel.videos.collectAsStateWithLifecycle()
     val histories by viewModel.histories.collectAsStateWithLifecycle()
@@ -106,7 +105,7 @@ fun SearchScreen(
                 },
                 onOpenSpace = { uid ->
                     keyboard?.hide()
-                    onOpenSpace(SpaceRoute(mid = uid))
+                    navigator.openSpace(SpaceRoute(mid = uid))
                 },
                 scrollBehavior = scrollBehavior
             )
@@ -211,7 +210,7 @@ fun SearchScreen(
                         ) { author ->
                             SearchAuthorCard(
                                 author = author,
-                                onClick = { onOpenSpace(SpaceRoute(mid = author.mid, name = author.name)) }
+                                onClick = { navigator.openSpace(SpaceRoute(mid = author.mid, name = author.name)) }
                             )
                         }
 
@@ -222,7 +221,7 @@ fun SearchScreen(
                         ) { video ->
                             SearchCard(
                                 video = video,
-                                onClick = { onOpenVideo(video.target) }
+                                onClick = { navigator.openVideo(video.target) }
                             )
                         }
 

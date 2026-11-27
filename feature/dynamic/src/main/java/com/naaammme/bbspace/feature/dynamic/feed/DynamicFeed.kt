@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,9 +35,9 @@ import com.naaammme.bbspace.core.model.DynamicBody
 import com.naaammme.bbspace.core.model.DynamicImage
 import com.naaammme.bbspace.core.model.DynamicItem
 import com.naaammme.bbspace.core.model.DynamicUpList
-import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
+import com.naaammme.bbspace.core.navigation.open
 
 @Composable
 fun DynamicFeed(
@@ -49,12 +49,9 @@ fun DynamicFeed(
     loadMoreError: String?,
     onRetryRefresh: () -> Unit,
     onRetryLoadMore: () -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenDynamic: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val navigator = LocalContentNavigator.current
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -73,7 +70,7 @@ fun DynamicFeed(
                     name = { it.name },
                     face = { it.face },
                     onClick = { item ->
-                        onOpenSpace(SpaceRoute(mid = item.uid, name = item.name))
+                        navigator.openSpace(SpaceRoute(mid = item.uid, name = item.name))
                     }
                 )
             }
@@ -84,13 +81,7 @@ fun DynamicFeed(
             key = { it.id },
             contentType = { it.type }
         ) { item ->
-            DynamicCard(
-                item = item,
-                onOpenVideo = onOpenVideo,
-                onOpenSpace = onOpenSpace,
-                onOpenLive = onOpenLive,
-                onOpenDynamic = onOpenDynamic
-            )
+            DynamicCard(item = item)
         }
 
         if (isLoadingMore) {
@@ -140,30 +131,16 @@ fun DynamicFeed(
 }
 
 @Composable
-private fun DynamicCard(
-    item: DynamicItem,
-    onOpenVideo: (VideoTarget) -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenDynamic: (String) -> Unit
-) {
-    val liveRoute = item.liveRoute
-    val videoTarget = item.videoTarget
-    val onClick = {
-        when {
-            liveRoute != null -> onOpenLive(liveRoute)
-            videoTarget != null -> onOpenVideo(videoTarget)
-            else -> onOpenDynamic(item.id)
-        }
-    }
+private fun DynamicCard(item: DynamicItem) {
+    val navigator = LocalContentNavigator.current
     Card(
-        onClick = onClick,
+        onClick = { navigator.open(item) },
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
-        DynamicCardContent(item = item, onOpenSpace = onOpenSpace)
+        DynamicCardContent(item = item, onOpenSpace = navigator::openSpace)
     }
 }
 
@@ -420,4 +397,3 @@ private fun DynamicImage.displayAspectRatio(): Float {
         1f
     }
 }
-

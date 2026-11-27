@@ -4,9 +4,9 @@ import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -21,12 +21,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,24 +48,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.media3.common.util.UnstableApi
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
-import com.naaammme.bbspace.core.model.SpaceRoute
-import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadOption
 import com.naaammme.bbspace.core.model.VideoDownloadOptions
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
+import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.feature.video.detail.VideoDetailPage
 import com.naaammme.bbspace.feature.video.player.VideoPlayerPane
 import java.util.Locale
@@ -69,7 +68,6 @@ internal val speedOps = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 fun VideoScreen(
     onBack: () -> Unit,
     onGoHome: () -> Unit,
-    onOpenSpace: (SpaceRoute) -> Unit,
     onOpenDownloadCache: () -> Unit,
     onStartDownload: (VideoDownloadRequest) -> Unit,
     viewModel: VideoViewModel,
@@ -87,9 +85,6 @@ fun VideoScreen(
     val isPortraitVideo = remember(videoState.currentStream) {
         val stream = videoState.currentStream ?: return@remember false
         (stream.width ?: 0) in 1..<(stream.height ?: 0)
-    }
-    val openTarget = remember(viewModel) {
-        { target: VideoTarget -> viewModel.openTarget(target) }
     }
     val switchPage = remember(viewModel) {
         { cid: Long -> viewModel.switchPage(cid) }
@@ -218,8 +213,6 @@ fun VideoScreen(
                         detailError = videoState.detailError,
                         commentSubject = viewModel.commentSubject,
                         contentHorizontalPad = 0.dp,
-                        onOpenVideo = openTarget,
-                        onOpenSpace = onOpenSpace,
                         onDownloadClick = downloadClick,
                         onOpenEpisode = switchEpisode,
                         onSwitchPage = switchPage
@@ -258,8 +251,6 @@ fun VideoScreen(
                         detailError = videoState.detailError,
                         commentSubject = viewModel.commentSubject,
                         contentHorizontalPad = 16.dp,
-                        onOpenVideo = openTarget,
-                        onOpenSpace = onOpenSpace,
                         onDownloadClick = downloadClick,
                         onOpenEpisode = switchEpisode,
                         onSwitchPage = switchPage
@@ -465,5 +456,3 @@ internal fun getQualityName(
         ?: "画质"
     return label.substringBefore(' ').ifBlank { label }
 }
-
-

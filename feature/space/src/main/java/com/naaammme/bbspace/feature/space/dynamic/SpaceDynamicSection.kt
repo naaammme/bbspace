@@ -24,15 +24,12 @@ import com.naaammme.bbspace.core.designsystem.component.CoverImage
 import com.naaammme.bbspace.core.designsystem.component.StateMessageCard
 import com.naaammme.bbspace.core.model.DynamicBody
 import com.naaammme.bbspace.core.model.DynamicItem
-import com.naaammme.bbspace.core.model.LiveRoute
-import com.naaammme.bbspace.core.model.VideoTarget
+import com.naaammme.bbspace.core.navigation.LocalContentNavigator
+import com.naaammme.bbspace.core.navigation.open
 import com.naaammme.bbspace.feature.space.SpaceDynamicUiState
 
 internal fun LazyListScope.spaceDynamicSection(
     state: SpaceDynamicUiState,
-    onOpenDynamic: (String) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit
 ) {
@@ -60,10 +57,7 @@ internal fun LazyListScope.spaceDynamicSection(
                 contentType = { "dynamic" }
             ) { item ->
                 SpaceDynamicCard(
-                    item = item,
-                    onOpenDynamic = onOpenDynamic,
-                    onOpenLive = onOpenLive,
-                    onOpenVideo = onOpenVideo
+                    item = item
                 )
             }
         }
@@ -90,11 +84,9 @@ internal fun LazyListScope.spaceDynamicSection(
 
 @Composable
 private fun SpaceDynamicCard(
-    item: DynamicItem,
-    onOpenDynamic: (String) -> Unit,
-    onOpenLive: (LiveRoute) -> Unit,
-    onOpenVideo: (VideoTarget) -> Unit
+    item: DynamicItem
 ) {
+    val navigator = LocalContentNavigator.current
     val preview = remember(item) { item.toPreview() }
     val badge = remember(item) {
         when (val body = item.body) {
@@ -104,16 +96,8 @@ private fun SpaceDynamicCard(
             else -> item.badge
         }
     }
-    val liveRoute = item.liveRoute
-    val videoTarget = item.videoTarget
     Card(
-        onClick = {
-            when {
-                liveRoute != null -> onOpenLive(liveRoute)
-                videoTarget != null -> onOpenVideo(videoTarget)
-                else -> onOpenDynamic(item.id)
-            }
-        },
+        onClick = { navigator.open(item) },
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
