@@ -110,6 +110,7 @@ internal fun VideoPlayerPane(
     val player by viewModel.player.collectAsStateWithLifecycle()
     val danmakuConfig by viewModel.danmakuConfig.collectAsStateWithLifecycle()
     val gestureSpeed by viewModel.gestureSpeed.collectAsStateWithLifecycle()
+    val doubleTapSeekSec by viewModel.doubleTapSeekSec.collectAsStateWithLifecycle()
     var activeDialog by remember { mutableStateOf<PlayerDialog?>(null) }
     var showPlaybackSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(false) }
@@ -214,6 +215,7 @@ internal fun VideoPlayerPane(
             state = state,
             player = player,
             gestureSpeed = gestureSpeed,
+            doubleTapSeekSec = doubleTapSeekSec,
             isFull = isFull,
             zoomState = zoomState,
             showCtrl = showCtrl,
@@ -425,6 +427,7 @@ private fun VideoPlayerOverlay(
     state: VideoPlaybackState,
     player: Player?,
     gestureSpeed: Float,
+    doubleTapSeekSec: Int,
     isFull: Boolean,
     zoomState: VideoZoomState?,
     showCtrl: Boolean,
@@ -477,6 +480,7 @@ private fun VideoPlayerOverlay(
                 .videoGestures(
                     state = gestureState,
                     zoomState = zoomState,
+                    doubleTapSeekSec = doubleTapSeekSec,
                     onToggleControls = { onShowCtrlChange(!showCtrl) },
                     onTogglePlay = viewModel::togglePlayPause,
                     onSeekTo = viewModel::seekTo,

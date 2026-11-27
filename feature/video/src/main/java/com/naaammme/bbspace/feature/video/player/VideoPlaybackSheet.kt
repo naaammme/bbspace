@@ -42,6 +42,7 @@ import com.naaammme.bbspace.core.designsystem.component.SettingChoiceCard
 import com.naaammme.bbspace.core.designsystem.component.SettingDialogCard
 import com.naaammme.bbspace.core.designsystem.component.SettingDiscreteSliderCard
 import com.naaammme.bbspace.core.designsystem.component.SettingSectionHeader
+import com.naaammme.bbspace.core.designsystem.component.SettingSliderCard
 import com.naaammme.bbspace.core.designsystem.component.SettingSwitchCard
 import com.naaammme.bbspace.core.designsystem.component.bindSetting
 import com.naaammme.bbspace.core.model.PlaybackError
@@ -57,6 +58,7 @@ import com.naaammme.bbspace.feature.video.getAudioName
 import com.naaammme.bbspace.feature.video.getCodecName
 import com.naaammme.bbspace.feature.video.getQualityName
 import com.naaammme.bbspace.feature.video.speedOps
+import kotlin.math.roundToInt
 
 private enum class PlaybackSheetSection(
     val title: String
@@ -258,6 +260,23 @@ private fun PlaybackSettingsSection(
         onValueSelected = setGestureSpeed,
         minLabel = formatSpeed(speedOps.first()),
         maxLabel = formatSpeed(speedOps.last())
+    )
+
+    val doubleTapSeekSetting = prefs.doubleTapSeekSec
+    val (doubleTapSeekSec, setDoubleTapSeekSec) = doubleTapSeekSetting.flow.bindSetting(
+        doubleTapSeekSetting.current,
+        doubleTapSeekSetting::commit
+    )
+    SettingSliderCard(
+        title = "双击快进/快退",
+        subtitle = "双击屏幕左右两侧时跳转的秒数",
+        value = doubleTapSeekSec.toFloat(),
+        valueRange = 1f..20f,
+        steps = 18,
+        valueLabel = { "${it.roundToInt()}秒" },
+        onValueChangeCommitted = { setDoubleTapSeekSec(it.roundToInt()) },
+        minLabel = "1秒",
+        maxLabel = "20秒"
     )
 
     SettingChoiceCard(

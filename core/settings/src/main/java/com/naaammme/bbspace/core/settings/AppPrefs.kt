@@ -280,6 +280,7 @@ class PlaybackPrefs @Inject constructor(
     val decoderFallback = store.boolean("dec_fallback", true)
     val autoRotateFullscreen = store.boolean("auto_rotate_fullscreen", false)
     val gestureSpeed = store.float("gesture_speed", 2f, range = 0.25f..3f)
+    val doubleTapSeekSec = store.int("double_tap_seek_sec", 20, range = 1..20)
     val videoCdnMode = store.enum("video_cdn_mode", VideoCdnMode.Backup2)
 
     suspend fun readEngineSettings(): EngineSettings = store.read {

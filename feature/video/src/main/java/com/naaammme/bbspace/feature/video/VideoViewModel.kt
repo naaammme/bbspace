@@ -42,6 +42,9 @@ class VideoViewModel @Inject constructor(
     val gestureSpeed: StateFlow<Float> =
         playbackPrefs.gestureSpeed.stateIn(viewModelScope)
 
+    val doubleTapSeekSec: StateFlow<Int> =
+        playbackPrefs.doubleTapSeekSec.stateIn(viewModelScope)
+
     val danmakuConfig: StateFlow<DanmakuConfig> = danmakuPrefs.config
         .stateInWhileSubscribed(viewModelScope, danmakuPrefs.currentConfig())
 

@@ -84,15 +84,15 @@ class VideoGestureState {
 
 enum class DragType { None, Seek, Brightness, Volume }
 
-enum class DoubleTapHint(val text: String) {
-    Play("播放"),
-    Pause("暂停"),
-    Rewind("-10s"),
-    Forward("+10s")
+sealed interface DoubleTapHint {
+    data object Play : DoubleTapHint
+    data object Pause : DoubleTapHint
+    data class Seek(val sec: Int) : DoubleTapHint {
+        val text: String get() = if (sec > 0) "+${sec}s" else "${sec}s"
+    }
 }
 
 private const val SEEK_MAX_MS = 60_000L
-private const val DOUBLE_TAP_SEEK_MS = 10_000L
 private const val DRAG_SENSITIVITY = 0.6f
 private const val SIDE_GESTURE_ZONE = 0.2f
 private const val RIGHT_GESTURE_ZONE_START = 1f - SIDE_GESTURE_ZONE
@@ -104,6 +104,7 @@ private val SpeedBadgeTopPadding = 20.dp
 internal fun Modifier.videoGestures(
     state: VideoGestureState,
     zoomState: VideoZoomState?,
+    doubleTapSeekSec: Int,
     onToggleControls: () -> Unit,
     onTogglePlay: () -> Unit,
     onSeekTo: (Long) -> Unit,
@@ -117,6 +118,7 @@ internal fun Modifier.videoGestures(
     positionMs: () -> Long,
     durationMs: () -> Long
 ): Modifier {
+    val curDoubleTapSeekSec by rememberUpdatedState(doubleTapSeekSec)
     val curToggleControls by rememberUpdatedState(onToggleControls)
     val curTogglePlay by rememberUpdatedState(onTogglePlay)
     val curSeekTo by rememberUpdatedState(onSeekTo)
@@ -214,14 +216,16 @@ internal fun Modifier.videoGestures(
                                 if (secondTap) {
                                     when {
                                         zoneX < SIDE_GESTURE_ZONE -> {
-                                            val target = (curPositionMs() - DOUBLE_TAP_SEEK_MS).coerceAtLeast(0L)
+                                            val seekSec = curDoubleTapSeekSec
+                                            val target = (curPositionMs() - seekSec * 1_000L).coerceAtLeast(0L)
                                             curSeekTo(target)
-                                            state.showDoubleTap(DoubleTapHint.Rewind)
+                                            state.showDoubleTap(DoubleTapHint.Seek(-seekSec))
                                         }
                                         zoneX > RIGHT_GESTURE_ZONE_START -> {
-                                            val target = (curPositionMs() + DOUBLE_TAP_SEEK_MS).coerceAtMost(curDurationMs())
+                                            val seekSec = curDoubleTapSeekSec
+                                            val target = (curPositionMs() + seekSec * 1_000L).coerceAtMost(curDurationMs())
                                             curSeekTo(target)
-                                            state.showDoubleTap(DoubleTapHint.Forward)
+                                            state.showDoubleTap(DoubleTapHint.Seek(seekSec))
                                         }
                                         else -> {
                                             curTogglePlay()
@@ -380,33 +384,36 @@ fun VideoGestureFeedback(
                 state.doubleTapHint = null
             }
             if (visible) {
-                if (hint == DoubleTapHint.Play || hint == DoubleTapHint.Pause) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.4f))
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (hint == DoubleTapHint.Pause) AppIcons.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (hint == DoubleTapHint.Pause) "暂停" else "播放",
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                when (hint) {
+                    DoubleTapHint.Play, DoubleTapHint.Pause -> {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.4f))
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (hint == DoubleTapHint.Pause) AppIcons.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (hint == DoubleTapHint.Pause) "暂停" else "播放",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                    is DoubleTapHint.Seek -> {
+                        Text(
+                            text = hint.text,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.4f))
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
                         )
                     }
-                } else {
-                    Text(
-                        text = hint.text,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.4f))
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    )
                 }
             }
         }
