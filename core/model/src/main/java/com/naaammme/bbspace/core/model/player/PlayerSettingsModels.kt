@@ -34,9 +34,14 @@ enum class PlayerBufferProfile(
 }
 
 @Immutable
-data class PlayerBufferSettings(
-    val profile: PlayerBufferProfile = PlayerBufferProfile.FastStart
-)
+enum class VideoCodec(
+    val codecId: Int,
+    val label: String
+) {
+    AVC(codecId = 7, label = "AVC/H.264"),
+    HEVC(codecId = 12, label = "HEVC/H.265"),
+    AV1(codecId = 13, label = "AV1")
+}
 
 @Immutable
 enum class VideoCdnMode(
@@ -92,22 +97,3 @@ enum class VideoCdnMode(
             HkBcache -> "cn-hk-eq-bcache-01.bilivideo.com"
         }
 }
-
-@Immutable
-data class PlayerPlaybackPrefs(
-    val backgroundPlayback: Boolean = true,
-    val inAppMiniPlayer: Boolean = true,
-    val reportPlayback: Boolean = true,
-    val preferSoftwareDecode: Boolean = false,
-    val decoderFallback: Boolean = true,
-    val autoRotateFullscreen: Boolean = false,
-    val gestureSpeed: Float = 2f,
-    val videoCdnMode: VideoCdnMode = VideoCdnMode.Backup2
-)
-
-@Immutable
-data class PlayerSettingsState(
-    val buffer: PlayerBufferSettings = PlayerBufferSettings(),
-    val playback: PlayerPlaybackPrefs = PlayerPlaybackPrefs(),
-    val danmaku: DanmakuConfig = DanmakuConfig()
-)

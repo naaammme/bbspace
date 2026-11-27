@@ -2,19 +2,17 @@ package com.naaammme.bbspace.feature.settings.about
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.settings.AppSettings
-import com.naaammme.bbspace.core.settings.update.AppUpdateCheckResult
-import com.naaammme.bbspace.core.settings.update.AppUpdateChecker
-import com.naaammme.bbspace.core.settings.update.toDialogState
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
+import com.naaammme.bbspace.core.designsystem.component.toDialogState
+import com.naaammme.bbspace.core.model.AppUpdateCheckResult
+import com.naaammme.bbspace.core.settings.SystemPrefs
+import com.naaammme.bbspace.core.settings.update.AppUpdateChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface UpdateState {
     data object Idle : UpdateState
@@ -26,7 +24,7 @@ sealed interface UpdateState {
 
 @HiltViewModel
 class AboutViewModel @Inject constructor(
-    private val appSettings: AppSettings,
+    systemPrefs: SystemPrefs,
     private val updateChecker: AppUpdateChecker
 ) : ViewModel() {
 
@@ -36,11 +34,7 @@ class AboutViewModel @Inject constructor(
     private val _updateDialog = MutableStateFlow<AppUpdateDialogState?>(null)
     val updateDialog: StateFlow<AppUpdateDialogState?> = _updateDialog.asStateFlow()
 
-    val autoCheckUpdate = appSettings.autoCheckUpdate.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5_000),
-        true
-    )
+    internal val autoCheckUpdate = systemPrefs.autoCheckUpdate
 
     fun checkUpdate() {
         if (_updateState.value == UpdateState.Checking) return
@@ -66,12 +60,6 @@ class AboutViewModel @Inject constructor(
                     _updateDialog.value = it.toDialogState()
                 }
             )
-        }
-    }
-
-    fun updateAutoCheckEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            appSettings.updateAutoCheckEnabled(enabled)
         }
     }
 

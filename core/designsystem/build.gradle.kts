@@ -40,6 +40,7 @@ dependencies {
     api(libs.androidx.window)
 
     implementation(libs.coil.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.google.material)
 
     debugImplementation(libs.androidx.compose.ui.tooling)

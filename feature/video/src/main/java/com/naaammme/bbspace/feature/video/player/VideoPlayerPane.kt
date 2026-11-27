@@ -31,11 +31,8 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,8 +64,8 @@ import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.infra.player.rememberVideoContentFrame
 import com.naaammme.bbspace.infra.player.rememberVideoZoomState
 import com.naaammme.bbspace.infra.player.resetVideoZoomOnSizeChanged
+import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.PlaybackAudio
-import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.VideoPlaybackState
 import com.naaammme.bbspace.feature.video.detail.QualityOptionItem
@@ -94,10 +91,6 @@ private enum class PlayerDialog {
     Speed
 }
 
-internal val LocalVideoResizeModeState = compositionLocalOf<MutableState<PlayerVideoResizeMode>> {
-    error("Missing player video resize mode state")
-}
-
 @Suppress("UnsafeOptInUsageError")
 @UnstableApi
 @Composable
@@ -115,11 +108,12 @@ internal fun VideoPlayerPane(
     val timeFmt = remember { android.text.format.DateFormat.getTimeFormat(context) }
     val state by viewModel.videoState.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
+    val danmakuConfig by viewModel.danmakuConfig.collectAsStateWithLifecycle()
+    val gestureSpeed by viewModel.gestureSpeed.collectAsStateWithLifecycle()
     var activeDialog by remember { mutableStateOf<PlayerDialog?>(null) }
     var showPlaybackSheet by remember { mutableStateOf(false) }
     var showCtrl by remember { mutableStateOf(false) }
-    val videoResizeMode = rememberSaveable { mutableStateOf(PlayerVideoResizeMode.Fit) }
+    var videoResizeMode by rememberSaveable { mutableStateOf(PlayerVideoResizeMode.Fit) }
     val topMetaText = remember(showCtrl, isFull) {
         if (showCtrl && isFull) {
             readPlayerTopMetaText(context, timeFmt)
@@ -127,10 +121,10 @@ internal fun VideoPlayerPane(
             null
         }
     }
-    val danmakuOn = settingsState.danmaku.enabled
+    val danmakuOn = danmakuConfig.enabled
     val danmakuOverlayState = if (danmakuOn) {
         rememberDanmakuOverlayState(
-            initialConfig = settingsState.danmaku,
+            initialConfig = danmakuConfig,
             initialPositionMs = { viewModel.playbackProgress.value.positionMs },
             initialIsPlaying = state.isPlaying,
             initialSpeed = state.speed
@@ -143,11 +137,11 @@ internal fun VideoPlayerPane(
         val height = state.currentStream?.height?.takeIf { it > 0 } ?: return@remember null
         width.toFloat() / height.toFloat()
     }
-    val resizeMode = remember(isFull, videoResizeMode.value) {
+    val resizeMode = remember(isFull, videoResizeMode) {
         if (!isFull) {
             AspectRatioFrameLayout.RESIZE_MODE_FIT
         } else {
-            when (videoResizeMode.value) {
+            when (videoResizeMode) {
                 PlayerVideoResizeMode.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                 PlayerVideoResizeMode.Zoom -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                 PlayerVideoResizeMode.Fill -> AspectRatioFrameLayout.RESIZE_MODE_FILL
@@ -187,217 +181,217 @@ internal fun VideoPlayerPane(
         }
     }
 
-    CompositionLocalProvider(LocalVideoResizeModeState provides videoResizeMode) {
-        Box(
-            modifier = modifier
-                .background(Color.Black)
-        ) {
-            AndroidView(
-                factory = { playerView },
-                update = {
-                    if (videoFrame != null) {
-                        videoFrame.resizeMode = resizeMode
-                        if (lastWarmAspect != videoAspect) {
-                            videoFrame.setAspectRatio(videoAspect ?: 0f)
-                            lastWarmAspect = videoAspect
-                        }
+    Box(
+        modifier = modifier
+            .background(Color.Black)
+    ) {
+        AndroidView(
+            factory = { playerView },
+            update = {
+                if (videoFrame != null) {
+                    videoFrame.resizeMode = resizeMode
+                    if (lastWarmAspect != videoAspect) {
+                        videoFrame.setAspectRatio(videoAspect ?: 0f)
+                        lastWarmAspect = videoAspect
                     }
-                },
-                modifier = Modifier.fillMaxSize().resetVideoZoomOnSizeChanged(zoomState)
-            )
+                }
+            },
+            modifier = Modifier.fillMaxSize().resetVideoZoomOnSizeChanged(zoomState)
+        )
 
-            if (danmakuOverlayState != null) {
-                VideoDanmakuLayer(
-                    viewModel = viewModel,
-                    state = state,
-                    settingsState = settingsState,
-                    danmakuOverlayState = danmakuOverlayState,
-                    playerView = playerView
-                )
-            }
-
-            VideoPlayerOverlay(
+        if (danmakuOverlayState != null) {
+            VideoDanmakuLayer(
                 viewModel = viewModel,
                 state = state,
-                player = player,
-                settingsState = settingsState,
-                isFull = isFull,
-                zoomState = zoomState,
-                showCtrl = showCtrl,
-                activeDialog = activeDialog,
-                showPlaybackSheet = showPlaybackSheet,
-                onShowCtrlChange = { showCtrl = it },
-                onShowA = {
-                    showCtrl = true
-                    activeDialog = PlayerDialog.Audio
-                },
-                onShowQ = {
-                    showCtrl = true
-                    activeDialog = PlayerDialog.Quality
-                },
-                onShowSp = {
-                    showCtrl = true
-                    activeDialog = PlayerDialog.Speed
-                },
-                onToggleFull = {
-                    showCtrl = true
-                    onToggleFull()
-                }
+                danmakuConfig = danmakuConfig,
+                danmakuOverlayState = danmakuOverlayState,
+                playerView = playerView
             )
+        }
 
-            if (showCtrl) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color.Black.copy(alpha = 0.54f),
-                                    Color.Transparent
-                                )
+        VideoPlayerOverlay(
+            viewModel = viewModel,
+            state = state,
+            player = player,
+            gestureSpeed = gestureSpeed,
+            isFull = isFull,
+            zoomState = zoomState,
+            showCtrl = showCtrl,
+            activeDialog = activeDialog,
+            showPlaybackSheet = showPlaybackSheet,
+            onShowCtrlChange = { showCtrl = it },
+            onShowA = {
+                showCtrl = true
+                activeDialog = PlayerDialog.Audio
+            },
+            onShowQ = {
+                showCtrl = true
+                activeDialog = PlayerDialog.Quality
+            },
+            onShowSp = {
+                showCtrl = true
+                activeDialog = PlayerDialog.Speed
+            },
+            onToggleFull = {
+                showCtrl = true
+                onToggleFull()
+            }
+        )
+
+        if (showCtrl) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.54f),
+                                Color.Transparent
                             )
                         )
-                        .padding(horizontal = 10.dp, vertical = 1.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    )
+                    .padding(horizontal = 10.dp, vertical = 1.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = onBackClick) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
+                            tint = Color.White
+                        )
+                    }
+                    if (!isFull) {
+                        IconButton(onClick = onGoHome) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "返回",
+                                imageVector = Icons.Default.Home,
+                                contentDescription = "首页",
                                 tint = Color.White
                             )
                         }
-                        if (!isFull) {
-                            IconButton(onClick = onGoHome) {
-                                Icon(
-                                    imageVector = Icons.Default.Home,
-                                    contentDescription = "首页",
-                                    tint = Color.White
+                    }
+                    if (isFull) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            videoTitle?.takeIf(String::isNotBlank)?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            topMetaText?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    maxLines = 1
                                 )
                             }
                         }
-                        if (isFull) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                videoTitle?.takeIf(String::isNotBlank)?.let {
-                                    Text(
-                                        text = it,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = Color.White,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                topMetaText?.let {
-                                    Text(
-                                        text = it,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White.copy(alpha = 0.8f),
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (danmakuOn) "弹幕" else "弹幕关",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White,
-                            modifier = Modifier
-                                .clickable {
-                                    showCtrl = true
-                                    viewModel.updateDanmaku(
-                                        settingsState.danmaku.copy(enabled = !settingsState.danmaku.enabled)
-                                    )
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                        )
-                        IconButton(
-                            onClick = {
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (danmakuOn) "弹幕" else "弹幕关",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        modifier = Modifier
+                            .clickable {
                                 showCtrl = true
-                                showPlaybackSheet = true
+                                viewModel.toggleDanmaku()
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "更多信息",
-                                tint = Color.White
-                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                    IconButton(
+                        onClick = {
+                            showCtrl = true
+                            showPlaybackSheet = true
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "更多信息",
+                            tint = Color.White
+                        )
                     }
                 }
             }
-
-            if (isFull && showPlaybackSheet) {
-                VideoPlaybackSidebar(
-                    state = state,
-                    viewModel = viewModel,
-                    onDismiss = { showPlaybackSheet = false },
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .fillMaxSize()
-                )
-            }
         }
 
-        if (activeDialog == PlayerDialog.Quality) {
-            val src = state.playbackSource
-            if (src != null) {
-                QualitySelectionDialog(
-                    options = src.qualityOptions,
-                    curQuality = state.currentStream?.quality,
-                    onDismiss = { activeDialog = null },
-                    onSelect = { quality ->
-                        viewModel.switchQuality(quality)
-                        activeDialog = null
-                    }
-                )
-            }
+        if (isFull && showPlaybackSheet) {
+            VideoPlaybackSidebar(
+                state = state,
+                viewModel = viewModel,
+                videoResizeMode = videoResizeMode,
+                onVideoResizeModeChange = { videoResizeMode = it },
+                onDismiss = { showPlaybackSheet = false },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxSize()
+            )
         }
+    }
 
-        if (activeDialog == PlayerDialog.Audio) {
-            val src = state.playbackSource
-            if (src != null) {
-                AudioSelectionDialog(
-                    audios = src.audios,
-                    curAudioId = state.currentAudio?.id,
-                    onDismiss = { activeDialog = null },
-                    onSelect = { audioId ->
-                        viewModel.switchAudio(audioId)
-                        activeDialog = null
-                    }
-                )
-            }
-        }
-
-        if (activeDialog == PlayerDialog.Speed) {
-            SpeedSelectionDialog(
-                curSpeed = state.speed,
+    if (activeDialog == PlayerDialog.Quality) {
+        val src = state.playbackSource
+        if (src != null) {
+            QualitySelectionDialog(
+                options = src.qualityOptions,
+                curQuality = state.currentStream?.quality,
                 onDismiss = { activeDialog = null },
-                onSelect = { speed ->
-                    viewModel.setSpeed(speed)
+                onSelect = { quality ->
+                    viewModel.switchQuality(quality)
                     activeDialog = null
                 }
             )
         }
+    }
 
-        if (!isFull && showPlaybackSheet) {
-            VideoPlaybackSheet(
-                state = state,
-                viewModel = viewModel,
-                limitUnderPlayer = true,
-                onDismiss = { showPlaybackSheet = false }
+    if (activeDialog == PlayerDialog.Audio) {
+        val src = state.playbackSource
+        if (src != null) {
+            AudioSelectionDialog(
+                audios = src.audios,
+                curAudioId = state.currentAudio?.id,
+                onDismiss = { activeDialog = null },
+                onSelect = { audioId ->
+                    viewModel.switchAudio(audioId)
+                    activeDialog = null
+                }
             )
         }
+    }
+
+    if (activeDialog == PlayerDialog.Speed) {
+        SpeedSelectionDialog(
+            curSpeed = state.speed,
+            onDismiss = { activeDialog = null },
+            onSelect = { speed ->
+                viewModel.setSpeed(speed)
+                activeDialog = null
+            }
+        )
+    }
+
+    if (!isFull && showPlaybackSheet) {
+        VideoPlaybackSheet(
+            state = state,
+            viewModel = viewModel,
+            videoResizeMode = videoResizeMode,
+            onVideoResizeModeChange = { videoResizeMode = it },
+            limitUnderPlayer = true,
+            onDismiss = { showPlaybackSheet = false }
+        )
     }
 }
 
@@ -406,7 +400,7 @@ internal fun VideoPlayerPane(
 private fun VideoDanmakuLayer(
     viewModel: VideoViewModel,
     state: VideoPlaybackState,
-    settingsState: PlayerSettingsState,
+    danmakuConfig: DanmakuConfig,
     danmakuOverlayState: DanmakuOverlayState,
     playerView: PlayerView
 ) {
@@ -416,7 +410,7 @@ private fun VideoDanmakuLayer(
         host = playerView.overlayFrameLayout ?: playerView,
         overlayState = danmakuOverlayState,
         danmakuState = danmakuState,
-        danmakuConfig = settingsState.danmaku,
+        danmakuConfig = danmakuConfig,
         positionMs = { viewModel.playbackProgress.value.positionMs },
         isPlaying = state.isPlaying,
         speed = state.speed,
@@ -430,7 +424,7 @@ private fun VideoPlayerOverlay(
     viewModel: VideoViewModel,
     state: VideoPlaybackState,
     player: Player?,
-    settingsState: PlayerSettingsState,
+    gestureSpeed: Float,
     isFull: Boolean,
     zoomState: VideoZoomState?,
     showCtrl: Boolean,
@@ -488,9 +482,8 @@ private fun VideoPlayerOverlay(
                     onSeekTo = viewModel::seekTo,
                     onStartSpeedUp = {
                         speedBeforeGesture = state.speed
-                        val speed = settingsState.playback.gestureSpeed
-                        viewModel.setSpeed(speed)
-                        formatSpeed(speed)
+                        viewModel.setSpeed(gestureSpeed)
+                        formatSpeed(gestureSpeed)
                     },
                     onStopSpeedUp = { viewModel.setSpeed(speedBeforeGesture) },
                     onBrightnessDelta = { deltaFrac ->

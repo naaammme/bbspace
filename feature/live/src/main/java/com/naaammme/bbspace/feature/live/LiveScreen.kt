@@ -33,7 +33,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.feature.live.component.LivePlaybackBody
 import com.naaammme.bbspace.feature.live.player.LivePlayerPane
 
@@ -49,7 +48,8 @@ fun LiveScreen(
     val popularCount by viewModel.popularCount.collectAsStateWithLifecycle()
     val roomPanel by viewModel.roomPanel.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
+    val autoRotateFullscreen by viewModel.autoRotateFullscreen.collectAsStateWithLifecycle()
+    val danmakuConfig by viewModel.danmakuConfig.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     val act = LocalActivity.current
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -111,8 +111,8 @@ fun LiveScreen(
         }
     }
 
-    DisposableEffect(act, fullOn, settingsState.playback.autoRotateFullscreen) {
-        act?.requestedOrientation = if (fullOn && settingsState.playback.autoRotateFullscreen) {
+    DisposableEffect(act, fullOn, autoRotateFullscreen) {
+        act?.requestedOrientation = if (fullOn && autoRotateFullscreen) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -144,7 +144,7 @@ fun LiveScreen(
                 onToggleDanmaku = viewModel::setDanmakuEnabled,
                 onRetry = viewModel::retry,
                 onSwitchQuality = viewModel::switchQuality,
-                settingsState = settingsState,
+                danmakuConfig = danmakuConfig,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -172,17 +172,26 @@ fun LiveScreen(
                     route = route,
                     playbackState = playbackState,
                     roomSessionState = viewModel.roomSession,
-                    player = player,
                     isExpanded = isExpanded,
                     playerSpaceWidth = expandedPlayerW,
                     playerSpaceHeight = if (isExpanded) expandedPlayerH else compactVideoH,
-                    onToggleFull = toggleFull,
-                    onTogglePlay = viewModel::togglePlayPause,
-                    onToggleDanmaku = viewModel::setDanmakuEnabled,
-                    onRetry = viewModel::retry,
-                    onSwitchQuality = viewModel::switchQuality,
                     onSendDanmaku = viewModel::sendDanmaku,
-                    settingsState = settingsState,
+                    playerContent = { playerModifier ->
+                        LivePlayerPane(
+                            route = route,
+                            player = player,
+                            playbackState = playbackState,
+                            roomSessionState = viewModel.roomSession,
+                            isFull = false,
+                            onToggleFull = toggleFull,
+                            onTogglePlay = viewModel::togglePlayPause,
+                            onToggleDanmaku = viewModel::setDanmakuEnabled,
+                            onRetry = viewModel::retry,
+                            onSwitchQuality = viewModel::switchQuality,
+                            danmakuConfig = danmakuConfig,
+                            modifier = playerModifier
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)

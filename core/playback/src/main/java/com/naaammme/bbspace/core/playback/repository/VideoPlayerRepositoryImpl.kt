@@ -13,7 +13,7 @@ import com.bapis.bilibili.playershared.StreamInfo
 import com.bapis.bilibili.playershared.VideoVod
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
 import com.naaammme.bbspace.core.playback.VideoPlayerRepository
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlaybackControlMode
@@ -23,10 +23,10 @@ import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.ProgressiveSegment
 import com.naaammme.bbspace.core.model.QualityOption
 import com.naaammme.bbspace.core.model.StreamLimitInfo
+import com.naaammme.bbspace.core.model.VideoCodec
 import com.naaammme.bbspace.core.model.VideoTargetTool
 import com.naaammme.bbspace.infra.grpc.BiliGrpcClient
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,7 +34,7 @@ import javax.inject.Singleton
 @Singleton
 class VideoPlayerRepositoryImpl @Inject constructor(
     private val grpcClient: BiliGrpcClient,
-    private val appSettings: AppSettings,
+    private val playbackPrefs: PlaybackPrefs,
     private val authProvider: AuthProvider,
     private val webPlaybackResolver: VideoWebPlaybackResolver
 ) : VideoPlayerRepository {
@@ -56,23 +56,21 @@ class VideoPlayerRepositoryImpl @Inject constructor(
 
     private suspend fun shouldUseWebPlayback(request: PlaybackRequest): Boolean {
         return authProvider.accessToken.isBlank() &&
-            appSettings.enableWebPlayback.first() &&
+            playbackPrefs.enableWebPlayback.get() &&
             request.ids.aid > 0L &&
             request.ids.cid > 0L
     }
 
     private suspend fun buildRequest(request: PlaybackRequest): PlayViewUniteReq {
         val ids = request.ids
-        val enableHdrAnd8k = appSettings.enableHdrAnd8k.first()
-        val needTrial = appSettings.needTrial.first()
-        val preferredCodec = appSettings.preferredCodec.first()
-        val forceHost = appSettings.forceHost.first()
-        val fnval = if (enableHdrAnd8k) 4048 else 272
+        val settings = playbackPrefs.readRequestSettings()
+        val forceHost = if (settings.forceHttps) 1 else 0
+        val fnval = if (settings.enableHdrAnd8k) 4048 else 272
 
-        val codecType = when (preferredCodec) {
-            2 -> CodeType.CODE265
-            3 -> CodeType.CODEAV1
-            else -> CodeType.CODE264
+        val codecType = when (settings.preferredCodec) {
+            VideoCodec.HEVC -> CodeType.CODE265
+            VideoCodec.AV1 -> CodeType.CODEAV1
+            VideoCodec.AVC -> CodeType.CODE264
         }
 
         val vod = VideoVod.newBuilder()
@@ -83,7 +81,7 @@ class VideoPlayerRepositoryImpl @Inject constructor(
             .setFnver(0)
             .setDownload(0)
             .setPreferCodecType(codecType)
-            .setIsNeedTrial(needTrial)
+            .setIsNeedTrial(settings.needTrial)
             .setForceHost(forceHost)
             .build()
 

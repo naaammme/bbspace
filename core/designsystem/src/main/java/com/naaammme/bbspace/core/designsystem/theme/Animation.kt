@@ -7,6 +7,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
+import com.naaammme.bbspace.core.model.AnimationSpeed
 
 @Immutable
 data class BiliAnimations(

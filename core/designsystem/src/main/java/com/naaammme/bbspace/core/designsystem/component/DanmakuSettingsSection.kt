@@ -1,26 +1,6 @@
 package com.naaammme.bbspace.core.designsystem.component
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.model.DanmakuConfig
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -28,231 +8,97 @@ import kotlin.math.roundToInt
 @Composable
 fun DanmakuSettingsSection(
     config: DanmakuConfig,
-    onConfigChange: (DanmakuConfig) -> Unit
+    onUpdate: ((DanmakuConfig) -> DanmakuConfig) -> Unit
 ) {
-    SectionTitle("弹幕设置")
+    SettingSectionHeader("弹幕设置")
 
-    ChoiceCard(
+    SettingChoiceCard(
         title = "显示区域",
         subtitle = "控制滚动弹幕可使用的纵向区域",
         currentValue = config.areaPercent,
         options = listOf(25, 50, 75, 100),
         label = ::formatDanmakuArea,
-        onSelect = { onConfigChange(config.copy(areaPercent = it)) }
+        onSelect = { area -> onUpdate { it.copy(areaPercent = area) } }
     )
 
-    SliderCard(
+    SettingSliderCard(
         title = "不透明度",
         subtitle = "调低后更不挡画面",
         value = config.opacity,
         valueRange = 0.1f..1f,
         steps = 8,
         valueLabel = ::formatPercent,
-        onValueChangeCommitted = { onConfigChange(config.copy(opacity = it)) }
+        onValueChangeCommitted = { opacity -> onUpdate { it.copy(opacity = opacity) } }
     )
 
-    SliderCard(
+    SettingSliderCard(
         title = "字体大小",
         subtitle = "对原始弹幕字号做整体缩放",
         value = config.textScale,
         valueRange = 0.5f..2f,
         steps = 14,
         valueLabel = ::formatMultiple,
-        onValueChangeCommitted = { onConfigChange(config.copy(textScale = it)) }
+        onValueChangeCommitted = { scale -> onUpdate { it.copy(textScale = scale) } }
     )
 
-    SliderCard(
+    SettingSliderCard(
         title = "弹幕速度",
         subtitle = "数值越大，弹幕滚动越快",
         value = config.speed,
         valueRange = 0.5f..2f,
         steps = 14,
         valueLabel = ::formatMultiple,
-        onValueChangeCommitted = { onConfigChange(config.copy(speed = it)) }
+        onValueChangeCommitted = { speed -> onUpdate { it.copy(speed = speed) } }
     )
 
-    ChoiceCard(
+    SettingChoiceCard(
         title = "弹幕密度",
         subtitle = "控制同屏弹幕数量和防重叠策略",
         currentValue = config.densityLevel,
         options = listOf(0, 1, 2),
         label = ::formatDanmakuDensity,
-        onSelect = { onConfigChange(config.copy(densityLevel = it)) }
+        onSelect = { level -> onUpdate { it.copy(densityLevel = level) } }
     )
 
-    SliderCard(
+    SettingSliderCard(
         title = "智能云屏蔽",
         subtitle = "过滤低于当前权重等级的弹幕",
         value = config.weightFilterLevel.toFloat(),
         valueRange = 0f..10f,
         steps = 9,
         valueLabel = ::formatDanmakuWeightLevel,
-        onValueChangeCommitted = {
-            onConfigChange(config.copy(weightFilterLevel = it.roundToInt()))
+        onValueChangeCommitted = { level ->
+            onUpdate { it.copy(weightFilterLevel = level.roundToInt()) }
         }
     )
 
-    SwitchCard(
+    SettingSwitchCard(
         title = "重复弹幕合并",
         subtitle = "合并短时间内重复出现的相同内容",
         checked = config.mergeDuplicates,
-        onCheckedChange = { onConfigChange(config.copy(mergeDuplicates = it)) }
+        onCheckedChange = { merge -> onUpdate { it.copy(mergeDuplicates = merge) } }
     )
 
-    SwitchCard(
+    SettingSwitchCard(
         title = "滚动弹幕",
         subtitle = "控制右向左滚动弹幕显示",
         checked = config.showScrollRl,
-        onCheckedChange = { onConfigChange(config.copy(showScrollRl = it)) }
+        onCheckedChange = { show -> onUpdate { it.copy(showScrollRl = show) } }
     )
 
-    SwitchCard(
+    SettingSwitchCard(
         title = "顶部弹幕",
         subtitle = "固定显示在顶部",
         checked = config.showTop,
-        onCheckedChange = { onConfigChange(config.copy(showTop = it)) }
+        onCheckedChange = { show -> onUpdate { it.copy(showTop = show) } }
     )
 
-    SwitchCard(
+    SettingSwitchCard(
         title = "底部弹幕",
         subtitle = "固定显示在底部",
         checked = config.showBottom,
-        onCheckedChange = { onConfigChange(config.copy(showBottom = it)) }
+        onCheckedChange = { show -> onUpdate { it.copy(showBottom = show) } }
     )
-}
-
-@Composable
-private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary
-    )
-}
-
-@Composable
-private fun SwitchCard(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Card {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Padding.Horizontal, vertical = Padding.Vertical),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Padding.Inner)
-            ) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        }
-    }
-}
-
-@Composable
-private fun SliderCard(
-    title: String,
-    subtitle: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    valueLabel: (Float) -> String,
-    onValueChangeCommitted: (Float) -> Unit
-) {
-    var sliderValue by remember(value) { mutableFloatStateOf(value) }
-
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Padding.Horizontal, vertical = Padding.Vertical),
-            verticalArrangement = Arrangement.spacedBy(Padding.InnerLarge)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(Padding.Inner)
-                ) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    text = valueLabel(sliderValue),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Slider(
-                value = sliderValue,
-                onValueChange = { sliderValue = it },
-                onValueChangeFinished = { onValueChangeCommitted(sliderValue) },
-                valueRange = valueRange,
-                steps = steps
-            )
-        }
-    }
-}
-
-@Composable
-private fun ChoiceCard(
-    title: String,
-    subtitle: String,
-    currentValue: Int,
-    options: List<Int>,
-    label: (Int) -> String,
-    onSelect: (Int) -> Unit
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Padding.Horizontal, vertical = Padding.Vertical),
-            verticalArrangement = Arrangement.spacedBy(Padding.InnerLarge)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(Padding.InnerLarge)
-            ) {
-                options.forEach { option ->
-                    FilterChip(
-                        selected = option == currentValue,
-                        onClick = { onSelect(option) },
-                        label = { Text(label(option)) }
-                    )
-                }
-            }
-        }
-    }
 }
 
 private fun formatDanmakuArea(value: Int): String {
@@ -277,7 +123,7 @@ private fun formatDanmakuWeightLevel(value: Float): String {
 }
 
 private fun formatPercent(value: Float): String {
-    return "${(value * 100).toInt()}%"
+    return "${(value * 100).roundToInt()}%"
 }
 
 private fun formatMultiple(value: Float): String {
@@ -287,11 +133,4 @@ private fun formatMultiple(value: Float): String {
         String.format(Locale.ROOT, "%.2f", value).trimEnd('0').trimEnd('.')
     }
     return "${normalized}x"
-}
-
-private object Padding {
-    val Horizontal = 16.dp
-    val Vertical = 16.dp
-    val Inner = 4.dp
-    val InnerLarge = 8.dp
 }

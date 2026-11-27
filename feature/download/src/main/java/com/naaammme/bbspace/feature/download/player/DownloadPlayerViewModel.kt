@@ -3,19 +3,23 @@ package com.naaammme.bbspace.feature.download.player
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.settings.AppSettings
 import com.naaammme.bbspace.core.download.VideoDownloadRepository
-import com.naaammme.bbspace.core.playback.DownloadPlaybackController
 import com.naaammme.bbspace.core.model.DanmakuConfig
+import com.naaammme.bbspace.core.playback.DownloadPlaybackController
+import com.naaammme.bbspace.core.settings.DanmakuPrefs
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
+import com.naaammme.bbspace.core.settings.stateInWhileSubscribed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class DownloadPlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playbackController: DownloadPlaybackController,
-    private val playerSettings: AppSettings,
+    private val playbackPrefs: PlaybackPrefs,
+    private val danmakuPrefs: DanmakuPrefs,
     downloadRepository: VideoDownloadRepository
 ) : ViewModel() {
 
@@ -27,8 +31,13 @@ class DownloadPlayerViewModel @Inject constructor(
 
     val player = playbackController.player
     val state = playbackController.state
-    val settingsState = playerSettings.state
     val danmakuState = danmakuSession.state
+    val autoRotateFullscreen: StateFlow<Boolean> =
+        playbackPrefs.autoRotateFullscreen.stateIn(viewModelScope)
+    val backgroundPlayback: StateFlow<Boolean> =
+        playbackPrefs.backgroundPlayback.stateIn(viewModelScope)
+    val danmakuConfig: StateFlow<DanmakuConfig> = danmakuPrefs.config
+        .stateInWhileSubscribed(viewModelScope, danmakuPrefs.currentConfig())
     private var closed = false
 
     init {
@@ -63,15 +72,21 @@ class DownloadPlayerViewModel @Inject constructor(
         playbackController.setSpeed(speed)
     }
 
-    fun updateDanmaku(config: DanmakuConfig) {
+    fun toggleDanmaku() {
         viewModelScope.launch {
-            playerSettings.setDanmaku(config)
+            danmakuPrefs.enabled.update { !it }
+        }
+    }
+
+    fun updateDanmaku(transform: (DanmakuConfig) -> DanmakuConfig) {
+        viewModelScope.launch {
+            danmakuPrefs.update(transform)
         }
     }
 
     fun updateBackgroundPlayback(enabled: Boolean) {
         viewModelScope.launch {
-            playerSettings.setBackgroundPlayback(enabled)
+            playbackPrefs.backgroundPlayback.set(enabled)
         }
     }
 

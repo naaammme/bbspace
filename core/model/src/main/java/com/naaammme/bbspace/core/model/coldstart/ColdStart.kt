@@ -30,3 +30,14 @@ data class ColdStartData(
     val ipInfo: IpInfo?,
     val freeFlowRules: FreeFlowRules?
 )
+
+data class AppReleaseInfo(
+    val version: String,
+    val url: String,
+    val desc: String?
+)
+
+sealed interface AppUpdateCheckResult {
+    data class UpToDate(val release: AppReleaseInfo) : AppUpdateCheckResult
+    data class HasUpdate(val release: AppReleaseInfo) : AppUpdateCheckResult
+}

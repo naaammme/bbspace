@@ -1,10 +1,8 @@
 package com.naaammme.bbspace.feature.video.player
 
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -16,32 +14,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -49,12 +38,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naaammme.bbspace.core.designsystem.component.DanmakuSettingsSection
+import com.naaammme.bbspace.core.designsystem.component.SettingChoiceCard
+import com.naaammme.bbspace.core.designsystem.component.SettingDialogCard
+import com.naaammme.bbspace.core.designsystem.component.SettingDiscreteSliderCard
+import com.naaammme.bbspace.core.designsystem.component.SettingSectionHeader
+import com.naaammme.bbspace.core.designsystem.component.SettingSwitchCard
+import com.naaammme.bbspace.core.designsystem.component.bindSetting
 import com.naaammme.bbspace.core.model.PlaybackError
 import com.naaammme.bbspace.core.model.PlayerBufferProfile
-import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.ResolvedVideoIds
-import com.naaammme.bbspace.core.model.VideoPlaybackState
 import com.naaammme.bbspace.core.model.VideoCdnMode
+import com.naaammme.bbspace.core.model.VideoPlaybackState
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
 import com.naaammme.bbspace.feature.video.VideoViewModel
 import com.naaammme.bbspace.feature.video.formatDuration
 import com.naaammme.bbspace.feature.video.formatSpeed
@@ -62,7 +57,6 @@ import com.naaammme.bbspace.feature.video.getAudioName
 import com.naaammme.bbspace.feature.video.getCodecName
 import com.naaammme.bbspace.feature.video.getQualityName
 import com.naaammme.bbspace.feature.video.speedOps
-import kotlin.math.roundToInt
 
 private enum class PlaybackSheetSection(
     val title: String
@@ -77,10 +71,11 @@ private enum class PlaybackSheetSection(
 internal fun VideoPlaybackSheet(
     state: VideoPlaybackState,
     viewModel: VideoViewModel,
+    videoResizeMode: PlayerVideoResizeMode,
+    onVideoResizeModeChange: (PlayerVideoResizeMode) -> Unit,
     limitUnderPlayer: Boolean,
     onDismiss: () -> Unit
 ) {
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var section by rememberSaveable { mutableStateOf(PlaybackSheetSection.Info) }
     val windowInfo = LocalWindowInfo.current
@@ -106,8 +101,9 @@ internal fun VideoPlaybackSheet(
         VideoPlaybackPanelContent(
             state = state,
             ids = state.ids,
-            settingsState = settingsState,
             viewModel = viewModel,
+            videoResizeMode = videoResizeMode,
+            onVideoResizeModeChange = onVideoResizeModeChange,
             section = section,
             onSectionChange = { section = it },
             modifier = Modifier
@@ -129,10 +125,11 @@ internal fun VideoPlaybackSheet(
 internal fun VideoPlaybackSidebar(
     state: VideoPlaybackState,
     viewModel: VideoViewModel,
+    videoResizeMode: PlayerVideoResizeMode,
+    onVideoResizeModeChange: (PlayerVideoResizeMode) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
     var section by rememberSaveable { mutableStateOf(PlaybackSheetSection.Playback) }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -152,8 +149,9 @@ internal fun VideoPlaybackSidebar(
                 VideoPlaybackPanelContent(
                     state = state,
                     ids = state.ids,
-                    settingsState = settingsState,
                     viewModel = viewModel,
+                    videoResizeMode = videoResizeMode,
+                    onVideoResizeModeChange = onVideoResizeModeChange,
                     section = section,
                     onSectionChange = { section = it },
                     modifier = Modifier
@@ -170,8 +168,9 @@ internal fun VideoPlaybackSidebar(
 private fun VideoPlaybackPanelContent(
     state: VideoPlaybackState,
     ids: ResolvedVideoIds,
-    settingsState: PlayerSettingsState,
     viewModel: VideoViewModel,
+    videoResizeMode: PlayerVideoResizeMode,
+    onVideoResizeModeChange: (PlayerVideoResizeMode) -> Unit,
     section: PlaybackSheetSection,
     onSectionChange: (PlaybackSheetSection) -> Unit,
     modifier: Modifier = Modifier
@@ -199,126 +198,96 @@ private fun VideoPlaybackPanelContent(
         when (section) {
             PlaybackSheetSection.Info -> PlayerInfoSection(state, ids)
             PlaybackSheetSection.Playback -> PlaybackSettingsSection(
-                settingsState = settingsState,
-                viewModel = viewModel
+                prefs = viewModel.playbackPrefs,
+                videoResizeMode = videoResizeMode,
+                onVideoResizeModeChange = onVideoResizeModeChange
             )
-
-            PlaybackSheetSection.Danmaku -> DanmakuSettingsSection(
-                config = settingsState.danmaku,
-                onConfigChange = viewModel::updateDanmaku
-            )
+            PlaybackSheetSection.Danmaku -> {
+                val danmakuConfig by viewModel.danmakuConfig.collectAsStateWithLifecycle()
+                DanmakuSettingsSection(
+                    config = danmakuConfig,
+                    onUpdate = viewModel::updateDanmaku
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun PlaybackSettingsSection(
-    settingsState: PlayerSettingsState,
-    viewModel: VideoViewModel
+    prefs: PlaybackPrefs,
+    videoResizeMode: PlayerVideoResizeMode,
+    onVideoResizeModeChange: (PlayerVideoResizeMode) -> Unit
 ) {
-    val videoResizeModeState = LocalVideoResizeModeState.current
-    var showCdnDialog by rememberSaveable { mutableStateOf(false) }
-    SheetSectionTitle("播放设置")
+    SettingSectionHeader("播放设置")
 
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text("CDN 偏好", style = MaterialTheme.typography.titleMedium)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = settingsState.playback.videoCdnMode.label,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                TextButton(onClick = { showCdnDialog = true }) { Text("切换 CDN") }
-            }
-        }
-    }
-    if (showCdnDialog) {
-        VideoCdnModeDialog(
-            currentMode = settingsState.playback.videoCdnMode,
-            onDismiss = { showCdnDialog = false },
-            onSelect = {
-                showCdnDialog = false
-                viewModel.updateVideoCdnMode(it)
-            }
-        )
-    }
+    val cdnSetting = prefs.videoCdnMode
+    val (cdnMode, setCdnMode) = cdnSetting.flow.bindSetting(cdnSetting.current, cdnSetting::commit)
+    SettingDialogCard(
+        title = "CDN 偏好",
+        dialogTitle = "选择 CDN",
+        subtitle = "点击切换播放节点",
+        currentValue = cdnMode,
+        options = VideoCdnMode.entries,
+        label = VideoCdnMode::label,
+        description = VideoCdnMode::description,
+        keyOf = VideoCdnMode::name,
+        onSelect = setCdnMode,
+        dismissText = "取消"
+    )
 
-    SheetChoiceCard(
+    val bufferSetting = prefs.bufferProfile
+    val (bufferProfile, setBufferProfile) = bufferSetting.flow.bindSetting(bufferSetting.current, bufferSetting::commit)
+    SettingChoiceCard(
         title = "缓冲策略",
         subtitle = "影响缓冲时长，时长短起播更快但弱网和倍速可能卡顿，时长长则相反",
-        currentValue = settingsState.buffer.profile.ordinal,
-        options = PlayerBufferProfile.entries.indices.toList(),
-        label = { bufferProfileText(PlayerBufferProfile.entries[it]) },
-        onSelect = { viewModel.updateBufferProfile(PlayerBufferProfile.entries[it]) }
+        currentValue = bufferProfile,
+        options = PlayerBufferProfile.entries,
+        label = ::bufferProfileText,
+        onSelect = setBufferProfile
     )
 
-    SheetChoiceCard(
+    val speedSetting = prefs.gestureSpeed
+    val (gestureSpeed, setGestureSpeed) = speedSetting.flow.bindSetting(speedSetting.current, speedSetting::commit)
+    SettingDiscreteSliderCard(
         title = "长按倍速",
         subtitle = "长按屏幕时临时切到这个倍速，松手恢复",
-        currentValue = settingsState.playback.gestureSpeed,
-        options = speedOps,
-        onSelect = viewModel::updateGestureSpeed
+        currentValue = gestureSpeed,
+        values = speedOps,
+        valueLabel = ::formatSpeed,
+        onValueSelected = setGestureSpeed,
+        minLabel = formatSpeed(speedOps.first()),
+        maxLabel = formatSpeed(speedOps.last())
     )
 
-    SheetChoiceCard(
+    SettingChoiceCard(
         title = "全屏视频大小",
         subtitle = "调整画面尺寸",
-        currentValue = videoResizeModeState.value.ordinal,
-        options = PlayerVideoResizeMode.entries.indices.toList(),
-        label = { videoResizeModeText(PlayerVideoResizeMode.entries[it]) },
-        onSelect = { videoResizeModeState.value = PlayerVideoResizeMode.entries[it] }
+        currentValue = videoResizeMode,
+        options = PlayerVideoResizeMode.entries,
+        label = ::videoResizeModeText,
+        onSelect = onVideoResizeModeChange
     )
 
-    SheetSwitchCard(
-        title = "后台播放",
-        subtitle = "退出页面或切到后台后继续播放，并显示系统通知",
-        checked = settingsState.playback.backgroundPlayback,
-        onCheckedChange = viewModel::updateBackgroundPlayback
-    )
-
-    SheetSwitchCard(
-        title = "应用内小窗",
-        subtitle = "允许把视频和直播缩成应用内小窗继续播放",
-        checked = settingsState.playback.inAppMiniPlayer,
-        onCheckedChange = viewModel::updateInAppMiniPlayer
-    )
-
-    SheetSwitchCard(
-        title = "播放行为上报",
-        subtitle = "向服务端上报播放心跳和历史，关闭影响个性化推荐和历史记录",
-        checked = settingsState.playback.reportPlayback,
-        onCheckedChange = viewModel::updateReportPlayback
-    )
-
-    SheetSwitchCard(
-        title = "软解优先",
-        subtitle = "优先使用软件解码",
-        checked = settingsState.playback.preferSoftwareDecode,
-        onCheckedChange = viewModel::updatePreferSoftwareDecode
-    )
-
-    SheetSwitchCard(
-        title = "解码失败自动回退",
-        subtitle = "允许切换到低优先级解码器",
-        checked = settingsState.playback.decoderFallback,
-        onCheckedChange = viewModel::updateDecoderFallback
-    )
-
-    SheetSwitchCard(
-        title = "全屏自动横屏",
-        subtitle = "点击全屏按钮时自动强制横屏",
-        checked = settingsState.playback.autoRotateFullscreen,
-        onCheckedChange = viewModel::updateAutoRotateFullscreen
-    )
+    val switches = remember(prefs) {
+        listOf(
+            Triple("后台播放", "退出页面或切到后台后继续播放，并显示系统通知", prefs.backgroundPlayback),
+            Triple("应用内小窗", "允许把视频和直播缩成应用内小窗继续播放", prefs.inAppMiniPlayer),
+            Triple("播放行为上报", "向服务端上报播放心跳和历史，关闭影响个性化推荐和历史记录", prefs.reportPlayback),
+            Triple("软解优先", "优先使用软件解码", prefs.preferSoftwareDecode),
+            Triple("解码失败自动回退", "允许切换到低优先级解码器", prefs.decoderFallback),
+            Triple("全屏自动横屏", "点击全屏按钮时自动强制横屏", prefs.autoRotateFullscreen)
+        )
+    }
+    switches.forEach { (title, subtitle, setting) ->
+        val (checked, setChecked) = setting.flow.bindSetting(setting.current, setting::commit)
+        SettingSwitchCard(
+            title = title,
+            subtitle = subtitle,
+            checked = checked,
+            onCheckedChange = setChecked
+        )
+    }
 }
 
 @Composable
@@ -326,7 +295,7 @@ private fun PlayerInfoSection(
     state: VideoPlaybackState,
     ids: ResolvedVideoIds
 ) {
-    SheetSectionTitle("视频信息")
+    SettingSectionHeader("视频信息")
 
     state.error?.let { err ->
         SheetInfoGroup(
@@ -403,212 +372,6 @@ private fun PlayerInfoSection(
 }
 
 @Composable
-private fun SheetSectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary
-    )
-}
-
-@Composable
-private fun SheetSwitchCard(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Card {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        }
-    }
-}
-
-@Composable
-private fun SheetChoiceCard(
-    title: String,
-    subtitle: String,
-    currentValue: Int,
-    options: List<Int>,
-    label: (Int) -> String,
-    onSelect: (Int) -> Unit
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                options.forEach { option ->
-                    FilterChip(
-                        selected = option == currentValue,
-                        onClick = { onSelect(option) },
-                        label = { Text(label(option)) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SheetChoiceCard(
-    title: String,
-    subtitle: String,
-    currentValue: Float,
-    options: List<Float>,
-    onSelect: (Float) -> Unit
-) {
-    val idx = options.indexOfFirst { it == currentValue }.coerceAtLeast(0)
-    var dragIdx by remember { mutableStateOf<Int?>(null) }
-    val displayIdx = dragIdx ?: idx
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = formatSpeed(options[displayIdx]),
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Slider(
-                value = displayIdx.toFloat(),
-                onValueChange = { raw ->
-                    dragIdx = raw.roundToInt().coerceIn(0, options.lastIndex)
-                },
-                onValueChangeFinished = {
-                    val finalIdx = dragIdx ?: return@Slider
-                    onSelect(options[finalIdx])
-                    dragIdx = null
-                },
-                valueRange = 0f..options.lastIndex.toFloat(),
-                steps = (options.size - 2).coerceAtLeast(0),
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = formatSpeed(options.first()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = formatSpeed(options.last()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VideoCdnModeDialog(
-    currentMode: VideoCdnMode,
-    onDismiss: () -> Unit,
-    onSelect: (VideoCdnMode) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("选择 CDN") },
-        text = {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 360.dp)
-            ) {
-                items(VideoCdnMode.entries, key = { it.name }) { mode ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(mode) }
-                            .padding(vertical = 12.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = mode.label,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            if (mode == currentMode) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        Text(
-                            text = mode.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
-}
-
-@Composable
 private fun SheetInfoGroup(
     title: String,
     rows: List<Pair<String, String>>
@@ -627,8 +390,7 @@ private fun SheetInfoGroup(
             rows.forEach { (label, value) ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = label,
@@ -669,4 +431,3 @@ private fun playbackErrorText(err: PlaybackError): String {
         is PlaybackError.RequestFailed -> err.message
     }
 }
-

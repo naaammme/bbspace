@@ -3,7 +3,8 @@ package com.naaammme.bbspace
 import android.content.Context
 import android.content.Intent
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
+import com.naaammme.bbspace.core.settings.SystemPrefs
 import com.naaammme.bbspace.core.auth.CacheManager
 import com.naaammme.bbspace.core.playback.StreamPlaybackSession
 import com.naaammme.bbspace.infra.coldstart.ColdStartClient
@@ -21,7 +22,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -39,7 +39,8 @@ class AppInitializer @Inject constructor(
     private val biliDns: BiliDns,
     private val okHttpClient: OkHttpClient,
     private val gaiaReporter: GaiaReporter,
-    private val appSettings: AppSettings,
+    private val systemPrefs: SystemPrefs,
+    private val playbackPrefs: PlaybackPrefs,
     private val cacheManager: CacheManager,
     private val playbackSession: StreamPlaybackSession,
     private val playerEngine: PlayerEngine
@@ -57,7 +58,7 @@ class AppInitializer @Inject constructor(
         observePlaybackService()
 
         initScope.launch {
-            val useSystemDns = appSettings.useSystemDns.first()
+            val useSystemDns = systemPrefs.useSystemDns.get()
             biliDns.start(useSystemDns) {
                 if (!initialized) return@start
                 initScope.launch {
@@ -79,8 +80,7 @@ class AppInitializer @Inject constructor(
                 try {
                     Logger.d(TAG) { "开始初始化应用..." }
 
-                    appSettings.themeConfig.first()
-                    appSettings.updateNeedTrial(false)
+                    playbackPrefs.needTrial.set(false)
 
                     val ticket = ticketGenerator.getOrRefresh()
                     Logger.d(TAG) { "Ticket 初始化完成: ${if (ticket.isEmpty()) "空" else "已缓存"}" }
@@ -100,7 +100,7 @@ class AppInitializer @Inject constructor(
                         Logger.d(TAG) { "SessionId 初始化完成: $sessionId" }
                     }
 
-                    if (!appSettings.blockGaia.first()) {
+                    if (!systemPrefs.blockGaia.get()) {
                         gaiaReporter.reportIfNeeded()
                     } else {
                         Logger.d(TAG) { "Gaia 上报已被用户禁用，跳过" }
@@ -135,7 +135,7 @@ class AppInitializer @Inject constructor(
         initScope.launch {
             combine(
                 playerEngine.currentSource.map { it != null },
-                appSettings.state.map { it.playback.backgroundPlayback }
+                playbackPrefs.backgroundPlayback.flow
             ) { hasSource, backgroundPlayback ->
                 hasSource && backgroundPlayback
             }

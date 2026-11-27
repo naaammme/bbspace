@@ -54,10 +54,10 @@ import com.naaammme.bbspace.core.model.LiveRoomMessage
 import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.LiveRoomSessionState
 import com.naaammme.bbspace.core.model.LiveStatus
-import com.naaammme.bbspace.core.model.PlaybackState
-import com.naaammme.bbspace.core.model.PlayerSettingsState
+import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.DanmakuItem
 import com.naaammme.bbspace.core.model.DanmakuSessionState
+import com.naaammme.bbspace.core.model.PlaybackState
 import com.naaammme.bbspace.feature.live.toUiMessage
 import com.naaammme.bbspace.infra.player.PlayerViewTargetBinder
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
@@ -88,7 +88,7 @@ internal fun LivePlayerPane(
     onToggleDanmaku: (Boolean) -> Unit,
     onRetry: () -> Unit,
     onSwitchQuality: (Int) -> Unit,
-    settingsState: PlayerSettingsState,
+    danmakuConfig: DanmakuConfig,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -100,7 +100,7 @@ internal fun LivePlayerPane(
     val qualityText = playbackState.playbackSource?.currentDescription
         ?.takeIf(String::isNotBlank)
         ?: "画质"
-    val danmakuOn = settingsState.danmaku.enabled
+    val danmakuOn = danmakuConfig.enabled
     val playerView = remember(context) {
         PlayerView(context).apply {
             useController = false
@@ -110,7 +110,7 @@ internal fun LivePlayerPane(
     }
     val danmakuOverlayState = if (danmakuOn) {
         rememberDanmakuOverlayState(
-            initialConfig = settingsState.danmaku,
+            initialConfig = danmakuConfig,
             initialPositionMs = { 0L },
             initialIsPlaying = playbackState.isPlaying,
             initialSpeed = 1f
@@ -181,7 +181,7 @@ internal fun LivePlayerPane(
                 host = playerView.overlayFrameLayout ?: playerView,
                 overlayState = danmakuOverlayState,
                 danmakuState = liveDanmakuState,
-                danmakuConfig = settingsState.danmaku,
+                danmakuConfig = danmakuConfig,
                 positionMs = { 0L },
                 isPlaying = playbackState.isPlaying,
                 speed = 1f,

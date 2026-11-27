@@ -3,211 +3,215 @@ package com.naaammme.bbspace.feature.settings.appearance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.naaammme.bbspace.feature.settings.SettingsViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.designsystem.theme.AnimationSpeed
-import com.naaammme.bbspace.core.designsystem.theme.CornerStyle
-import com.naaammme.bbspace.core.designsystem.theme.DEFAULT_PULL_REFRESH_DISTANCE_DP
+import com.naaammme.bbspace.core.designsystem.component.SettingsPageScaffold
+import com.naaammme.bbspace.core.designsystem.component.bindSetting
 import com.naaammme.bbspace.core.designsystem.theme.PresetColors
-import com.naaammme.bbspace.core.designsystem.theme.PaletteStyle
-import com.naaammme.bbspace.core.designsystem.theme.ThemeMode
-import com.naaammme.bbspace.core.designsystem.theme.TransitionStyle
-import com.naaammme.bbspace.feature.settings.components.SettingSwitch
+import com.naaammme.bbspace.core.model.AnimationSpeed
+import com.naaammme.bbspace.core.model.CornerStyle
+import com.naaammme.bbspace.core.model.PaletteStyle
+import com.naaammme.bbspace.core.model.ThemeMode
+import com.naaammme.bbspace.core.model.TransitionStyle
+import com.naaammme.bbspace.core.settings.AppearancePrefs
+import com.naaammme.bbspace.core.settings.Setting
+import com.naaammme.bbspace.feature.settings.SettingChoiceChips
+import com.naaammme.bbspace.feature.settings.SettingDiscreteSlider
+import com.naaammme.bbspace.feature.settings.SettingListCard
+import com.naaammme.bbspace.feature.settings.SettingSwitch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceSettingsScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    prefs: AppearancePrefs
 ) {
-    val config by viewModel.themeConfig.collectAsStateWithLifecycle()
-    val fixBottomBar by viewModel.fixBottomBar.collectAsStateWithLifecycle()
-
-    Scaffold(
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
-                title = { Text("外观设计") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+    SettingsPageScaffold(title = "外观设计", onBack = onBack) {
+        item(key = "theme_mode") {
+            SettingChoiceChips(
+                title = "主题模式",
+                subtitle = "浅色 深色 或跟随系统",
+                setting = prefs.themeMode,
+                options = ThemeMode.entries,
+                label = { mode ->
+                    when (mode) {
+                        ThemeMode.LIGHT -> "浅色"
+                        ThemeMode.DARK -> "深色"
+                        ThemeMode.SYSTEM -> "跟随系统"
                     }
                 }
             )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                ThemeModeSelector(
-                    selected = config.themeMode,
-                    onSelect = viewModel::updateThemeMode
-                )
-            }
-
-            item {
-                SettingSwitch(
-                    title = "动态取色",
-                    subtitle = "Android 12+ 使用系统动态配色",
-                    checked = config.useDynamicColor,
-                    onCheckedChange = viewModel::updateUseDynamicColor
-                )
-            }
-
-            item {
-                PaletteStyleSelector(
-                    selected = config.paletteStyle,
-                    onSelect = viewModel::updatePaletteStyle
-                )
-            }
-
-            item {
-                SettingSwitch(
-                    title = "反转颜色",
-                    subtitle = "交换页面背景和低饱和容器色，强调色保持不变",
-                    checked = config.swapBaseColors,
-                    onCheckedChange = viewModel::updateSwapBaseColors
-                )
-            }
-
-            item {
-                ColorPaletteSelector(
-                    selected = config.seedColor,
-                    onSelect = viewModel::updateSeedColor
-                )
-            }
-
-            item {
-                SettingSwitch(
-                    title = "纯色背景",
-                    subtitle = "深色用纯黑，浅色用纯白，会参与背景层级反转",
-                    checked = config.isPureBlack,
-                    onCheckedChange = viewModel::updateIsPureBlack
-                )
-            }
-
-            item {
-                FontScaleSelector(
-                    scale = config.fontScale,
-                    onScaleChange = viewModel::updateFontScale
-                )
-            }
-
-            item {
-                UiScaleSelector(
-                    scale = config.uiScale,
-                    onScaleChange = viewModel::updateUiScale
-                )
-            }
-
-            item {
-                RoundScreenSafePaddingSelector(
-                    scale = config.roundScreenSafePaddingScale,
-                    onScaleChange = viewModel::updateRoundScreenSafePaddingScale
-                )
-            }
-
-            item {
-                PullRefreshDistanceSelector(
-                    distanceDp = config.pullRefreshDistanceDp,
-                    onDistanceChange = viewModel::updatePullRefreshDistance
-                )
-            }
-
-            item {
-                SettingSwitch(
-                    title = "固定底栏",
-                    subtitle = "主页底栏不再随滚动自动收起",
-                    checked = fixBottomBar,
-                    onCheckedChange = viewModel::updateFixBottomBar
-                )
-            }
-
-            item {
-                AnimationSpeedSelector(
-                    speed = config.animationSpeed,
-                    onSelect = viewModel::updateAnimationSpeed
-                )
-            }
-
-            item {
-                CornerStyleSelector(
-                    selected = config.cornerStyle,
-                    onSelect = viewModel::updateCornerStyle
-                )
-            }
-
-            item {
-                TransitionStyleSelector(
-                    selected = config.transitionStyle,
-                    onSelect = viewModel::updateTransitionStyle
-                )
-            }
         }
-    }
-}
-
-@Composable
-private fun ThemeModeSelector(
-    selected: ThemeMode,
-    onSelect: (ThemeMode) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("主题模式", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ThemeMode.entries.forEach { mode ->
-                    FilterChip(
-                        modifier = Modifier.weight(1f),
-                        selected = selected == mode,
-                        onClick = { onSelect(mode) },
-                        label = {
-                            Text(
-                                when (mode) {
-                                    ThemeMode.LIGHT -> "浅色"
-                                    ThemeMode.DARK -> "深色"
-                                    ThemeMode.SYSTEM -> "跟随系统"
-                                },
-                                maxLines = 1
-                            )
-                        }
-                    )
+        item(key = "dynamic_color") {
+            SettingSwitch(
+                title = "动态取色",
+                subtitle = "Android 12+ 使用系统动态配色",
+                setting = prefs.useDynamicColor
+            )
+        }
+        item(key = "palette_style") {
+            SettingListCard(
+                title = "调色盘风格",
+                setting = prefs.paletteStyle,
+                options = PaletteStyle.entries,
+                label = { style ->
+                    when (style) {
+                        PaletteStyle.TONAL_SPOT -> "特调"
+                        PaletteStyle.EXPRESSIVE -> "表现力"
+                        PaletteStyle.NEUTRAL -> "中性"
+                        PaletteStyle.VIBRANT -> "鲜艳"
+                        PaletteStyle.MONOCHROME -> "黑白"
+                    }
                 }
-            }
+            )
+        }
+        item(key = "swap_base_colors") {
+            SettingSwitch(
+                title = "反转颜色",
+                subtitle = "交换页面背景和低饱和容器色，强调色保持不变",
+                setting = prefs.swapBaseColors
+            )
+        }
+        item(key = "seed_color") {
+            SeedColorPaletteCard(setting = prefs.seedColorArgb)
+        }
+        item(key = "pure_black") {
+            SettingSwitch(
+                title = "纯色背景",
+                subtitle = "深色用纯黑，浅色用纯白，会参与背景层级反转",
+                setting = prefs.isPureBlack
+            )
+        }
+        item(key = "font_scale") {
+            SettingDiscreteSlider(
+                title = "字体大小",
+                subtitle = "调整应用字体大小",
+                setting = prefs.fontScale,
+                values = FONT_SCALES,
+                valueLabel = { "${(it * 100).roundToInt()}%" },
+                minLabel = "小",
+                midLabel = "标准",
+                maxLabel = "大"
+            )
+        }
+        item(key = "ui_scale") {
+            SettingDiscreteSlider(
+                title = "界面缩放",
+                subtitle = "调整界面元素的整体大小",
+                setting = prefs.uiScale,
+                values = UI_SCALES,
+                valueLabel = { "${(it * 100).roundToInt()}%" }
+            )
+        }
+        item(key = "round_screen_safe_padding") {
+            SettingDiscreteSlider(
+                title = "圆屏安全边距",
+                subtitle = "仅圆形屏幕生效，0% 为关闭，100% 为默认",
+                setting = prefs.roundScreenSafePaddingScale,
+                values = ROUND_SCREEN_SAFE_PADDING_SCALES,
+                valueLabel = { "${(it * 100).roundToInt()}%" }
+            )
+        }
+        item(key = "pull_refresh_distance") {
+            SettingDiscreteSlider(
+                title = "下拉刷新行程",
+                subtitle = "数值越大，下拉越长才会触发刷新",
+                setting = prefs.pullRefreshDistanceDp,
+                values = PULL_REFRESH_DISTANCES,
+                valueLabel = { "${it.roundToInt()}dp" },
+                minLabel = "短",
+                midLabel = "标准",
+                maxLabel = "长"
+            )
+        }
+        item(key = "fix_bottom_bar") {
+            SettingSwitch(
+                title = "固定底栏",
+                subtitle = "主页底栏不再随滚动自动收起",
+                setting = prefs.fixBottomBar
+            )
+        }
+        item(key = "animation_speed") {
+            SettingChoiceChips(
+                title = "动画速度",
+                subtitle = "调整界面动画速度",
+                setting = prefs.animationSpeed,
+                options = AnimationSpeed.entries,
+                label = { speed ->
+                    when (speed) {
+                        AnimationSpeed.OFF -> "关闭"
+                        AnimationSpeed.FAST -> "快速"
+                        AnimationSpeed.NORMAL -> "标准"
+                        AnimationSpeed.SLOW -> "慢速"
+                    }
+                }
+            )
+        }
+        item(key = "corner_style") {
+            SettingChoiceChips(
+                title = "圆角风格",
+                subtitle = "调整界面圆角风格",
+                setting = prefs.cornerStyle,
+                options = CornerStyle.entries,
+                label = { style ->
+                    when (style) {
+                        CornerStyle.SQUARE -> "直角"
+                        CornerStyle.STANDARD -> "标准"
+                        CornerStyle.ROUNDED -> "圆润"
+                        CornerStyle.CIRCULAR -> "圆形"
+                    }
+                }
+            )
+        }
+        item(key = "transition_style") {
+            SettingListCard(
+                title = "过渡动画",
+                subtitle = "调整页面切换动画样式",
+                setting = prefs.transitionStyle,
+                options = TransitionStyle.entries,
+                label = { style ->
+                    when (style) {
+                        TransitionStyle.NONE -> "无动画"
+                        TransitionStyle.SHARED_AXIS_X -> "水平滑动"
+                        TransitionStyle.SHARED_AXIS_Y -> "垂直滑动"
+                        TransitionStyle.SHARED_AXIS_Z -> "缩放"
+                        TransitionStyle.FADE_THROUGH -> "淡入淡出"
+                        TransitionStyle.SLIDE -> "滑动"
+                    }
+                }
+            )
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColorPaletteSelector(
-    selected: Color,
-    onSelect: (Color) -> Unit
+private fun SeedColorPaletteCard(
+    setting: Setting<Int>
 ) {
+    val (selectedArgb, setColor) = setting.flow.bindSetting(setting.current, setting::commit)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("主题色", style = MaterialTheme.typography.titleMedium)
@@ -215,82 +219,36 @@ private fun ColorPaletteSelector(
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 PresetColors.forEach { (color, _) ->
-                    ColorItem(
-                        color = color,
-                        selected = color == selected,
-                        onClick = { onSelect(color) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ColorItem(
-    color: Color,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(color)
-            .then(
-                if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                else Modifier
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Icon(
-                Icons.Default.Check,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun PaletteStyleSelector(
-    selected: PaletteStyle,
-    onSelect: (PaletteStyle) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("调色盘风格", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            PaletteStyle.entries.forEach { style ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = { onSelect(style) },
-                        modifier = Modifier.weight(1f)
+                    val argb = color.toArgb()
+                    val selected = argb == selectedArgb
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .then(
+                                if (selected) {
+                                    Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .clickable {
+                                setColor(argb)
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = paletteStyleLabel(style),
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    if (style == selected) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Spacer(Modifier.size(24.dp))
+                        if (selected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -308,330 +266,3 @@ private val PULL_REFRESH_DISTANCES = listOf(
     16f, 24f, 32f, 40f, 48f, 56f, 64f, 72f, 80f,
     88f, 96f, 104f, 112f, 120f, 128f, 136f, 144f, 152f, 160f
 )
-
-private fun sliderIndex(value: Float, lastIndex: Int): Int {
-    return value.roundToInt().coerceIn(0, lastIndex)
-}
-
-@Composable
-private fun FontScaleSelector(
-    scale: Float,
-    onScaleChange: (Float) -> Unit
-) {
-    val idx = remember(scale) {
-        FONT_SCALES.indexOfFirst { kotlin.math.abs(it - scale) < 0.01f }
-            .coerceAtLeast(0)
-    }
-    Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("字体大小", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "${(FONT_SCALES[idx] * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Slider(
-                value = idx.toFloat(),
-                onValueChange = { onScaleChange(FONT_SCALES[sliderIndex(it, FONT_SCALES.lastIndex)]) },
-                valueRange = 0f..(FONT_SCALES.size - 1).toFloat(),
-                steps = FONT_SCALES.size - 2
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("小", style = MaterialTheme.typography.bodySmall)
-                Text("标准", style = MaterialTheme.typography.bodySmall)
-                Text("大", style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
-
-@Composable
-private fun UiScaleSelector(
-    scale: Float,
-    onScaleChange: (Float) -> Unit
-) {
-    val idx = remember(scale) {
-        UI_SCALES.indexOfFirst { kotlin.math.abs(it - scale) < 0.01f }
-            .takeIf { it >= 0 }
-            ?: UI_SCALES.indexOf(1.0f).coerceAtLeast(0)
-    }
-    var sliderIdx by remember(scale) { mutableIntStateOf(idx) }
-    Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("界面缩放", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "调整界面元素的整体大小",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    "${(UI_SCALES[sliderIdx] * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Slider(
-                value = sliderIdx.toFloat(),
-                onValueChange = { sliderIdx = sliderIndex(it, UI_SCALES.lastIndex) },
-                onValueChangeFinished = {
-                    val newScale = UI_SCALES[sliderIdx]
-                    if (kotlin.math.abs(newScale - scale) < 0.01f) return@Slider
-                    onScaleChange(newScale)
-                },
-                valueRange = 0f..(UI_SCALES.size - 1).toFloat(),
-                steps = UI_SCALES.size - 2
-            )
-        }
-    }
-}
-
-@Composable
-private fun RoundScreenSafePaddingSelector(
-    scale: Float,
-    onScaleChange: (Float) -> Unit
-) {
-    val idx = remember(scale) {
-        ROUND_SCREEN_SAFE_PADDING_SCALES.indexOfFirst { kotlin.math.abs(it - scale) < 0.01f }
-            .takeIf { it >= 0 }
-            ?: ROUND_SCREEN_SAFE_PADDING_SCALES.indexOf(1.0f).coerceAtLeast(0)
-    }
-    var sliderIdx by remember(scale) { mutableIntStateOf(idx) }
-    Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("圆屏安全边距", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "仅圆形屏幕生效，0% 为关闭，100% 为默认",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    "${(ROUND_SCREEN_SAFE_PADDING_SCALES[sliderIdx] * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Slider(
-                value = sliderIdx.toFloat(),
-                onValueChange = {
-                    sliderIdx = sliderIndex(it, ROUND_SCREEN_SAFE_PADDING_SCALES.lastIndex)
-                },
-                onValueChangeFinished = {
-                    val newScale = ROUND_SCREEN_SAFE_PADDING_SCALES[sliderIdx]
-                    if (kotlin.math.abs(newScale - scale) < 0.01f) return@Slider
-                    onScaleChange(newScale)
-                },
-                valueRange = 0f..(ROUND_SCREEN_SAFE_PADDING_SCALES.size - 1).toFloat(),
-                steps = ROUND_SCREEN_SAFE_PADDING_SCALES.size - 2
-            )
-        }
-    }
-}
-
-@Composable
-private fun PullRefreshDistanceSelector(
-    distanceDp: Float,
-    onDistanceChange: (Float) -> Unit
-) {
-    val idx = remember(distanceDp) {
-        PULL_REFRESH_DISTANCES.indexOfFirst { kotlin.math.abs(it - distanceDp) < 0.01f }
-            .takeIf { it >= 0 }
-            ?: PULL_REFRESH_DISTANCES.indexOf(DEFAULT_PULL_REFRESH_DISTANCE_DP).coerceAtLeast(0)
-    }
-    var sliderIdx by remember(distanceDp) { mutableIntStateOf(idx) }
-    Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("下拉刷新行程", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "数值越大，下拉越长才会触发刷新",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    "${PULL_REFRESH_DISTANCES[sliderIdx].toInt()}dp",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Slider(
-                value = sliderIdx.toFloat(),
-                onValueChange = {
-                    sliderIdx = sliderIndex(it, PULL_REFRESH_DISTANCES.lastIndex)
-                },
-                onValueChangeFinished = {
-                    val newDistance = PULL_REFRESH_DISTANCES[sliderIdx]
-                    if (kotlin.math.abs(newDistance - distanceDp) < 0.01f) return@Slider
-                    onDistanceChange(newDistance)
-                },
-                valueRange = 0f..(PULL_REFRESH_DISTANCES.size - 1).toFloat(),
-                steps = PULL_REFRESH_DISTANCES.size - 2
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("短", style = MaterialTheme.typography.bodySmall)
-                Text("标准", style = MaterialTheme.typography.bodySmall)
-                Text("长", style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TransitionStyleSelector(
-    selected: TransitionStyle,
-    onSelect: (TransitionStyle) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("过渡动画", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            TransitionStyle.entries.forEach { style ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = { onSelect(style) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = transitionStyleLabel(style),
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    if (style == selected) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Spacer(Modifier.size(24.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun transitionStyleLabel(style: TransitionStyle): String = when (style) {
-    TransitionStyle.NONE -> "无动画"
-    TransitionStyle.SHARED_AXIS_X -> "水平滑动"
-    TransitionStyle.SHARED_AXIS_Y -> "垂直滑动"
-    TransitionStyle.SHARED_AXIS_Z -> "缩放"
-    TransitionStyle.FADE_THROUGH -> "淡入淡出"
-    TransitionStyle.SLIDE -> "滑动"
-}
-
-private fun paletteStyleLabel(style: PaletteStyle): String = when (style) {
-    PaletteStyle.TONAL_SPOT -> "特调"
-    PaletteStyle.EXPRESSIVE -> "表现力"
-    PaletteStyle.NEUTRAL -> "中性"
-    PaletteStyle.VIBRANT -> "鲜艳"
-    PaletteStyle.MONOCHROME -> "黑白"
-}
-
-@Composable
-private fun AnimationSpeedSelector(
-    speed: AnimationSpeed,
-    onSelect: (AnimationSpeed) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("动画速度", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AnimationSpeed.entries.forEach { s ->
-                    FilterChip(
-                        modifier = Modifier.weight(1f),
-                        selected = speed == s,
-                        onClick = { onSelect(s) },
-                        label = {
-                            Text(
-                                when (s) {
-                                    AnimationSpeed.OFF -> "关闭"
-                                    AnimationSpeed.FAST -> "快速"
-                                    AnimationSpeed.NORMAL -> "标准"
-                                    AnimationSpeed.SLOW -> "慢速"
-                                },
-                                maxLines = 1
-                            )
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CornerStyleSelector(
-    selected: CornerStyle,
-    onSelect: (CornerStyle) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("圆角风格", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                CornerStyle.entries.forEach { s ->
-                    FilterChip(
-                        modifier = Modifier.weight(1f),
-                        selected = selected == s,
-                        onClick = { onSelect(s) },
-                        label = {
-                            Text(
-                                when (s) {
-                                    CornerStyle.SQUARE -> "直角"
-                                    CornerStyle.STANDARD -> "标准"
-                                    CornerStyle.ROUNDED -> "圆润"
-                                    CornerStyle.CIRCULAR -> "圆形"
-                                },
-                                maxLines = 1
-                            )
-                        }
-                    )
-                }
-            }
-        }
-    }
-}

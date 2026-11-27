@@ -1,20 +1,15 @@
 package com.naaammme.bbspace.playback
 
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
+import com.naaammme.bbspace.core.settings.stateInWhileSubscribed
 import com.naaammme.bbspace.core.playback.LivePlaybackController
 import com.naaammme.bbspace.core.playback.StreamPlaybackSession
 import com.naaammme.bbspace.core.model.LiveRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -22,27 +17,20 @@ import javax.inject.Inject
 class PlaybackHostViewModel @Inject constructor(
     private val playbackSession: StreamPlaybackSession,
     private val livePlaybackController: LivePlaybackController,
-    playerSettings: AppSettings
+    playbackPrefs: PlaybackPrefs
 ) : ViewModel() {
 
     val player = playbackSession.player
     val currentTarget = playbackSession.currentTarget
     val sessionState = playbackSession.sessionState
-    val backgroundPlaybackEnabled = playerSettings.state
-        .map { it.playback.backgroundPlayback }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = false
-        )
-    val miniPlayerAvailable = playerSettings.state
-        .combine(playbackSession.currentTarget) { settings, target ->
-            settings.playback.inAppMiniPlayer && target != null
+    val backgroundPlaybackEnabled = playbackPrefs.backgroundPlayback.stateIn(viewModelScope)
+    val miniPlayerAvailable = playbackPrefs.inAppMiniPlayer.flow
+        .combine(playbackSession.currentTarget) { enabled, target ->
+            enabled && target != null
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = false
+        .stateInWhileSubscribed(
+            viewModelScope,
+            playbackPrefs.inAppMiniPlayer.current && playbackSession.currentTarget.value != null
         )
 
     private val _hostMode = mutableStateOf(PlaybackHostMode.Hidden)

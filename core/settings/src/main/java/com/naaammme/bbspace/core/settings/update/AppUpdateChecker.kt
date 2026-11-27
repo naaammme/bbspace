@@ -2,7 +2,8 @@ package com.naaammme.bbspace.core.settings.update
 
 import android.content.Context
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
+import com.naaammme.bbspace.core.model.AppReleaseInfo
+import com.naaammme.bbspace.core.model.AppUpdateCheckResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,43 +12,6 @@ import okhttp3.Request
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
-
-data class AppReleaseInfo(
-    val version: String,
-    val url: String,
-    val desc: String?
-)
-
-sealed interface AppUpdateCheckResult {
-    data class UpToDate(val release: AppReleaseInfo) : AppUpdateCheckResult
-    data class HasUpdate(val release: AppReleaseInfo) : AppUpdateCheckResult
-}
-
-fun AppUpdateCheckResult.toDialogState(): AppUpdateDialogState {
-    return when (this) {
-        is AppUpdateCheckResult.UpToDate -> AppUpdateDialogState(
-            title = "已是最新版本",
-            desc = release.desc ?: "当前已是最新版本"
-        )
-        is AppUpdateCheckResult.HasUpdate -> release.toDialogState()
-    }
-}
-
-fun AppReleaseInfo.toDialogState(): AppUpdateDialogState {
-    return AppUpdateDialogState(
-        title = "发现新版本 v$version",
-        desc = desc ?: "暂无更新说明",
-        confirmText = "前往下载",
-        url = url
-    )
-}
-
-fun Throwable.toDialogState(): AppUpdateDialogState {
-    return AppUpdateDialogState(
-        title = "检查更新失败",
-        desc = message ?: "未知错误"
-    )
-}
 
 @Singleton
 class AppUpdateChecker @Inject constructor(

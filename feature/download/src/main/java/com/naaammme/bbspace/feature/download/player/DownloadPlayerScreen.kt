@@ -45,7 +45,6 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import com.naaammme.bbspace.core.model.DownloadPlaybackStatus
-import com.naaammme.bbspace.core.model.PlayerSettingsState
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
@@ -58,7 +57,8 @@ fun DownloadPlayerScreen(
 ) {
     val procOwner = remember { ProcessLifecycleOwner.get() }
     val act = LocalActivity.current
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
+    val autoRotateFullscreen by viewModel.autoRotateFullscreen.collectAsStateWithLifecycle()
+    val backgroundPlayback by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
     var isFull by rememberSaveable { mutableStateOf(false) }
 
     val closePage = {
@@ -100,8 +100,8 @@ fun DownloadPlayerScreen(
         }
     }
 
-    DisposableEffect(act, isFull, settingsState.playback.autoRotateFullscreen) {
-        act?.requestedOrientation = if (isFull && settingsState.playback.autoRotateFullscreen) {
+    DisposableEffect(act, isFull, autoRotateFullscreen) {
+        act?.requestedOrientation = if (isFull && autoRotateFullscreen) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -109,10 +109,10 @@ fun DownloadPlayerScreen(
         onDispose { }
     }
 
-    DisposableEffect(procOwner, viewModel, settingsState.playback.backgroundPlayback) {
+    DisposableEffect(procOwner, viewModel, backgroundPlayback) {
         val lifecycle = procOwner.lifecycle
         val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !settingsState.playback.backgroundPlayback) {
+            if (event == Lifecycle.Event.ON_STOP && !backgroundPlayback) {
                 if (viewModel.state.value.isPlaying) {
                     viewModel.pause()
                 }

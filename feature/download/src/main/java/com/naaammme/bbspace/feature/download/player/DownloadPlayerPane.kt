@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -50,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import com.naaammme.bbspace.core.designsystem.component.DanmakuSettingsSection
+import com.naaammme.bbspace.core.designsystem.component.SettingSwitchCard
 import com.naaammme.bbspace.infra.player.danmaku.DanmakuLayer
 import com.naaammme.bbspace.infra.player.danmaku.rememberDanmakuOverlayState
 import com.naaammme.bbspace.infra.player.pinchVideoZoom
@@ -57,7 +56,6 @@ import com.naaammme.bbspace.infra.player.rememberVideoContentFrame
 import com.naaammme.bbspace.infra.player.rememberVideoZoomState
 import com.naaammme.bbspace.infra.player.resetVideoZoomOnSizeChanged
 import com.naaammme.bbspace.core.model.DanmakuConfig
-import com.naaammme.bbspace.core.model.PlayerSettingsState
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -76,7 +74,8 @@ internal fun DownloadPlayerPane(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
+    val danmakuConfig by viewModel.danmakuConfig.collectAsStateWithLifecycle()
+    val backgroundPlayback by viewModel.backgroundPlayback.collectAsStateWithLifecycle()
     val danmakuState by viewModel.danmakuState.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
@@ -100,7 +99,6 @@ internal fun DownloadPlayerPane(
     } else {
         0f
     }
-    val danmakuConfig = settingsState.danmaku
     val playerView = remember(context) {
         PlayerView(context).apply {
             useController = false
@@ -207,7 +205,7 @@ internal fun DownloadPlayerPane(
                 onTogglePlay = viewModel::togglePlayPause,
                 onToggleDanmaku = {
                     showControls = true
-                    viewModel.updateDanmaku(danmakuConfig.copy(enabled = !danmakuConfig.enabled))
+                    viewModel.toggleDanmaku()
                 },
                 onSpeedClick = {
                     showControls = true
@@ -246,9 +244,10 @@ internal fun DownloadPlayerPane(
 
     if (showSettingsSheet) {
         DownloadPlayerSettingsSheet(
-            settingsState = settingsState,
+            backgroundPlayback = backgroundPlayback,
+            danmakuConfig = danmakuConfig,
             onDismiss = { showSettingsSheet = false },
-            onDanmakuConfigChange = viewModel::updateDanmaku,
+            onDanmakuUpdate = viewModel::updateDanmaku,
             onBackgroundPlaybackChange = viewModel::updateBackgroundPlayback
         )
     }
@@ -417,9 +416,10 @@ private fun DownloadSpeedDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DownloadPlayerSettingsSheet(
-    settingsState: PlayerSettingsState,
+    backgroundPlayback: Boolean,
+    danmakuConfig: DanmakuConfig,
     onDismiss: () -> Unit,
-    onDanmakuConfigChange: (DanmakuConfig) -> Unit,
+    onDanmakuUpdate: ((DanmakuConfig) -> DanmakuConfig) -> Unit,
     onBackgroundPlaybackChange: (Boolean) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -435,47 +435,16 @@ private fun DownloadPlayerSettingsSheet(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            DownloadSwitchCard(
+            SettingSwitchCard(
                 title = "后台播放",
                 subtitle = "退出页面或切到后台后继续播放",
-                checked = settingsState.playback.backgroundPlayback,
+                checked = backgroundPlayback,
                 onCheckedChange = onBackgroundPlaybackChange
             )
             DanmakuSettingsSection(
-                config = settingsState.danmaku,
-                onConfigChange = onDanmakuConfigChange
+                config = danmakuConfig,
+                onUpdate = onDanmakuUpdate
             )
-        }
-    }
-}
-
-@Composable
-private fun DownloadSwitchCard(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Card {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
     }
 }

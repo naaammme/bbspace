@@ -1,19 +1,15 @@
 package com.naaammme.bbspace.feature.settings.privacy
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.settings.AppSettings
 import com.naaammme.bbspace.core.auth.AuthStore
 import com.naaammme.bbspace.core.auth.CacheManager
 import com.naaammme.bbspace.core.model.LoginCredential
+import com.naaammme.bbspace.core.settings.SystemPrefs
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class PrivacyUiState(
     val deviceInfo: Map<String, String> = emptyMap(),
@@ -31,17 +27,13 @@ data class PrivacyUiState(
 class PrivacyViewModel @Inject constructor(
     private val authStore: AuthStore,
     private val cacheManager: CacheManager,
-    private val appSettings: AppSettings
+    systemPrefs: SystemPrefs
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PrivacyUiState())
     val uiState: StateFlow<PrivacyUiState> = _uiState.asStateFlow()
 
-    val blockGaia = appSettings.blockGaia.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        false
-    )
+    internal val blockGaia = systemPrefs.blockGaia
 
     init {
         refresh()
@@ -66,10 +58,6 @@ class PrivacyViewModel @Inject constructor(
             accounts = authStore.getAllAccounts(),
             currentMid = authStore.mid
         )
-    }
-
-    fun setBlockGaia(enabled: Boolean) {
-        viewModelScope.launch { appSettings.updateBlockGaia(enabled) }
     }
 
     fun exportAllAccounts(): String = authStore.exportAllAccounts()

@@ -3,7 +3,7 @@ package com.naaammme.bbspace.core.playback
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.BiliConstants
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
 import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.VideoTargetTool
@@ -12,7 +12,6 @@ import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 
 @Singleton
@@ -20,7 +19,7 @@ class RemotePlaybackReporter @Inject constructor(
     private val restClient: BiliRestClient,
     private val authProvider: AuthProvider,
     private val restParamBuilder: BiliRestParamBuilder,
-    private val playerSettings: AppSettings
+    private val playbackPrefs: PlaybackPrefs
 ) {
     internal suspend fun startHeartbeat(active: PlaybackReportSession): Long {
         if (!canReport(active)) return 0L
@@ -190,7 +189,7 @@ class RemotePlaybackReporter @Inject constructor(
     }
 
     private suspend fun canReport(active: PlaybackReportSession): Boolean {
-        return active.reportEnabled && playerSettings.state.first().playback.reportPlayback
+        return active.reportEnabled && playbackPrefs.reportPlayback.get()
     }
 
     private companion object {

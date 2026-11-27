@@ -2,9 +2,12 @@ package com.naaammme.bbspace.feature.live
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.DanmakuPrefs
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
+import com.naaammme.bbspace.core.settings.stateInWhileSubscribed
 import com.naaammme.bbspace.core.live.LiveRoomMessageRepository
 import com.naaammme.bbspace.core.playback.LivePlaybackController
+import com.naaammme.bbspace.core.model.DanmakuConfig
 import com.naaammme.bbspace.core.model.LivePlaybackError
 import com.naaammme.bbspace.core.model.LivePlaybackViewState
 import com.naaammme.bbspace.core.model.LiveRoomPanelState
@@ -14,7 +17,6 @@ import com.naaammme.bbspace.core.model.LiveRoomSessionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +31,8 @@ import kotlinx.coroutines.launch
 class LiveViewModel @Inject constructor(
     private val playbackController: LivePlaybackController,
     private val liveRoomMessageRepository: LiveRoomMessageRepository,
-    private val playerSettings: AppSettings
+    playbackPrefs: PlaybackPrefs,
+    private val danmakuPrefs: DanmakuPrefs
 ) : ViewModel() {
     val player = playbackController.player
     private val _route = MutableStateFlow<LiveRoute?>(null)
@@ -40,7 +43,10 @@ class LiveViewModel @Inject constructor(
             initialValue = null
         )
     val playbackState: StateFlow<LivePlaybackViewState> = playbackController.liveState
-    val settingsState = playerSettings.state
+    val autoRotateFullscreen: StateFlow<Boolean> =
+        playbackPrefs.autoRotateFullscreen.stateIn(viewModelScope)
+    val danmakuConfig: StateFlow<DanmakuConfig> = danmakuPrefs.config
+        .stateInWhileSubscribed(viewModelScope, danmakuPrefs.currentConfig())
     private val emptyRoomSession = MutableStateFlow(LiveRoomSessionState())
     val roomSession: StateFlow<LiveRoomSessionState> = route
         .flatMapLatest { curRoute ->
@@ -123,9 +129,7 @@ class LiveViewModel @Inject constructor(
     fun setDanmakuEnabled(enabled: Boolean) {
         danmakuUpdateJob?.cancel()
         danmakuUpdateJob = viewModelScope.launch {
-            val cur = playerSettings.state.first().danmaku
-            if (cur.enabled == enabled) return@launch
-            playerSettings.setDanmaku(cur.copy(enabled = enabled))
+            danmakuPrefs.enabled.set(enabled)
         }
     }
 

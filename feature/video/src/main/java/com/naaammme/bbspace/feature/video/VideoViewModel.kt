@@ -3,15 +3,14 @@ package com.naaammme.bbspace.feature.video
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.DanmakuPrefs
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
+import com.naaammme.bbspace.core.settings.stateInWhileSubscribed
 import com.naaammme.bbspace.core.playback.VideoPlaybackController
 import com.naaammme.bbspace.core.model.CommentSubject
 import com.naaammme.bbspace.core.model.CommentSubjectTool
 import com.naaammme.bbspace.core.model.DanmakuConfig
-import com.naaammme.bbspace.core.model.PlayBiz
 import com.naaammme.bbspace.core.model.PlaybackProgress
-import com.naaammme.bbspace.core.model.PlayerBufferProfile
-import com.naaammme.bbspace.core.model.VideoCdnMode
 import com.naaammme.bbspace.core.model.VideoDownloadKind
 import com.naaammme.bbspace.core.model.VideoDownloadMeta
 import com.naaammme.bbspace.core.model.VideoDownloadRequest
@@ -27,7 +26,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class VideoViewModel @Inject constructor(
     private val playbackController: VideoPlaybackController,
-    private val playerSettings: AppSettings
+    internal val playbackPrefs: PlaybackPrefs,
+    private val danmakuPrefs: DanmakuPrefs
 ) : ViewModel() {
 
     private val _targetStack = MutableStateFlow<List<VideoTarget>>(emptyList())
@@ -35,7 +35,15 @@ class VideoViewModel @Inject constructor(
     val player: StateFlow<Player?> = playbackController.player
     val videoState: StateFlow<VideoPlaybackState> = playbackController.videoState
     val playbackProgress: StateFlow<PlaybackProgress> = playbackController.playbackProgress
-    val settingsState = playerSettings.state
+
+    val autoRotateFullscreen: StateFlow<Boolean> =
+        playbackPrefs.autoRotateFullscreen.stateIn(viewModelScope)
+
+    val gestureSpeed: StateFlow<Float> =
+        playbackPrefs.gestureSpeed.stateIn(viewModelScope)
+
+    val danmakuConfig: StateFlow<DanmakuConfig> = danmakuPrefs.config
+        .stateInWhileSubscribed(viewModelScope, danmakuPrefs.currentConfig())
 
     val commentSubject: CommentSubject?
         get() {
@@ -88,12 +96,6 @@ class VideoViewModel @Inject constructor(
         playbackController.switchVideoAudio(audioId)
     }
 
-    fun updateVideoCdnMode(mode: VideoCdnMode) {
-        viewModelScope.launch {
-            playerSettings.setVideoCdnMode(mode)
-        }
-    }
-
     fun seekTo(positionMs: Long) {
         playbackController.seekTo(positionMs)
     }
@@ -102,57 +104,15 @@ class VideoViewModel @Inject constructor(
         playbackController.setSpeed(speed)
     }
 
-    fun updateBackgroundPlayback(enabled: Boolean) {
+    fun toggleDanmaku() {
         viewModelScope.launch {
-            playerSettings.setBackgroundPlayback(enabled)
+            danmakuPrefs.enabled.update { !it }
         }
     }
 
-    fun updateInAppMiniPlayer(enabled: Boolean) {
+    fun updateDanmaku(transform: (DanmakuConfig) -> DanmakuConfig) {
         viewModelScope.launch {
-            playerSettings.setInAppMiniPlayer(enabled)
-        }
-    }
-
-    fun updateReportPlayback(enabled: Boolean) {
-        viewModelScope.launch {
-            playerSettings.setReportPlayback(enabled)
-        }
-    }
-
-    fun updateBufferProfile(profile: PlayerBufferProfile) {
-        viewModelScope.launch {
-            playerSettings.setBufferProfile(profile)
-        }
-    }
-
-    fun updatePreferSoftwareDecode(enabled: Boolean) {
-        viewModelScope.launch {
-            playerSettings.setPreferSoftwareDecode(enabled)
-        }
-    }
-
-    fun updateDecoderFallback(enabled: Boolean) {
-        viewModelScope.launch {
-            playerSettings.setDecoderFallback(enabled)
-        }
-    }
-
-    fun updateAutoRotateFullscreen(enabled: Boolean) {
-        viewModelScope.launch {
-            playerSettings.setAutoRotateFullscreen(enabled)
-        }
-    }
-
-    fun updateGestureSpeed(speed: Float) {
-        viewModelScope.launch {
-            playerSettings.setGestureSpeed(speed)
-        }
-    }
-
-    fun updateDanmaku(config: DanmakuConfig) {
-        viewModelScope.launch {
-            playerSettings.setDanmaku(config)
+            danmakuPrefs.update(transform)
         }
     }
 

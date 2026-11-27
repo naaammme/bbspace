@@ -22,7 +22,7 @@ import com.naaammme.bbspace.core.model.ThreePointReasonKind
 import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoTargetTool
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.FeedPrefs
 import com.naaammme.bbspace.infra.network.BiliRestClient
 import com.naaammme.bbspace.infra.network.BiliRestParamBuilder
 import com.naaammme.bbspace.infra.network.BiliRestProfile
@@ -30,7 +30,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 
 data class FeedResult(val items: List<FeedItem>, val toast: FeedToast?, val interestChoose: InterestChoose? = null)
@@ -40,7 +39,7 @@ class FeedRepository @Inject constructor(
     private val restClient: BiliRestClient,
     private val restParamBuilder: BiliRestParamBuilder,
     private val authStore: AuthStore,
-    private val appSettings: AppSettings
+    private val feedPrefs: FeedPrefs
 ) {
 
     companion object {
@@ -51,11 +50,12 @@ class FeedRepository @Inject constructor(
     val toastFlow: SharedFlow<FeedToast> = _toastFlow
 
     suspend fun fetchFeed(idx: Long, pull: Boolean, flush: Int): FeedResult {
-        val hdFeed = appSettings.hdFeed.first()
+        val settings = feedPrefs.readRequestSettings()
+        val hdFeed = settings.hdFeed
         val profile = if (hdFeed) BiliRestProfile.HD else BiliRestProfile.APP
         val json = restClient.getSigned(
             url = "${BiliConstants.BASE_URL_APP}$FEED_ENDPOINT",
-            params = buildParams(idx, pull, flush, profile, hdFeed),
+            params = buildParams(idx, pull, flush, profile, settings),
             profile = profile
         )
         return parseResponse(json, hdFeed)
@@ -69,11 +69,12 @@ class FeedRepository @Inject constructor(
         interestResult: String,
         interestPosIds: String
     ): FeedResult {
-        val hdFeed = appSettings.hdFeed.first()
+        val settings = feedPrefs.readRequestSettings()
+        val hdFeed = settings.hdFeed
         val profile = if (hdFeed) BiliRestProfile.HD else BiliRestProfile.APP
         val json = restClient.getSigned(
             url = "${BiliConstants.BASE_URL_APP}$FEED_ENDPOINT",
-            params = buildParams(idx, pull, flush, profile, hdFeed) + mapOf(
+            params = buildParams(idx, pull, flush, profile, settings) + mapOf(
                 "interest_id" to interestId.toString(),
                 "interest_result" to interestResult,
                 "interest_pos_ids" to interestPosIds
@@ -99,19 +100,15 @@ class FeedRepository @Inject constructor(
         return FeedResult(items, toast, interestChoose)
     }
 
-    private suspend fun buildParams(
+    private fun buildParams(
         idx: Long,
         pull: Boolean,
         flush: Int,
         profile: BiliRestProfile,
-        hdFeed: Boolean
+        settings: FeedPrefs.RequestSettings
     ): Map<String, String> {
-        val personalizedRcmd = appSettings.personalizedRcmd.first()
-        val lessonsMode = appSettings.lessonsMode.first()
-        val teenagersMode = appSettings.teenagersMode.first()
-        val teenagersAge = appSettings.teenagersAge.first()
         val ts = System.currentTimeMillis() / 1000
-        val token = if (hdFeed) authStore.getHdAccessKeyForCurrent() else authStore.accessToken
+        val token = if (settings.hdFeed) authStore.getHdAccessKeyForCurrent() else authStore.accessToken
         val isColdStart = idx == 0L
         return restParamBuilder.app(profile, ts, token) + buildMap {
             put("auto_refresh_state", "1")
@@ -122,7 +119,7 @@ class FeedRepository @Inject constructor(
             put("column_timestamp", "0")
             put("device_name", android.os.Build.MODEL)
             put("device_type", "0")
-            put("disable_rcmd", if (personalizedRcmd) "0" else "1")
+            put("disable_rcmd", if (settings.personalizedRcmd) "0" else "1")
             put("flush", flush.toString())
             put("fnval", "272")
             put("fnver", "0")
@@ -135,7 +132,7 @@ class FeedRepository @Inject constructor(
             put("inline_sound", "1")
             put("inline_sound_cold_state", "2")
             put("interest_id", "0")
-            if (lessonsMode) {
+            if (settings.lessonsMode) {
                 put("lessons_mode", "1")
             }
             put("login_event", when {
@@ -153,8 +150,8 @@ class FeedRepository @Inject constructor(
             put("recsys_mode", "0")
             put("splash_creative_id", "0")
             put("splash_id", "")
-            if (teenagersMode) {
-                put("teenagers_age", teenagersAge.toString())
+            if (settings.teenagersMode) {
+                put("teenagers_age", settings.teenagersAge.toString())
                 put("teenagers_mode", "1")
             }
             put("video_mode", "1")

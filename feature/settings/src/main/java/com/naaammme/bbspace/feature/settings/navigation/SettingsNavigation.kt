@@ -4,6 +4,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import com.naaammme.bbspace.core.settings.AppearancePrefs
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
+import com.naaammme.bbspace.core.settings.SystemPrefs
 import com.naaammme.bbspace.feature.settings.SettingsScreen
 import com.naaammme.bbspace.feature.settings.about.AboutScreen
 import com.naaammme.bbspace.feature.settings.appearance.AppearanceSettingsScreen
@@ -12,6 +15,7 @@ import com.naaammme.bbspace.feature.settings.errorlog.ErrorLogScreen
 import com.naaammme.bbspace.feature.settings.feed.FeedSettingsScreen
 import com.naaammme.bbspace.feature.settings.performance.PerformanceSettingsScreen
 import com.naaammme.bbspace.feature.settings.privacy.PrivacySettingsScreen
+import javax.inject.Inject
 
 const val SETTINGS_ROUTE = "settings"
 const val APPEARANCE_ROUTE = "settings/appearance"
@@ -23,60 +27,68 @@ const val ERROR_LOG_ROUTE = "settings/error_log"
 const val ABOUT_ROUTE = "settings/about"
 const val HOME_INTEREST_ROUTE = "home/interest"
 
-fun NavGraphBuilder.settingsScreen(
-    navController: NavHostController
+class SettingsNavigation @Inject constructor(
+    private val appearancePrefs: AppearancePrefs,
+    private val playbackPrefs: PlaybackPrefs,
+    private val systemPrefs: SystemPrefs
 ) {
-    composable(SETTINGS_ROUTE) {
-        SettingsScreen(
-            onBack = { navController.popBackStack() },
-            onNavigateToAppearance = { navController.navigate(APPEARANCE_ROUTE) },
-            onNavigateToPerformance = { navController.navigate(PERFORMANCE_ROUTE) },
-            onNavigateToFeed = { navController.navigate(FEED_SETTINGS_ROUTE) },
-            onNavigateToAudioVideo = { navController.navigate(AUDIO_VIDEO_ROUTE) },
-            onNavigateToPrivacy = { navController.navigate(PRIVACY_ROUTE) },
-            onNavigateToErrorLog = { navController.navigate(ERROR_LOG_ROUTE) },
-            onNavigateToAbout = { navController.navigate(ABOUT_ROUTE) }
-        )
-    }
+    fun register(graph: NavGraphBuilder, navController: NavHostController) = with(graph) {
+        composable(SETTINGS_ROUTE) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToAppearance = { navController.navigate(APPEARANCE_ROUTE) },
+                onNavigateToPerformance = { navController.navigate(PERFORMANCE_ROUTE) },
+                onNavigateToFeed = { navController.navigate(FEED_SETTINGS_ROUTE) },
+                onNavigateToAudioVideo = { navController.navigate(AUDIO_VIDEO_ROUTE) },
+                onNavigateToPrivacy = { navController.navigate(PRIVACY_ROUTE) },
+                onNavigateToErrorLog = { navController.navigate(ERROR_LOG_ROUTE) },
+                onNavigateToAbout = { navController.navigate(ABOUT_ROUTE) }
+            )
+        }
 
-    composable(APPEARANCE_ROUTE) {
-        AppearanceSettingsScreen(onBack = { navController.popBackStack() })
-    }
+        composable(APPEARANCE_ROUTE) {
+            AppearanceSettingsScreen(onBack = { navController.popBackStack() }, prefs = appearancePrefs)
+        }
 
-    composable(PERFORMANCE_ROUTE) {
-        PerformanceSettingsScreen(onBack = { navController.popBackStack() })
-    }
+        composable(PERFORMANCE_ROUTE) {
+            PerformanceSettingsScreen(
+                onBack = { navController.popBackStack() },
+                useSystemDns = systemPrefs.useSystemDns,
+                preferredFrameRate = appearancePrefs.preferredFrameRate
+            )
+        }
 
-    composable(AUDIO_VIDEO_ROUTE) {
-        AudioVideoSettingsScreen(onBack = { navController.popBackStack() })
-    }
+        composable(AUDIO_VIDEO_ROUTE) {
+            AudioVideoSettingsScreen(onBack = { navController.popBackStack() }, prefs = playbackPrefs)
+        }
 
-    composable(PRIVACY_ROUTE) {
-        PrivacySettingsScreen(onBack = { navController.popBackStack() })
-    }
+        composable(PRIVACY_ROUTE) {
+            PrivacySettingsScreen(onBack = { navController.popBackStack() })
+        }
 
-    composable(FEED_SETTINGS_ROUTE) {
-        FeedSettingsScreen(
-            onBack = { navController.popBackStack() },
-            onNavigateToInterest = { navController.navigate(HOME_INTEREST_ROUTE) }
-        )
-    }
+        composable(FEED_SETTINGS_ROUTE) {
+            FeedSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToInterest = { navController.navigate(HOME_INTEREST_ROUTE) }
+            )
+        }
 
-    composable(ERROR_LOG_ROUTE) {
-        ErrorLogScreen(onBack = { navController.popBackStack() })
-    }
+        composable(ERROR_LOG_ROUTE) {
+            ErrorLogScreen(onBack = { navController.popBackStack() })
+        }
 
-    composable(ABOUT_ROUTE) {
-        val context = LocalContext.current
-        val pm = context.packageManager
-        val info = pm.getPackageInfo(context.packageName, 0)
-        @Suppress("DEPRECATION")
-        val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P)
-            info.longVersionCode else info.versionCode.toLong()
-        AboutScreen(
-            onBack = { navController.popBackStack() },
-            versionName = info.versionName ?: "unknown",
-            versionCode = versionCode
-        )
+        composable(ABOUT_ROUTE) {
+            val context = LocalContext.current
+            val pm = context.packageManager
+            val info = pm.getPackageInfo(context.packageName, 0)
+            @Suppress("DEPRECATION")
+            val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P)
+                info.longVersionCode else info.versionCode.toLong()
+            AboutScreen(
+                onBack = { navController.popBackStack() },
+                versionName = info.versionName ?: "unknown",
+                versionCode = versionCode
+            )
+        }
     }
 }

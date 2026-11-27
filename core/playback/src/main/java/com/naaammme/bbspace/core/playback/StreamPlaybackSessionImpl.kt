@@ -5,7 +5,8 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import com.naaammme.bbspace.core.common.AuthProvider
 import com.naaammme.bbspace.core.common.log.Logger
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.DanmakuPrefs
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
 import com.naaammme.bbspace.core.video.VideoDetailRepository
 import com.naaammme.bbspace.core.danmaku.VodDanmakuRepository
 import com.naaammme.bbspace.core.history.PlaybackHistoryRepository
@@ -25,7 +26,6 @@ import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.PlayerSessionState
-import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.ResolvedVideoIds
 import com.naaammme.bbspace.core.model.StreamPlaybackSessionState
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
@@ -52,8 +52,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -62,7 +60,8 @@ class StreamPlaybackSessionImpl @Inject constructor(
     private val videoRepository: VideoPlayerRepository,
     private val detailRepository: VideoDetailRepository,
     danmakuRepository: VodDanmakuRepository,
-    private val playerSettings: AppSettings,
+    private val playbackPrefs: PlaybackPrefs,
+    private val danmakuPrefs: DanmakuPrefs,
     private val reporter: PlaybackReporter,
     private val authProvider: AuthProvider,
     private val playbackHistoryRepo: PlaybackHistoryRepository,
@@ -123,7 +122,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
             }
         }
         runtimeScope.launch {
-            playerSettings.state.map { it.danmaku.enabled }.collect { enabled ->
+            danmakuPrefs.enabled.flow.collect { enabled ->
                 if (_currentTarget.value !is StreamPlaybackTarget.Video) return@collect
                 if (!enabled) {
                     danmakuSession.clear()
@@ -133,7 +132,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
             }
         }
         runtimeScope.launch {
-            playerSettings.state.map { it.playback.videoCdnMode }.collect { mode ->
+            playbackPrefs.videoCdnMode.flow.collect { mode ->
                 if (currentVideoCdnMode == mode) return@collect
                 currentVideoCdnMode = mode
                 if (_currentTarget.value !is StreamPlaybackTarget.Video) return@collect
@@ -146,25 +145,22 @@ class StreamPlaybackSessionImpl @Inject constructor(
 
     // StreamPlaybackSession: lifecycle
     override suspend fun prepare() {
-        val settings = withContext(Dispatchers.IO) { playerSettings.state.first() }
+        val config = withContext(Dispatchers.IO) { readPlayerConfig(lowFps = false) }
         withContext(Dispatchers.Main.immediate) {
             if (_currentTarget.value == null && player.value == null) {
-                playerEngine.updateConfig(buildPlayerConfig(lowFps = false, settings = settings))
+                playerEngine.updateConfig(config)
             }
         }
     }
 
     private suspend fun applyPlayerConfig(
         lowFps: Boolean,
-        expectedToken: Long? = null,
-        settings: PlayerSettingsState? = null
+        expectedToken: Long? = null
     ) {
-        val resolvedSettings = settings ?: withContext(Dispatchers.IO) {
-            playerSettings.state.first()
-        }
+        val config = withContext(Dispatchers.IO) { readPlayerConfig(lowFps) }
         withContext(Dispatchers.Main.immediate) {
             if (expectedToken == null || openId.get() == expectedToken) {
-                playerEngine.updateConfig(buildPlayerConfig(lowFps, resolvedSettings))
+                playerEngine.updateConfig(config)
             }
         }
     }
@@ -351,23 +347,20 @@ class StreamPlaybackSessionImpl @Inject constructor(
             coroutineScope {
                 val sourceJob = async { videoRepository.fetchPlaybackSource(request) }
                 val localResumeJob = async(Dispatchers.IO) { readLocalResumeIfResolvable(request) }
-                val qualityJob = async {
-                    request.preferredQuality ?: playerSettings.defaultVideoQuality.first()
-                }
-                val audioJob = async { playerSettings.defaultAudioQuality.first() }
-                val settingsJob = async(Dispatchers.IO) { playerSettings.state.first() }
+                val openSettingsJob = async { playbackPrefs.readOpenVideoSettings() }
 
                 val source = sourceJob.await()
-                val preferredQualityValue = qualityJob.await()
-                val preferredAudioId = audioJob.await()
+                val openSettings = openSettingsJob.await()
+                val preferredQualityValue =
+                    request.preferredQuality ?: openSettings.defaultVideoQuality
+                val preferredAudioId = openSettings.defaultAudioQuality
                 val localResume = localResumeJob.await()
-                val settings = settingsJob.await()
+                val cdnMode = openSettings.videoCdnMode
                 if (openId.get() != token) return@coroutineScope
 
                 val stream = source.streams.firstOrNull { it.quality == preferredQualityValue }
                     ?: source.streams.firstOrNull()
                 val audio = selectAudio(stream, source.audios, preferredAudioId)
-                val cdnMode = settings.playback.videoCdnMode
                 currentVideoCdnMode = cdnMode
                 val engineSource = buildVideoEngineSource(
                     stream = stream,
@@ -379,8 +372,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
                 val startMs = resolveStartMs(request, source, localResume)
                 applyPlayerConfig(
                     lowFps = isLowFrameRateStream(stream),
-                    expectedToken = token,
-                    settings = settings
+                    expectedToken = token
                 )
                 if (openId.get() != token) return@coroutineScope
 
@@ -576,14 +568,12 @@ class StreamPlaybackSessionImpl @Inject constructor(
         val token = openId.get()
         runtimeScope.launch {
             try {
-                val settings = withContext(Dispatchers.IO) { playerSettings.state.first() }
                 if (openId.get() != token) return@launch
                 val resumePositionMs = currentPlaybackPositionMs()
                 val playWhenReady = currentPlayWhenReady()
                 applyPlayerConfig(
                     lowFps = isLowFrameRateStream(state.currentStream),
-                    expectedToken = token,
-                    settings = settings
+                    expectedToken = token
                 )
                 if (openId.get() != token) return@launch
                 playerEngine.setSource(
@@ -672,24 +662,16 @@ class StreamPlaybackSessionImpl @Inject constructor(
     }
 
     // vod: config & history
-    private fun buildPlayerConfig(
-        lowFps: Boolean,
-        settings: PlayerSettingsState
-    ): PlayerConfig {
-        val buffer = settings.buffer.profile
-        val playback = settings.playback
+    private suspend fun readPlayerConfig(lowFps: Boolean): PlayerConfig {
+        val (buffer, preferSoft, decoderFallback) = playbackPrefs.readEngineSettings()
         return PlayerConfig(
             minBufferMs = if (lowFps) maxOf(buffer.minBufferMs, 35_000) else buffer.minBufferMs,
             maxBufferMs = if (lowFps) maxOf(buffer.maxBufferMs, 50_000) else buffer.maxBufferMs,
             playBufferMs = buffer.playBufferMs,
             rebufferMs = buffer.rebufferMs,
             backBufferMs = buffer.backBufferMs,
-            decoderMode = if (playback.preferSoftwareDecode) {
-                DecoderMode.Soft
-            } else {
-                DecoderMode.Hard
-            },
-            decoderFallback = playback.decoderFallback
+            decoderMode = if (preferSoft) DecoderMode.Soft else DecoderMode.Hard,
+            decoderFallback = decoderFallback
         )
     }
 
@@ -763,7 +745,7 @@ class StreamPlaybackSessionImpl @Inject constructor(
         if (state.detail == null) return
         val ids = state.ids.takeIf { it.danmakuReady } ?: return
         val source = state.playbackSource ?: return
-        if (!playerSettings.state.first().danmaku.enabled) return
+        if (!danmakuPrefs.enabled.get()) return
         danmakuSession.setSource(ids, source.durationMs)
     }
 

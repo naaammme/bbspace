@@ -1,27 +1,26 @@
 package com.naaammme.bbspace.core.playback.repository
 
-import com.naaammme.bbspace.core.settings.AppSettings
 import com.naaammme.bbspace.core.model.PlaybackAudio
 import com.naaammme.bbspace.core.model.PlaybackRequest
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
 import com.naaammme.bbspace.core.model.QualityOption
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
 import com.naaammme.bbspace.infra.web.WebPlayUrlClient
 import com.naaammme.bbspace.infra.web.WebPlayUrlRequest
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
 
 @Singleton
 class VideoWebPlaybackResolver @Inject constructor(
-    private val appSettings: AppSettings,
+    private val playbackPrefs: PlaybackPrefs,
     private val webPlayUrlClient: WebPlayUrlClient
 ) {
     suspend fun fetchPlaybackSource(request: PlaybackRequest): PlaybackSource {
         val ids = request.ids
-        val preferredCodecId = appSettings.preferredCodec.first().toVideoCodecId()
+        val preferredCodecId = playbackPrefs.preferredCodec.get().codecId
         val json = webPlayUrlClient.fetchPlayback(
             WebPlayUrlRequest(
                 aid = ids.aid,
@@ -102,15 +101,6 @@ class VideoWebPlaybackResolver @Inject constructor(
         }
     }
 
-    private fun Int.toVideoCodecId(): Int {
-        return when (this) {
-            1 -> CODECID_AVC
-            2 -> CODECID_HEVC
-            3 -> CODECID_AV1
-            else -> CODECID_HEVC
-        }
-    }
-
     private fun buildAudios(dash: JSONObject): List<PlaybackAudio> {
         val audios = dash.optJSONArray("audio") ?: return emptyList()
         return buildList {
@@ -177,11 +167,5 @@ class VideoWebPlaybackResolver @Inject constructor(
                 if (value.isNotBlank()) add(value)
             }
         }.distinct()
-    }
-
-    private companion object {
-        const val CODECID_AVC = 7
-        const val CODECID_HEVC = 12
-        const val CODECID_AV1 = 13
     }
 }

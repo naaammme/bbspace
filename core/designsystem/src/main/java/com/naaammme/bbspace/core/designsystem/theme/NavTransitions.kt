@@ -11,6 +11,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.EnterTransition.Companion.None
 import androidx.compose.animation.ExitTransition.Companion.None as ExitNone
+import com.naaammme.bbspace.core.model.AnimationSpeed
+import com.naaammme.bbspace.core.model.TransitionStyle
 
 private val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 private val Standard = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)

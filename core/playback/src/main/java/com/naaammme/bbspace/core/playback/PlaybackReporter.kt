@@ -2,7 +2,7 @@ package com.naaammme.bbspace.core.playback
 
 import android.os.SystemClock
 import com.naaammme.bbspace.core.common.AuthProvider
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.PlaybackPrefs
 import com.naaammme.bbspace.core.model.PlayReportParams
 import com.naaammme.bbspace.core.model.PlaybackProgress
 import com.naaammme.bbspace.core.model.PlaybackRequest
@@ -13,7 +13,6 @@ import com.naaammme.bbspace.infra.crypto.DeviceIdentity
 import com.naaammme.bbspace.infra.player.PlayerPlaybackState
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -21,7 +20,7 @@ import kotlinx.coroutines.sync.withLock
 class PlaybackReporter @Inject constructor(
     private val authProvider: AuthProvider,
     private val deviceIdentity: DeviceIdentity,
-    private val playerSettings: AppSettings,
+    private val playbackPrefs: PlaybackPrefs,
     private val localHistoryRecorder: LocalPlaybackHistoryRecorder,
     private val remoteReporter: RemotePlaybackReporter
 ) {
@@ -46,7 +45,7 @@ class PlaybackReporter @Inject constructor(
         val quality = state.currentStream?.quality ?: DEFAULT_QN
         val startSec = msToSec(startPositionMs)
         val nowElapsed = SystemClock.elapsedRealtime()
-        val reportEnabled = playerSettings.state.first().playback.reportPlayback
+        val reportEnabled = playbackPrefs.reportPlayback.get()
         mu.withLock {
             val active = ctx
             if (

@@ -1,228 +1,172 @@
 package com.naaammme.bbspace.feature.settings.feed
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.naaammme.bbspace.core.designsystem.component.CollapsingTopBarScaffold
-import com.naaammme.bbspace.feature.settings.SettingsViewModel
+import com.naaammme.bbspace.core.designsystem.component.SettingActionCard
+import com.naaammme.bbspace.core.designsystem.component.SettingSwitchCard
+import com.naaammme.bbspace.core.designsystem.component.SettingsPageScaffold
+import com.naaammme.bbspace.core.designsystem.component.bindSetting
+import com.naaammme.bbspace.core.settings.Setting
+import com.naaammme.bbspace.feature.settings.SettingSwitch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedSettingsScreen(
     onBack: () -> Unit,
     onNavigateToInterest: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: FeedSettingsViewModel = hiltViewModel()
 ) {
+    val prefs = viewModel.feedPrefs
     val hdFeed by viewModel.hdFeed.collectAsStateWithLifecycle()
     val hdFeedAvailable by viewModel.hdFeedAvailable.collectAsStateWithLifecycle()
-    val personalizedRcmd by viewModel.personalizedRcmd.collectAsStateWithLifecycle()
-    val lessonsMode by viewModel.lessonsMode.collectAsStateWithLifecycle()
-    val teenagersMode by viewModel.teenagersMode.collectAsStateWithLifecycle()
-    val teenagersAge by viewModel.teenagersAge.collectAsStateWithLifecycle()
-    var teenagersAgeDraft by remember(teenagersAge) { mutableFloatStateOf(teenagersAge.toFloat()) }
-    val teenagersAgeText = teenagersAgeDraft.roundToInt().coerceIn(1, 17).toString()
-
     LaunchedEffect(Unit) {
         viewModel.refreshHdFeedAvailable()
     }
 
-    CollapsingTopBarScaffold(
-        topBar = { scrollBehavior ->
-            TopAppBar(
-                title = { Text("推荐设置") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
-                    }
+    SettingsPageScaffold(title = "推荐设置", onBack = onBack) {
+        item(key = "hd_feed") {
+            SettingSwitchCard(
+                title = "HD 推荐模式",
+                subtitle = if (hdFeedAvailable) {
+                    "切换 HD 推荐接口，每页返回更多条目"
+                } else {
+                    "需先扫码绑定当前账号 HD key"
                 },
-                scrollBehavior = scrollBehavior
+                checked = hdFeed,
+                enabled = hdFeedAvailable,
+                onCheckedChange = viewModel::updateHdFeed
             )
         }
-    ) { padding ->
-        LazyColumn(
+        item(key = "personalized_rcmd") {
+            SettingSwitch(
+                title = "个性化推荐",
+                subtitle = "基于观看历史推荐内容，关闭后随机推荐",
+                setting = prefs.personalizedRcmd
+            )
+        }
+        item(key = "lessons_mode") {
+            SettingSwitch(
+                title = "课堂推荐模式",
+                subtitle = "只推荐学习相关视频",
+                setting = prefs.lessonsMode
+            )
+        }
+        item(key = "teenagers_mode") {
+            TeenagersModeCard(
+                modeSetting = prefs.teenagersMode,
+                ageSetting = prefs.teenagersAge
+            )
+        }
+        item(key = "interest") {
+            SettingActionCard(
+                title = "内容偏好调节",
+                subtitle = "查看和调整你的内容兴趣标签",
+                onClick = onNavigateToInterest
+            )
+        }
+    }
+}
+
+@Composable
+private fun TeenagersModeCard(
+    modeSetting: Setting<Boolean>,
+    ageSetting: Setting<Int>
+) {
+    val (teenagersMode, setTeenagersMode) = modeSetting.flow.bindSetting(modeSetting.current, modeSetting::commit)
+    val (teenagersAge, setTeenagersAge) = ageSetting.flow.bindSetting(ageSetting.current, ageSetting::commit)
+    var teenagersAgeDraft by remember(teenagersAge) { mutableFloatStateOf(teenagersAge.toFloat()) }
+    val teenagersAgeText = teenagersAgeDraft.roundToInt().coerceIn(1, 17).toString()
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("HD 推荐模式", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                if (hdFeedAvailable) {
-                                    "切换 HD 推荐接口，每页返回更多条目"
-                                } else {
-                                    "需先扫码绑定当前账号 HD key"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = hdFeed,
-                            enabled = hdFeedAvailable,
-                            onCheckedChange = viewModel::updateHdFeed
-                        )
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("未成年推荐", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "按指定年龄请求未成年推荐内容",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+                Switch(
+                    checked = teenagersMode,
+                    onCheckedChange = setTeenagersMode
+                )
             }
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("个性化推荐", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                "基于观看历史推荐内容，关闭后随机推荐",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = personalizedRcmd,
-                            onCheckedChange = viewModel::updatePersonalizedRcmd
-                        )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "年龄",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (teenagersMode) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
                     }
-                }
-            }
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("课堂推荐模式", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                "只推荐学习相关视频",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = lessonsMode,
-                            onCheckedChange = viewModel::updateLessonsMode
-                        )
+                )
+                Text(
+                    teenagersAgeText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (teenagersMode) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
                     }
-                }
+                )
             }
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("未成年推荐", style = MaterialTheme.typography.titleMedium)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "按指定年龄请求未成年推荐内容",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = teenagersMode,
-                                onCheckedChange = viewModel::updateTeenagersMode
-                            )
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                "年龄",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (teenagersMode) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
-                            Text(
-                                teenagersAgeText,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (teenagersMode) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
-                        }
-                        Slider(
-                            value = teenagersAgeDraft,
-                            onValueChange = { teenagersAgeDraft = it },
-                            onValueChangeFinished = {
-                                viewModel.updateTeenagersAge(teenagersAgeDraft.roundToInt())
-                            },
-                            enabled = teenagersMode,
-                            valueRange = 1f..17f,
-                            steps = 15
-                        )
+            Slider(
+                value = teenagersAgeDraft,
+                onValueChange = { teenagersAgeDraft = it },
+                onValueChangeFinished = {
+                    val nextAge = teenagersAgeDraft.roundToInt()
+                    if (nextAge != teenagersAge) {
+                        setTeenagersAge(nextAge)
                     }
-                }
-            }
-            item {
-                Card(
-                    onClick = onNavigateToInterest,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("内容偏好调节", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                "查看和调整你的内容兴趣标签",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
+                },
+                enabled = teenagersMode,
+                valueRange = 1f..17f,
+                steps = 15,
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
         }
     }
 }

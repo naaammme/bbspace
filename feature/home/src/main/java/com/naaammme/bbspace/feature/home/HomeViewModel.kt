@@ -6,14 +6,13 @@ import com.naaammme.bbspace.core.common.log.Logger
 import com.naaammme.bbspace.core.feed.FeedDislikeRepository
 import com.naaammme.bbspace.core.feed.PageActionTracker
 import com.naaammme.bbspace.core.feed.FeedRepository
-import com.naaammme.bbspace.core.settings.AppSettings
+import com.naaammme.bbspace.core.settings.FeedPrefs
 import com.naaammme.bbspace.core.model.FeedItem
 import com.naaammme.bbspace.core.model.ThreePointReason
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -23,7 +22,7 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val feedRepo: FeedRepository,
     private val feedDislikeRepo: FeedDislikeRepository,
-    private val appSettings: AppSettings,
+    private val feedPrefs: FeedPrefs,
     private val pageActionTracker: PageActionTracker
 ) : ViewModel() {
 
@@ -69,7 +68,7 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { it.copy(items = feed.items) }
                 flush++
                 if (feed.interestChoose != null) {
-                    val done = appSettings.interestDone.first()
+                    val done = feedPrefs.interestDone.get()
                     if (!done) {
                         _uiState.update { it.copy(interestChoose = feed.interestChoose) }
                     }
@@ -90,7 +89,7 @@ class HomeViewModel @Inject constructor(
     fun submitInterest(interestId: Int, interestResult: String, interestPosIds: String) {
         viewModelScope.launch {
             try {
-                appSettings.markInterestDone()
+                feedPrefs.interestDone.set(true)
                 _uiState.update {
                     it.copy(
                         interestChoose = null,

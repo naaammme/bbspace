@@ -17,6 +17,34 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import com.naaammme.bbspace.core.model.AnimationSpeed
+import com.naaammme.bbspace.core.model.DEFAULT_PULL_REFRESH_DISTANCE_DP
+import com.naaammme.bbspace.core.model.PaletteStyle
+import com.naaammme.bbspace.core.model.ThemeMode
+import com.naaammme.bbspace.core.model.ThemeVisualConfig
+
+val PresetColors = listOf(
+    Color(0xFFFB7299) to "哔哩粉",
+    Color(0xFF00A1D6) to "哔哩蓝",
+    Color(0xFFF44336) to "红色",
+    Color(0xFFFF9800) to "橙色",
+    Color(0xFFFFC107) to "琥珀",
+    Color(0xFFFFEB3B) to "黄色",
+    Color(0xFFCDDC39) to "酸橙",
+    Color(0xFF8BC34A) to "浅绿",
+    Color(0xFF4CAF50) to "绿色",
+    Color(0xFF009688) to "青色",
+    Color(0xFF00BCD4) to "蓝绿",
+    Color(0xFF03A9F4) to "浅蓝",
+    Color(0xFF2196F3) to "蓝色",
+    Color(0xFF3F51B5) to "靛蓝",
+    Color(0xFF9C27B0) to "紫色",
+    Color(0xFF673AB7) to "深紫",
+    Color(0xFF607D8B) to "蓝灰",
+    Color(0xFF795548) to "棕色",
+    Color(0xFF9E9E9E) to "灰色",
+    Color(0xFF000000) to "黑色"
+)
 
 private val MonochromeDarkColorScheme = darkColorScheme(
     primary = Color.White,
@@ -98,7 +126,9 @@ private val MonochromeLightColorScheme = lightColorScheme(
 
 @Composable
 fun BiliTheme(
-    config: ThemeConfig = ThemeConfig(),
+    config: ThemeVisualConfig = ThemeVisualConfig(),
+    animationSpeed: AnimationSpeed = AnimationSpeed.NORMAL,
+    pullRefreshDistanceDp: Float = DEFAULT_PULL_REFRESH_DISTANCE_DP,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (config.themeMode) {
@@ -109,11 +139,12 @@ fun BiliTheme(
     val context = LocalContext.current
     val baseDensity = LocalDensity.current
     val uiScale = config.uiScale
+    val seedColor = remember(config.seedColorArgb) { Color(config.seedColorArgb) }
 
     val colorScheme = remember(
         context,
         darkTheme,
-        config.seedColor,
+        seedColor,
         config.useDynamicColor,
         config.paletteStyle,
         config.swapBaseColors,
@@ -124,7 +155,7 @@ fun BiliTheme(
             config.useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
-            else -> createSeedColorScheme(config.seedColor, darkTheme)
+            else -> createSeedColorScheme(seedColor, darkTheme)
         }
         val styled = if (config.paletteStyle == PaletteStyle.MONOCHROME) base
         else applyPaletteStyle(base, config.paletteStyle, darkTheme)
@@ -142,8 +173,8 @@ fun BiliTheme(
     val shapes = remember(config.cornerStyle) { buildShapes(config.cornerStyle) }
 
     CompositionLocalProvider(LocalDensity provides density) {
-        ProvideAnimations(config.animationSpeed) {
-            ProvidePullRefresh(config.pullRefreshDistanceDp) {
+        ProvideAnimations(animationSpeed) {
+            ProvidePullRefresh(pullRefreshDistanceDp) {
                 MaterialTheme(
                     colorScheme = colorScheme,
                     typography = typography,

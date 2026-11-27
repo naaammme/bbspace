@@ -22,14 +22,13 @@ android {
 
 dependencies {
     api(project(":core:model"))
-    api(project(":core:designsystem"))
 
     implementation(project(":core:common"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    api(libs.datastore.preferences)
+    implementation(libs.datastore.preferences)
     implementation(libs.okhttp)
     implementation(libs.androidx.core.ktx)
 }

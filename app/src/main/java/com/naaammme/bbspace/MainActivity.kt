@@ -13,42 +13,45 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.naaammme.bbspace.core.settings.AppSettings
-import com.naaammme.bbspace.core.settings.update.AppUpdateCheckResult
-import com.naaammme.bbspace.core.settings.update.AppUpdateChecker
-import com.naaammme.bbspace.core.settings.update.toDialogState
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialog
 import com.naaammme.bbspace.core.designsystem.component.AppUpdateDialogState
+import com.naaammme.bbspace.core.designsystem.component.toDialogState
 import com.naaammme.bbspace.core.designsystem.theme.BiliTheme
-import com.naaammme.bbspace.core.designsystem.theme.FrameRateMode
-import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
+import com.naaammme.bbspace.core.model.AppUpdateCheckResult
+import com.naaammme.bbspace.core.model.FrameRateMode
 import com.naaammme.bbspace.core.model.WebLinkParser
 import com.naaammme.bbspace.core.model.WebLinkTarget
+import com.naaammme.bbspace.core.settings.SystemPrefs
+import com.naaammme.bbspace.core.settings.update.AppUpdateChecker
+import com.naaammme.bbspace.feature.settings.navigation.SettingsNavigation
 import com.naaammme.bbspace.navigation.AppNavHost
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject
-    lateinit var appSettings: AppSettings
+    lateinit var systemPrefs: SystemPrefs
 
     @Inject
     lateinit var updateChecker: AppUpdateChecker
+
+    @Inject
+    lateinit var settingsNavigation: SettingsNavigation
 
     private var updateDialog by mutableStateOf<AppUpdateDialogState?>(null)
 
@@ -73,15 +76,23 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
         }
         setContent {
-            val themeConfig by appSettings.themeConfig.collectAsState(initial = ThemeConfig())
+            val shellViewModel: AppShellViewModel = hiltViewModel()
+            val visualConfig by shellViewModel.themeVisualConfig.collectAsStateWithLifecycle()
+            val animationSpeed by shellViewModel.animationSpeed.collectAsStateWithLifecycle()
+            val pullRefreshDistanceDp by shellViewModel.pullRefreshDistanceDp.collectAsStateWithLifecycle()
+            val preferredFrameRate by shellViewModel.preferredFrameRate.collectAsStateWithLifecycle()
 
-            LaunchedEffect(themeConfig.preferredFrameRate) {
-                applyFrameRate(themeConfig.preferredFrameRate)
+            LaunchedEffect(preferredFrameRate) {
+                applyFrameRate(preferredFrameRate)
             }
-            BiliTheme(config = themeConfig) {
+            BiliTheme(
+                config = visualConfig,
+                animationSpeed = animationSpeed,
+                pullRefreshDistanceDp = pullRefreshDistanceDp
+            ) {
                 ApplySystemBarAppearance()
                 AppNavHost(
-                    themeConfig = themeConfig,
+                    settingsNavigation = settingsNavigation,
                     appLink = pendingAppLink,
                     onAppLinkConsumed = { pendingAppLink = null }
                 )
@@ -107,7 +118,7 @@ class MainActivity : ComponentActivity() {
 
     private fun autoCheckUpdate() {
         lifecycleScope.launch {
-            if (!appSettings.autoCheckUpdate.first()) return@launch
+            if (!systemPrefs.autoCheckUpdate.get()) return@launch
             val result = updateChecker.check().getOrNull() ?: return@launch
             if (result is AppUpdateCheckResult.HasUpdate) {
                 updateDialog = result.toDialogState()

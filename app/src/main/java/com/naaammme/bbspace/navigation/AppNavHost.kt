@@ -5,11 +5,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FloatingActionButton
@@ -52,8 +50,8 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.naaammme.bbspace.AppShellViewModel
 import com.naaammme.bbspace.core.designsystem.component.roundScreenSafePadding
-import com.naaammme.bbspace.core.designsystem.theme.ThemeConfig
 import com.naaammme.bbspace.core.designsystem.theme.buildNavTransitions
 import com.naaammme.bbspace.core.model.FavoriteContentTarget
 import com.naaammme.bbspace.core.model.HistoryTarget
@@ -62,10 +60,8 @@ import com.naaammme.bbspace.core.model.LiveRoute
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.StreamPlaybackTarget
 import androidx.compose.runtime.CompositionLocalProvider
-import com.naaammme.bbspace.core.model.VideoSrc
 import com.naaammme.bbspace.core.model.VideoTarget
 
-import com.naaammme.bbspace.core.model.VideoTargetTool
 import com.naaammme.bbspace.core.model.WebLinkParser
 import com.naaammme.bbspace.core.model.WebLinkTarget
 import com.naaammme.bbspace.feature.dynamic.DynamicScreen
@@ -109,10 +105,9 @@ import com.naaammme.bbspace.feature.space.navigation.navigateToSpaceRelation
 import com.naaammme.bbspace.feature.space.navigation.spaceSearchScreen
 import com.naaammme.bbspace.feature.space.navigation.navigateToSpaceSearch
 import com.naaammme.bbspace.feature.home.interest.InterestScreen
-import com.naaammme.bbspace.feature.settings.SettingsViewModel
 import com.naaammme.bbspace.feature.settings.navigation.HOME_INTEREST_ROUTE
 import com.naaammme.bbspace.feature.settings.navigation.SETTINGS_ROUTE
-import com.naaammme.bbspace.feature.settings.navigation.settingsScreen
+import com.naaammme.bbspace.feature.settings.navigation.SettingsNavigation
 import com.naaammme.bbspace.feature.download.DownloadViewModel
 import com.naaammme.bbspace.feature.user.UserScreen
 import com.naaammme.bbspace.feature.user.UserDest
@@ -131,14 +126,17 @@ private val topLevelNavScrollThreshold = 72.dp
 private const val topLevelNavAnimationDurationMillis = 220
 @Composable
 fun AppNavHost(
-    themeConfig: ThemeConfig = ThemeConfig(),
+    settingsNavigation: SettingsNavigation,
     appLink: WebLinkTarget? = null,
     onAppLinkConsumed: () -> Unit = {}
 ) {
     val rootNavController = rememberNavController()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val roundSafePadding = roundScreenSafePadding(themeConfig.roundScreenSafePaddingScale)
+    val shellViewModel: AppShellViewModel = hiltViewModel()
+    val roundPaddingScale by shellViewModel.roundScreenSafePaddingScale.collectAsStateWithLifecycle()
+    val navTransitionConfig by shellViewModel.navTransitionConfig.collectAsStateWithLifecycle()
+    val roundSafePadding = roundScreenSafePadding(roundPaddingScale)
     var currentTab by rememberSaveable { mutableStateOf(TopLevelRoute.HOME) }
     val downloadViewModel: DownloadViewModel = hiltViewModel()
     val playbackHostViewModel: PlaybackHostViewModel = hiltViewModel()
@@ -251,10 +249,10 @@ fun AppNavHost(
         playbackHostViewModel.minimize()
         rootNavController.navigateToDynamicDetail(opusId, opusType)
     }
-    val transitions = remember(themeConfig.transitionStyle, themeConfig.animationSpeed) {
+    val transitions = remember(navTransitionConfig) {
         buildNavTransitions<NavBackStackEntry>(
-            themeConfig.transitionStyle,
-            themeConfig.animationSpeed
+            navTransitionConfig.transitionStyle,
+            navTransitionConfig.animationSpeed
         )
     }
 
@@ -294,6 +292,7 @@ fun AppNavHost(
         ) {
             composable(MAIN_ROUTE) {
                 MainTabsScaffold(
+                    shellViewModel = shellViewModel,
                     currentTab = currentTab,
                     onTabChange = { currentTab = it },
                     onNavigateToSearch = { rootNavController.navigateToSearch() },
@@ -354,7 +353,7 @@ fun AppNavHost(
                 onOpenDynamicDetail = rootNavController::navigateToDynamicDetail,
                 onOpenLiveDetail = openLive
             )
-            settingsScreen(rootNavController)
+            settingsNavigation.register(this, rootNavController)
             searchScreen(
                 onBack = { rootNavController.popBackStack() },
                 onOpenSpace = rootNavController::navigateToSpace,
@@ -494,6 +493,7 @@ fun AppNavHost(
 
 @Composable
 private fun MainTabsScaffold(
+    shellViewModel: AppShellViewModel,
     currentTab: TopLevelRoute,
     onTabChange: (TopLevelRoute) -> Unit,
     onNavigateToSearch: () -> Unit,
@@ -516,8 +516,7 @@ private fun MainTabsScaffold(
     val userState by userViewModel.uiState.collectAsStateWithLifecycle()
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val useStartAlignedBottomToolbar = windowSizeClass.isWidthAtLeastBreakpoint(600)
-    val settingsViewModel: SettingsViewModel = hiltViewModel()
-    val fixBottomBar by settingsViewModel.fixBottomBar.collectAsStateWithLifecycle()
+    val fixBottomBar by shellViewModel.fixBottomBar.collectAsStateWithLifecycle()
     val navVisibilityController = rememberTopLevelNavVisibilityController(fixBottomBar)
 
     Box(

@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
-import com.naaammme.bbspace.core.designsystem.component.SelectableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.naaammme.bbspace.core.model.AppReleaseInfo
+import com.naaammme.bbspace.core.model.AppUpdateCheckResult
 
 @Immutable
 data class AppUpdateDialogState(
@@ -23,6 +24,32 @@ data class AppUpdateDialogState(
     val confirmText: String? = null,
     val url: String? = null
 )
+
+fun AppUpdateCheckResult.toDialogState(): AppUpdateDialogState {
+    return when (this) {
+        is AppUpdateCheckResult.UpToDate -> AppUpdateDialogState(
+            title = "已是最新版本",
+            desc = release.desc ?: "当前已是最新版本"
+        )
+        is AppUpdateCheckResult.HasUpdate -> release.toDialogState()
+    }
+}
+
+fun AppReleaseInfo.toDialogState(): AppUpdateDialogState {
+    return AppUpdateDialogState(
+        title = "发现新版本 v$version",
+        desc = desc ?: "暂无更新说明",
+        confirmText = "前往下载",
+        url = url
+    )
+}
+
+fun Throwable.toDialogState(): AppUpdateDialogState {
+    return AppUpdateDialogState(
+        title = "检查更新失败",
+        desc = message ?: "未知错误"
+    )
+}
 
 @Composable
 fun AppUpdateDialog(

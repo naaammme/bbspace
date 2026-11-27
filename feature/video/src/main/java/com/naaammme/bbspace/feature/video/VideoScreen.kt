@@ -51,7 +51,6 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.media3.common.util.UnstableApi
 import com.naaammme.bbspace.core.model.PlaybackSource
 import com.naaammme.bbspace.core.model.PlaybackStream
-import com.naaammme.bbspace.core.model.PlayerSettingsState
 import com.naaammme.bbspace.core.model.SpaceRoute
 import com.naaammme.bbspace.core.model.VideoTarget
 import com.naaammme.bbspace.core.model.VideoDownloadKind
@@ -77,7 +76,7 @@ fun VideoScreen(
     hostExpanded: Boolean = true
 ) {
     val videoState by viewModel.videoState.collectAsStateWithLifecycle()
-    val settingsState by viewModel.settingsState.collectAsStateWithLifecycle(initialValue = PlayerSettingsState())
+    val autoRotateFullscreen by viewModel.autoRotateFullscreen.collectAsStateWithLifecycle()
     val act = LocalActivity.current
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val isExpandedWidth = windowSizeClass.isWidthAtLeastBreakpoint(840)
@@ -149,10 +148,10 @@ fun VideoScreen(
         }
     }
 
-    DisposableEffect(act, fullOn, settingsState.playback.autoRotateFullscreen, isPortraitVideo) {
+    DisposableEffect(act, fullOn, autoRotateFullscreen, isPortraitVideo) {
         act?.requestedOrientation = if (
             fullOn &&
-            settingsState.playback.autoRotateFullscreen &&
+            autoRotateFullscreen &&
             !isPortraitVideo
         ) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
