@@ -87,6 +87,7 @@ data class CommentReply(
     val message: String = "",
     val translatedMessage: String? = null,
     val likeCount: Long = 0L,
+    val isLiked: Boolean = false,
     val replyCount: Long = 0L,
     val timeText: String = "",
     val locationText: String = "",

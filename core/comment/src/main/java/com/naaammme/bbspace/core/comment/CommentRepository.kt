@@ -66,6 +66,33 @@ class CommentRepository @Inject constructor(
     private val publishedRecordRepo: PublishedRecordRepository
 ) {
 
+    suspend fun setReplyLiked(
+        subject: CommentSubject,
+        rpid: Long,
+        liked: Boolean,
+        sort: CommentSort
+    ) {
+        val accessToken = authProvider.accessToken
+        check(accessToken.isNotBlank()) { "请先登录" }
+        val source = subject.source
+        val ts = System.currentTimeMillis() / 1000L
+        restClient.postSigned(
+            url = "${BiliConstants.BASE_URL_API}$ACTION_ENDPOINT",
+            params = restParamBuilder.app(BiliRestProfile.APP, ts, accessToken) + buildMap {
+                put("oid", subject.oid.toString())
+                put("type", subject.type.toString())
+                put("rpid", rpid.toString())
+                put("action", if (liked) "1" else "0")
+                put("from", source.from)
+                put("scene", source.scene)
+                put("ordering", if (source.scene == "main") sort.toOrdering() else "")
+                put("spmid", source.spmid)
+                source.fromSpmid?.let { put("from_spmid", it) }
+            },
+            profile = BiliRestProfile.APP
+        )
+    }
+
     suspend fun deleteReply(
         subject: CommentSubject,
         rpid: Long
@@ -418,6 +445,7 @@ class CommentRepository @Inject constructor(
             rpid = info.id,
             message = content.message.trim(),
             likeCount = info.like,
+            isLiked = info.replyControl.action == 1L,
             replyCount = info.count,
             timeText = formatReplyTime(info.ctime),
             locationText = formatReplyLocation(info.replyControl.location),
@@ -466,6 +494,7 @@ class CommentRepository @Inject constructor(
             rpid = reply.optLong("rpid"),
             message = content?.optString("message").orEmpty().trim(),
             likeCount = reply.optLong("like"),
+            isLiked = reply.optInt("action") == 1,
             replyCount = reply.optLong("count"),
             timeText = formatReplyTime(reply.optLong("ctime")),
             locationText = formatReplyLocation(replyControl?.optString("location").orEmpty()),
@@ -719,6 +748,7 @@ class CommentRepository @Inject constructor(
         const val REPLY_INFO_ENDPOINT = "bilibili.main.community.reply.v1.Reply/ReplyInfo"
         const val TRANSLATE_ENDPOINT = "bilibili.main.community.reply.v1.Reply/TranslateReply"
         const val ADD_ENDPOINT = "/x/v2/reply/add"
+        const val ACTION_ENDPOINT = "/x/v2/reply/action"
         const val DEL_ENDPOINT = "/x/v2/reply/del"
         const val UPLOAD_ENDPOINT = "/x/dynamic/feed/draw/upload_bfs"
         const val TAG = "CommentRepo"

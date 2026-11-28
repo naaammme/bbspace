@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import com.naaammme.bbspace.core.designsystem.component.AvatarImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImage
 import com.naaammme.bbspace.core.designsystem.component.PreviewImageGrid
+import com.naaammme.bbspace.core.designsystem.icon.AppIcons
 import com.naaammme.bbspace.core.model.CommentReply
 import com.naaammme.bbspace.core.model.CommentUser
 
@@ -55,6 +57,7 @@ internal sealed interface CommentReplyAction {
     data class Check(val rpid: Long) : CommentReplyAction
     data class Translate(val rpid: Long) : CommentReplyAction
     data class Delete(val reply: CommentReply) : CommentReplyAction
+    data class ToggleLike(val reply: CommentReply, val inThread: Boolean) : CommentReplyAction
     data class Reply(val reply: CommentReply) : CommentReplyAction
     data class OpenReplies(val reply: CommentReply) : CommentReplyAction
     data class OpenUser(val user: CommentUser) : CommentReplyAction
@@ -112,7 +115,8 @@ internal fun ThreadReplyCard(
     currentMid: Long,
     isBusy: Boolean,
     onAction: (CommentReplyAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    canLike: Boolean = true
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -123,6 +127,8 @@ internal fun ThreadReplyCard(
             reply = reply,
             currentMid = currentMid,
             isBusy = isBusy,
+            canLike = canLike,
+            inThread = true,
             onAction = onAction,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
         )
@@ -136,7 +142,9 @@ private fun ReplyBody(
     currentMid: Long,
     isBusy: Boolean,
     onAction: (CommentReplyAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    canLike: Boolean = true,
+    inThread: Boolean = false
 ) {
     val previewImages = remember(reply.pictures) {
         reply.pictures.map { picture ->
@@ -249,11 +257,33 @@ private fun ReplyBody(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Text(
-                        text = "点赞 ${reply.likeCount}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    val likeColor = with(MaterialTheme.colorScheme) {
+                        if (reply.isLiked) primary else onSurfaceVariant
+                    }
+                    Row(
+                        modifier = Modifier
+                            .clickable(
+                                enabled = canLike && !isBusy,
+                                onClickLabel = if (reply.isLiked) "取消点赞" else "点赞",
+                                role = Role.Button,
+                                onClick = { onAction(CommentReplyAction.ToggleLike(reply, inThread)) }
+                            )
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (reply.isLiked) AppIcons.ThumbUpFilled else AppIcons.ThumbUpOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = likeColor
+                        )
+                        Text(
+                            text = reply.likeCount.toString(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = likeColor
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 TextButton(onClick = { onAction(CommentReplyAction.Reply(reply)) }) {

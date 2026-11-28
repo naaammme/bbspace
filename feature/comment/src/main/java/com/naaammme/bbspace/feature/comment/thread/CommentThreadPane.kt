@@ -172,7 +172,8 @@ private fun CommentThreadContent(
                     reply = state.root,
                     currentMid = currentMid,
                     isBusy = state.root.rpid in busyReplyIds,
-                    onAction = onReplyAction
+                    onAction = onReplyAction,
+                    canLike = !isDetailMode || (!state.loading && state.error == null)
                 )
             }
             item(

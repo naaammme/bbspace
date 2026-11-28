@@ -20,6 +20,7 @@ import com.naaammme.bbspace.feature.comment.thread.CommentThreadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import java.util.LinkedHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -49,9 +50,7 @@ class CommentViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             authRepo.currentMidFlow.collectLatest { mid ->
-                _uiState.update { cur ->
-                    cur.copy(currentMid = mid)
-                }
+                _uiState.update { it.copy(currentMid = mid, busyReplyIds = emptySet()) }
             }
         }
     }
@@ -280,6 +279,41 @@ class CommentViewModel @Inject constructor(
         )
     }
 
+    internal fun toggleReplyLike(reply: CommentReply, inThread: Boolean) {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        if (state.currentMid <= 0L) {
+            _msg.tryEmit("请先登录")
+            return
+        }
+        val rpid = reply.rpid
+        if (rpid in state.busyReplyIds) return
+        val liked = !reply.isLiked
+        val actionSubject = if (inThread) subject.copy(source = subject.source.copy(scene = "detail")) else subject
+        _uiState.update { it.copy(busyReplyIds = it.busyReplyIds + rpid) }
+        viewModelScope.launch {
+            val result = runCatching { repo.setReplyLiked(actionSubject, rpid, liked, state.sort) }
+            result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+            val current = _uiState.value
+            if (current.subject != subject || current.currentMid != state.currentMid || rpid !in current.busyReplyIds) {
+                return@launch
+            }
+            _uiState.update {
+                val ready = it.copy(busyReplyIds = it.busyReplyIds - rpid)
+                if (result.isFailure) return@update ready
+                ready.updateReply(rpid) { item ->
+                    if (item.isLiked == liked) item else item.copy(
+                        isLiked = liked,
+                        likeCount = (item.likeCount + if (liked) 1L else -1L).coerceAtLeast(0L)
+                    )
+                }
+            }
+            result.onFailure { err ->
+                _msg.tryEmit(err.message ?: "评论点赞操作失败")
+            }
+        }
+    }
+
     fun translateReply(rpid: Long) {
         val state = _uiState.value
         val subject = state.subject ?: return
@@ -302,23 +336,7 @@ class CommentViewModel @Inject constructor(
                         translated.isBlank() -> _msg.tryEmit("切换语言为英文以支持中文翻译") // TODO:支持动态 x-bili-locale-bin, 从而实现汉译英汉,英译日等
                         else -> {
                             _uiState.update { cur ->
-                                cur.copy(
-                                    items = updateTranslatedReplies(cur.items, rpid, translated),
-                                    threadPane = cur.threadPane?.let { thread ->
-                                        thread.copy(
-                                            root = if (thread.root.rpid == rpid) {
-                                                thread.root.copy(translatedMessage = translated)
-                                            } else {
-                                                thread.root
-                                            },
-                                            items = updateTranslatedReplies(
-                                                thread.items,
-                                                rpid,
-                                                translated
-                                            )
-                                        )
-                                    }
-                                )
+                                cur.updateReply(rpid) { it.copy(translatedMessage = translated) }
                             }
                         }
                     }
@@ -557,10 +575,11 @@ class CommentViewModel @Inject constructor(
     ) {
         val callId = reqId + 1L
         reqId = callId
-        val currentMid = _uiState.value.currentMid
+        val state = _uiState.value
         _uiState.value = CommentUiState(
             subject = subject,
-            currentMid = currentMid,
+            currentMid = state.currentMid,
+            busyReplyIds = if (state.subject == subject) state.busyReplyIds else emptySet(),
             loading = true,
             sort = sort,
             selectedFilter = filter
@@ -576,7 +595,7 @@ class CommentViewModel @Inject constructor(
             if (callId != reqId) return@launch
             result.fold(
                 onSuccess = { page ->
-                    _uiState.value = page.toUiState(currentMid = _uiState.value.currentMid)
+                    _uiState.update { page.toUiState(it) }
                 },
                 onFailure = { err ->
                     _uiState.update {
@@ -698,10 +717,11 @@ class CommentViewModel @Inject constructor(
         }
     }
 
-    private fun CommentPage.toUiState(currentMid: Long): CommentUiState {
+    private fun CommentPage.toUiState(current: CommentUiState): CommentUiState {
         return CommentUiState(
             subject = subject,
-            currentMid = currentMid,
+            currentMid = current.currentMid,
+            busyReplyIds = current.busyReplyIds,
             loading = false,
             title = title,
             count = count,
@@ -728,28 +748,41 @@ class CommentViewModel @Inject constructor(
             items[reply.rpid] = if (cur == null) {
                 reply
             } else {
-                reply.copy(translatedMessage = cur.translatedMessage ?: reply.translatedMessage)
+                reply.copy(
+                    translatedMessage = cur.translatedMessage ?: reply.translatedMessage,
+                    isLiked = cur.isLiked,
+                    likeCount = cur.likeCount
+                )
             }
         }
         return items.values.toList()
     }
 
-    private fun updateTranslatedReplies(
-        items: List<CommentReply>,
+    private fun CommentUiState.updateReply(
         rpid: Long,
-        translated: String
-    ): List<CommentReply> {
-        if (items.isEmpty()) return items
-        var changed = false
-        val next = items.map { reply ->
-            if (reply.rpid == rpid) {
-                changed = true
-                reply.copy(translatedMessage = translated)
-            } else {
-                reply
-            }
+        transform: (CommentReply) -> CommentReply
+    ): CommentUiState = copy(
+        items = items.updateReply(rpid, transform),
+        threadPane = threadPane?.let { thread ->
+            thread.copy(
+                root = if (thread.root.rpid == rpid) transform(thread.root) else thread.root,
+                items = thread.items.updateReply(rpid, transform)
+            )
         }
-        return if (changed) next else items
+    )
+
+    private fun List<CommentReply>.updateReply(
+        rpid: Long,
+        transform: (CommentReply) -> CommentReply
+    ): List<CommentReply> {
+        val index = indexOfFirst { it.rpid == rpid }
+        if (index < 0) return this
+        val current = this[index]
+        val updated = transform(current)
+        if (updated == current) return this
+        return toMutableList().apply {
+            this[index] = updated
+        }
     }
 
     private fun insertPublishedReply(
